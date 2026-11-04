@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import {
   EDGE_DEFAULTS,
@@ -6,9 +6,11 @@ import {
   createEmptyDiagram,
   createGroup,
   createNode,
+  descendantGroupIds,
   diagramStats,
   groupAbsoluteRect,
   groupOffset,
+  isGroupLocked,
   MAX_GROUP_DEPTH,
   nodeAbsoluteRect,
   removeGroupLifting,
@@ -777,14 +779,23 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
   toggleLock: (ids) =>
     set((s) => {
       const targets = new Set(ids);
-      const hit = s.diagram.nodes.filter((n) => targets.has(n.nodeId));
-      if (hit.length === 0) return s;
-      const nextLocked = !hit.every((n) => n.locked);
+      const nodes = s.diagram.nodes.filter((n) => targets.has(n.nodeId));
+      const groups = s.diagram.groups.filter((g) => targets.has(g.groupId));
+      if (nodes.length + groups.length === 0) return s;
+      // 只要有一个没锁就全部锁上，全都锁了就全部解开（与节点原来的口径一致）
+      const nextLocked = !(
+        nodes.every((n) => n.locked) && groups.every((g) => isGroupLocked(g))
+      );
       return {
         ...withHistory(s, `lock:${ids.join(',')}`),
         diagram: {
           ...s.diagram,
           nodes: s.diagram.nodes.map((n) => (targets.has(n.nodeId) ? { ...n, locked: nextLocked } : n)),
+          groups: s.diagram.groups.map((g) =>
+            targets.has(g.groupId)
+              ? { ...g, extJson: { ...(g.extJson ?? {}), locked: nextLocked || undefined } }
+              : g,
+          ),
         },
         saveState: 'dirty',
       };
@@ -802,8 +813,21 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
   clipboard: null,
   copySelection: () =>
     set((s) => {
-      const nodes = s.diagram.nodes.filter((n) => s.selectedIds.includes(n.nodeId));
-      const groups = s.diagram.groups.filter((g) => s.selectedIds.includes(g.groupId));
+      /*
+       * 复制要**带上分组子树**（用户 2026-11-04 反馈 Ctrl+D 嵌套组丢内容）：
+       * 选中一个分组时，它下面的子分组、以及这些组里的节点都要一起进剪贴板，
+       * 否则粘出来的是个空框。子元素的父子关系原样保留，粘贴时再统一重映射。
+       */
+      const groupIds = new Set<string>();
+      for (const g of s.diagram.groups) {
+        if (!s.selectedIds.includes(g.groupId)) continue;
+        groupIds.add(g.groupId);
+        for (const child of descendantGroupIds(s.diagram.groups, g.groupId)) groupIds.add(child);
+      }
+      const nodes = s.diagram.nodes.filter(
+        (n) => s.selectedIds.includes(n.nodeId) || (n.groupId != null && groupIds.has(n.groupId)),
+      );
+      const groups = s.diagram.groups.filter((g) => groupIds.has(g.groupId));
       if (nodes.length === 0 && groups.length === 0) return s;
       // 两端都在复制范围内的连线才带走
       const nodeIds = new Set(nodes.map((n) => n.nodeId));
@@ -821,22 +845,44 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
       const dy = offset?.y ?? 24;
       const idMap = new Map<string, string>();
       const newId = (): string => crypto.randomUUID();
+      const sourceGroups = s.diagram.groups;
+      const copiedGroupIds = new Set(clip.groups.map((g) => g.groupId));
 
+      // 1) 先把所有分组的 id 分配好 —— 子分组可能排在父分组前面，一趟内查不到父 id
+      for (const g of clip.groups) idMap.set(g.groupId, newId());
+
+      /*
+       * 2) 位移规则：父分组**也被复制**时保持局部坐标（跟着父一起平移），
+       *    父分组不在复制范围内时，先把局部坐标换算成绝对坐标，再整体 +24 ——
+       *    否则嵌套层数越多，粘出来的位置偏得越多。
+       */
       const groups = clip.groups.map((g) => {
-        const groupId = newId();
-        idMap.set(g.groupId, groupId);
-        return { ...g, groupId, x: g.x + dx, y: g.y + dy };
+        const parentCopied =
+          g.parentGroupId != null && copiedGroupIds.has(g.parentGroupId);
+        const base = parentCopied ? { x: 0, y: 0 } : groupOffset(sourceGroups, g.parentGroupId);
+        // 父组也被复制时坐标一点不能动（否则相对父组又挪了一次）；否则换算成绝对坐标再偏移
+        const shift = parentCopied ? { x: 0, y: 0 } : { x: dx, y: dy };
+        return {
+          ...g,
+          groupId: idMap.get(g.groupId)!,
+          // 父组没被一起复制时，落到顶层（否则会指向一个不存在的组）
+          parentGroupId: g.parentGroupId ? (idMap.get(g.parentGroupId) ?? null) : null,
+          x: g.x + base.x + shift.x,
+          y: g.y + base.y + shift.y,
+        };
       });
+
+      // 3) 节点同理：父组被复制就保持局部坐标，否则换算成绝对坐标
       const nodes = clip.nodes.map((n) => {
-        const nodeId = newId();
-        idMap.set(n.nodeId, nodeId);
+        const groupCopied = n.groupId != null && copiedGroupIds.has(n.groupId);
+        const base = groupCopied ? { x: 0, y: 0 } : groupOffset(sourceGroups, n.groupId);
+        const shift = groupCopied ? { x: 0, y: 0 } : { x: dx, y: dy };
         return {
           ...n,
-          nodeId,
-          // 父组没被一起复制时，落到顶层（否则会指向一个不存在的组）
+          nodeId: idMap.get(n.nodeId)!,
           groupId: n.groupId ? (idMap.get(n.groupId) ?? null) : null,
-          x: n.x + dx,
-          y: n.y + dy,
+          x: n.x + base.x + shift.x,
+          y: n.y + base.y + shift.y,
         };
       });
       const edges = clip.edges.map((e) => ({

@@ -1,6 +1,7 @@
 import { type Edge, type Node } from '@xyflow/react';
 import {
-  GROUP_HEADER_HEIGHT,
+  groupHeaderHeight,
+  isGroupLocked,
   isHiddenByCollapse,
   nodeAbsoluteRect,
   type Anchor,
@@ -49,7 +50,8 @@ export type ArchFlowEdge = Edge<ArchEdgeData, 'archEdge'>;
 
 /** 组折叠后只显示标题栏；Schema 里的 height 仍是展开高度（C9），不能改 */
 export function displayGroupHeight(group: DiagramGroup): number {
-  return group.collapsed ? GROUP_HEADER_HEIGHT : group.height;
+  // 折叠后只剩标题栏：单行分组 32px，带副文本的 42px
+  return group.collapsed ? groupHeaderHeight(group) : group.height;
 }
 
 /**
@@ -85,6 +87,7 @@ function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>): S
       const height = displayGroupHeight(g);
       const cached = groupFlowCache.get(g);
       if (cached && cached.selected === selected && cached.height === height) return cached.flow;
+      const locked = isGroupLocked(g);
       const flow: SwimlaneFlowNode = {
         id: g.groupId,
         type: 'swimlane',
@@ -98,7 +101,8 @@ function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>): S
         parentId: g.parentGroupId ?? undefined,
         // 分组永远在普通节点下面，避免挡住节点
         zIndex: 0,
-        draggable: true,
+        // 锁定的分组不能拖（但可以选中，用户 2026-11-04）
+        draggable: !locked,
       };
       groupFlowCache.set(g, { selected, height, flow });
       return flow;

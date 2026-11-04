@@ -6,6 +6,7 @@ import {
   FONT_SIZE_MIN,
   FONT_SIZE_PRESETS,
   iconKeyFor,
+  isGroupLocked,
   isIconHidden,
   isSingleLineGroup,
   parseFontSize,
@@ -344,6 +345,32 @@ function GroupForm({ group }: { group: DiagramGroup }) {
     patchGroup(group.groupId, { extJson: { ...(group.extJson ?? {}), iconKey: key, iconHidden: false } });
   const patchGroupIcon = (patch: { iconHidden: boolean }): void =>
     patchGroup(group.groupId, { extJson: { ...(group.extJson ?? {}), ...patch } });
+  const locked = isGroupLocked(group);
+  const toggleLock = (): void =>
+    patchGroup(group.groupId, {
+      extJson: { ...(group.extJson ?? {}), locked: locked ? undefined : true },
+    });
+
+  // 锁定的分组只留「解锁」入口（用户 2026-11-04：隐藏分组属性配置入口，但锁定要能解锁）
+  if (locked) {
+    return (
+      <div>
+        <p className="mb-3 rounded border border-[var(--panel-border)] bg-[#F9FAFB] px-2 py-2 text-[12px] text-[var(--text-secondary)]">
+          分组「{group.label}」已锁定：不能拖动、缩放、改名、折叠，也不能改颜色和图标。
+          仍然可以选中、可以往里放节点。
+        </p>
+        <button
+          type="button"
+          onClick={toggleLock}
+          aria-pressed
+          className="flex w-full items-center justify-center gap-1.5 rounded border border-[var(--primary)] bg-[#EFF6FF] px-2 py-1.5 text-xs text-[var(--primary)] hover:bg-[#DBEAFE]"
+        >
+          <ToolIcon name="unlock" size={16} />
+          <span>解锁分组</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -452,6 +479,18 @@ function GroupForm({ group }: { group: DiagramGroup }) {
       <p className="mb-3 text-[11px] text-[var(--text-secondary)]">
         组内直接包含 {childCount} 个节点；拖进/拖出会自动换算局部坐标，整体拖动不漂移。
       </p>
+
+      <button
+        type="button"
+        onClick={toggleLock}
+        aria-pressed={false}
+        aria-label="锁定分组"
+        title="锁定后不能拖动、改名、缩放、折叠（仍可选中）"
+        className="mb-2 flex w-full items-center justify-center gap-1.5 rounded border border-[var(--panel-border)] px-2 py-1.5 text-xs text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+      >
+        <ToolIcon name="lock" size={16} />
+        <span>锁定分组</span>
+      </button>
 
       <button
         type="button"

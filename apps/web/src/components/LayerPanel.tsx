@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isGroupLocked } from '@arch/schema';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
 /**
@@ -26,13 +27,14 @@ export function LayerPanel() {
   const setLayerOrder = useDiagramStore((s) => s.setLayerOrder);
   const bringToFront = useDiagramStore((s) => s.bringToFront);
   const sendToBack = useDiagramStore((s) => s.sendToBack);
+  const toggleLock = useDiagramStore((s) => s.toggleLock);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   if (!open) return null;
 
   const rows: Row[] = [
     ...nodes.map((n) => ({ id: n.nodeId, kind: 'node' as const, label: n.label || n.nodeType, sort: n.sort, locked: n.locked })),
-    ...groups.map((g) => ({ id: g.groupId, kind: 'group' as const, label: g.label || '未命名分组', sort: g.sort })),
+    ...groups.map((g) => ({ id: g.groupId, kind: 'group' as const, label: g.label || '未命名分组', sort: g.sort, locked: isGroupLocked(g) })),
   ].sort((a, b) => b.sort - a.sort);
 
   const move = (fromId: string, toId: string): void => {
@@ -85,7 +87,19 @@ export function LayerPanel() {
             >
               {row.label}
             </button>
-            {row.locked && <span className="text-[10px] text-[var(--text-secondary)]" title="已锁定">🔒</span>}
+            {/* 锁标记本身就是解锁按钮（用户 2026-11-04：属性面板 / 右键菜单 / 图层面板都要能解锁） */}
+            <button
+              type="button"
+              title={row.locked ? '已锁定，点击解锁' : '点击锁定'}
+              aria-label={row.locked ? '解锁' : '锁定'}
+              aria-pressed={Boolean(row.locked)}
+              onClick={() => toggleLock([row.id])}
+              className={`shrink-0 rounded px-0.5 text-[10px] hover:bg-[#F3F4F6] ${
+                row.locked ? 'text-[var(--text-secondary)]' : 'text-transparent hover:text-[var(--text-secondary)]'
+              }`}
+            >
+              🔒
+            </button>
             <span className="flex shrink-0 gap-0.5">
               <button
                 type="button"

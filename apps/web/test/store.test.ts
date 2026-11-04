@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createEmptyDiagram, createGroup, createNode } from '@arch/schema';
+import { createEmptyDiagram, createGroup, createNode, isGroupLocked, isSingleLineGroup } from '@arch/schema';
 import { useDiagramStore } from '../src/store/useDiagramStore.js';
 
 const store = () => useDiagramStore.getState();
@@ -164,5 +164,104 @@ describe('连线全局配置', () => {
     store().applyEdgeDefaultsToAll();
     expect(store().diagram.edges.every((e) => e.edgeType === 'bezier' && e.strokeWidth === 4)).toBe(true);
     expect(store().saveState).toBe('dirty');
+  });
+});
+
+/** 造"外层组 → 内层组 → 节点"的嵌套，用于复制/锁定用例 */
+function nestedDiagram() {
+  const outer = store().addGroup({ x: 100, y: 100 }, { label: '外层', width: 600, height: 400 });
+  const inner = store().addGroup({ x: 40, y: 40 }, { label: '内层', width: 300, height: 200 });
+  store().reparentGroup(inner.groupId, outer.groupId);
+  const node = store().addNode('waf', { x: 20, y: 20 }, inner.groupId);
+  return { outer, inner, node };
+}
+
+/** 从当前状态读（reparent 后局部坐标会变，不能用复制的旧对象断言） */
+const groupOf = (id: string) => store().diagram.groups.find((g) => g.groupId === id)!;
+const nodeOf = (id: string) => store().diagram.nodes.find((n) => n.nodeId === id)!;
+
+describe('复制嵌套分组（用户 2026-11-04：Ctrl+D 丢内容）', () => {
+  it('只选中外层组，也会把子组和组里的节点一起复制', () => {
+    const { outer } = nestedDiagram();
+    store().updateSelection([outer.groupId], []);
+    store().copySelection();
+
+    expect(store().clipboard?.groups).toHaveLength(2);
+    expect(store().clipboard?.nodes).toHaveLength(1);
+  });
+
+  it('粘贴后父子关系仍然正确，组内元素相对位置不变', () => {
+    const { outer, inner, node } = nestedDiagram();
+    const before = { outer: { ...groupOf(outer.groupId) }, inner: { ...groupOf(inner.groupId) }, node: { ...nodeOf(node.nodeId) } };
+
+    store().updateSelection([outer.groupId], []);
+    store().copySelection();
+    store().pasteClipboard();
+
+    const newOuter = store().diagram.groups.find((g) => g.groupId !== outer.groupId && g.label === '外层')!;
+    const newInner = store().diagram.groups.find((g) => g.groupId !== inner.groupId && g.label === '内层')!;
+    const newNode = store().diagram.nodes.find((n) => n.nodeId !== node.nodeId)!;
+
+    // 子组挂到**新的**外层，节点挂到新的内层
+    expect(newInner.parentGroupId).toBe(newOuter.groupId);
+    expect(newNode.groupId).toBe(newInner.groupId);
+    // 局部坐标原样保留：整棵子树跟着外层一起 +24，内部结构不散
+    expect({ x: newInner.x, y: newInner.y }).toEqual({ x: before.inner.x, y: before.inner.y });
+    expect({ x: newNode.x, y: newNode.y }).toEqual({ x: before.node.x, y: before.node.y });
+    // 只有顶层的外层组整体偏移
+    expect({ x: newOuter.x, y: newOuter.y }).toEqual({ x: before.outer.x + 24, y: before.outer.y + 24 });
+  });
+
+  it('单独复制内层组：父组不在范围内，粘出来落到顶层且位置不漂', () => {
+    const { inner } = nestedDiagram();
+    const before = { ...groupOf(inner.groupId) };
+
+    store().updateSelection([inner.groupId], []);
+    store().copySelection();
+    store().pasteClipboard();
+
+    const copy = store().diagram.groups[store().diagram.groups.length - 1]!;
+    expect(copy.groupId).not.toBe(inner.groupId);
+    expect(copy.parentGroupId).toBeNull();
+    // 绝对坐标 = 父组偏移(100,100) + 局部坐标 + 24
+    expect({ x: copy.x, y: copy.y }).toEqual({ x: before.x + 100 + 24, y: before.y + 100 + 24 });
+  });
+});
+
+describe('分组锁定（extJson.locked，用户 2026-11-04）', () => {
+  it('toggleLock 会同时处理分组，锁定值存在 extJson 里（不占数据库列）', () => {
+    const { outer } = nestedDiagram();
+    expect(isGroupLocked(store().diagram.groups.find((g) => g.groupId === outer.groupId)!)).toBe(false);
+
+    store().toggleLock([outer.groupId]);
+    const locked = store().diagram.groups.find((g) => g.groupId === outer.groupId)!;
+    expect(locked.extJson?.locked).toBe(true);
+    expect(isGroupLocked(locked)).toBe(true);
+
+    store().toggleLock([outer.groupId]);
+    expect(isGroupLocked(store().diagram.groups.find((g) => g.groupId === outer.groupId)!)).toBe(false);
+  });
+
+  it('混合选择（有锁有没锁）时统一锁上', () => {
+    const { outer, inner } = nestedDiagram();
+    store().toggleLock([outer.groupId]);
+    store().toggleLock([outer.groupId, inner.groupId]);
+    const groups = store().diagram.groups;
+    expect(groups.every((g) => isGroupLocked(g))).toBe(true);
+  });
+
+  it('锁定的分组仍然可以选中（用户要求）', () => {
+    const { outer } = nestedDiagram();
+    store().toggleLock([outer.groupId]);
+    store().updateSelection([outer.groupId], []);
+    expect(store().selectedIds).toContain(outer.groupId);
+  });
+
+  it('单行分组与锁定互不影响（两个 extJson 标记并存）', () => {
+    const g = store().addGroup({ x: 0, y: 0 }, { label: '通用分组', extJson: { singleLine: true } });
+    store().toggleLock([g.groupId]);
+    const next = store().diagram.groups.find((x) => x.groupId === g.groupId)!;
+    expect(isSingleLineGroup(next)).toBe(true);
+    expect(isGroupLocked(next)).toBe(true);
   });
 });

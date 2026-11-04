@@ -1,8 +1,9 @@
-﻿import {
+import {
   CLEAR_COLOR,
   COMPONENT_CATEGORIES,
   EDGE_DEFAULTS,
   NODE_DEFAULTS,
+  isGroupLocked,
   type ArchitectureDiagram,
   type DiagramEdge,
   type DiagramGroup,
@@ -309,6 +310,16 @@ export function buildEdgeMenu(edge: DiagramEdge): MenuNode[] {
 }
 
 export function buildGroupMenu(group: DiagramGroup): MenuNode[] {
+  // 锁定的分组：菜单只留「解锁」（用户 2026-11-04：三个地方都要能解锁）
+  if (isGroupLocked(group)) {
+    return [
+      {
+        kind: 'item',
+        label: '解锁分组',
+        onSelect: () => useDiagramStore.getState().toggleLock([group.groupId]),
+      },
+    ];
+  }
   return [
     {
       kind: 'item',
@@ -325,6 +336,12 @@ export function buildGroupMenu(group: DiagramGroup): MenuNode[] {
       onSelect: () => useDiagramStore.getState().toggleGroupCollapsed(group.groupId),
     },
     { kind: 'separator' },
+    {
+      kind: 'item',
+      label: '锁定分组',
+      hint: 'L',
+      onSelect: () => useDiagramStore.getState().toggleLock([group.groupId]),
+    },
     {
       kind: 'item',
       label: '解组（保留内容）',

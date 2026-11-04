@@ -35,6 +35,20 @@ export function groupHeaderHeight(group: {
   return group.subLabel && !isSingleLineGroup(group) ? GROUP_HEADER_HEIGHT : GROUP_HEADER_HEIGHT_SINGLE;
 }
 
+/**
+ * 分组是否被锁定（用户 2026-11-04：分组也要能锁）。
+ *
+ * 存 `extJson.locked` 而不是新加数据库列：`ext_json` 本来就在保存 / 差异 / 快照链路里
+ * 完整往返，加列要改 schema.sql + patch-diagram.sql 的 payload 与 upsert 字段表，
+ * 而且用户必须重跑一遍 SQL 才能保存 —— 代价不值。
+ *
+ * 锁定后：不能拖动、不能缩放、不能改名、折叠三角隐藏、右键菜单只留「解锁」、
+ * 属性面板只剩解锁按钮；**仍然可以选中**（用户明确要求）。
+ */
+export function isGroupLocked(group: { extJson?: Record<string, unknown> }): boolean {
+  return group.extJson?.locked === true;
+}
+
 const byId = (groups: DiagramGroup[], groupId: string | null | undefined): DiagramGroup | null =>
   groupId ? (groups.find((g) => g.groupId === groupId) ?? null) : null;
 

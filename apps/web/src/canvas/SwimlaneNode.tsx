@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { NodeResizer } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { groupHeaderHeight, isIconHidden, isSingleLineGroup, resolveIconKey } from '@arch/schema';
+import { groupHeaderHeight, isGroupLocked, isIconHidden, isSingleLineGroup, resolveIconKey } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { SwimlaneFlowNode } from './flowMapping.js';
@@ -26,13 +26,16 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
   const [draft, setDraft] = useState(group.label);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 右键菜单「重命名」通过 store 请求进入行内编辑
+  const showSubLabel = Boolean(group.subLabel) && !isSingleLineGroup(group);
+  const locked = isGroupLocked(group);
+
+  // 右键菜单「重命名」通过 store 请求进入行内编辑（锁定的组不给改名）
   useEffect(() => {
-    if (editRequestId && editRequestId === group.groupId) {
+    if (editRequestId && editRequestId === group.groupId && !locked) {
       setEditing(true);
       requestEdit(null);
     }
-  }, [editRequestId, group.groupId, requestEdit]);
+  }, [editRequestId, group.groupId, locked, requestEdit]);
 
   useEffect(() => {
     if (!editing) setDraft(group.label);
@@ -49,8 +52,6 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
     else setDraft(group.label);
   };
 
-  const showSubLabel = Boolean(group.subLabel) && !isSingleLineGroup(group);
-
   return (
     <div
       className="h-full w-full rounded-lg border"
@@ -64,7 +65,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
       }}
     >
       <NodeResizer
-        isVisible={selected}
+        isVisible={selected && !locked}
         minWidth={120}
         minHeight={80}
         lineClassName="!border-[var(--primary)]"
@@ -112,7 +113,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
                 className="truncate text-xs font-medium leading-[16px]"
                 onDoubleClick={(e) => {
                   e.stopPropagation();
-                  setEditing(true);
+                  if (!locked) setEditing(true);
                 }}
               >
                 {group.label}
@@ -124,17 +125,28 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           </>
         )}
 
-        <button
-          type="button"
-          className="nodrag mt-[3px] ml-auto grid h-4 w-4 shrink-0 place-items-center rounded hover:bg-black/5"
-          title={group.collapsed ? '展开分组' : '折叠分组'}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleGroupCollapsed(group.groupId);
-          }}
-        >
-          {group.collapsed ? '▸' : '▾'}
-        </button>
+        {/* 锁定的分组不显示折叠三角（用户 2026-11-04），顺带给出一个小锁标记 */}
+        {locked ? (
+          <span
+            className="ml-auto mt-[3px] shrink-0 text-[10px] leading-4 opacity-50"
+            title="分组已锁定"
+            aria-label="分组已锁定"
+          >
+            🔒
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="nodrag mt-[3px] ml-auto grid h-4 w-4 shrink-0 place-items-center rounded hover:bg-black/5"
+            title={group.collapsed ? '展开分组' : '折叠分组'}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleGroupCollapsed(group.groupId);
+            }}
+          >
+            {group.collapsed ? '▸' : '▾'}
+          </button>
+        )}
       </div>
     </div>
   );
