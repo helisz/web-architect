@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -17,7 +17,6 @@ import {
 } from '@xyflow/react';
 import type { NodeType } from '@arch/schema';
 import {
-  SEMANTIC_EDGES,
   groupOffset,
   hitGroup,
   isAncestorOf,
@@ -73,6 +72,8 @@ function CanvasInner() {
   const selectedIds = useDiagramStore((s) => s.selectedIds);
   const updateSelection = useDiagramStore((s) => s.updateSelection);
   const requestDelete = useDiagramStore((s) => s.requestDelete);
+  // 确认框开着时不再接受 Delete，避免一次按键堆两个待删清单
+  const deleting = useDiagramStore((s) => s.pendingDelete !== null);
   const showGrid = useDiagramStore((s) => s.showGrid);
   const setViewport = useDiagramStore((s) => s.setViewport);
 
@@ -81,7 +82,7 @@ function CanvasInner() {
   // Schema → ReactFlow：每次 diagram 变化重建，ReactFlow 内部按 id diff
   // 多选高亮交给 ReactFlow 的 selected 标记（框选/Ctrl 点选都由它维护）
   const nodes = useMemo(() => toFlowNodes(diagram, selectedIds), [diagram, selectedIds]);
-  const edges = useMemo(() => toFlowEdges(diagram), [diagram]);
+  const edges = useMemo(() => toFlowEdges(diagram, selectedIds), [diagram, selectedIds]);
 
   const groupIds = useMemo(() => new Set(diagram.groups.map((g) => g.groupId)), [diagram.groups]);
 
@@ -189,8 +190,13 @@ function CanvasInner() {
 
   // 记录起线节点：松手时如果落在某个节点身上，自动接到最近的一边
   const connectFrom = useRef<string | null>(null);
+  // 本次拖拽开始时的连线数：用来判断"松手时是不是已经连上了"，
+  // 避免 onConnect 和下面的自动吸附各建一条（历史上出现过一次拖出两条箭头）
+  const edgesAtStart = useRef(0);
+
   const onConnectStart = useCallback((_event: unknown, params: { nodeId: string | null }) => {
     connectFrom.current = params.nodeId;
+    edgesAtStart.current = useDiagramStore.getState().diagram.edges.length;
   }, []);
 
   const onConnectEnd = useCallback(
@@ -198,6 +204,9 @@ function CanvasInner() {
       const sourceId = connectFrom.current;
       connectFrom.current = null;
       if (!sourceId) return;
+
+      // 正常落到手柄上时 onConnect 已经建过线了，这里直接收手
+      if (useDiagramStore.getState().diagram.edges.length > edgesAtStart.current) return;
 
       const touch = 'changedTouches' in event ? event.changedTouches[0] : undefined;
       const clientX = touch?.clientX ?? (event as MouseEvent).clientX;
@@ -359,7 +368,7 @@ function CanvasInner() {
       onNodeDragStop={onNodeDragStop}
       onMoveEnd={onMoveEnd}
       onPaneClick={() => select(null)}
-      deleteKeyCode={['Delete', 'Backspace']}
+      deleteKeyCode={deleting ? null : ['Delete', 'Backspace']}
       proOptions={{ hideAttribution: false }}
       className="bg-transparent"
     >
@@ -378,7 +387,7 @@ function CanvasInner() {
   );
 }
 
-/** 画布外壳：网格、提示与语义色图例都挂在这里 */
+/** 画布外壳：网格与空状态提示都挂在这里 */
 export function Canvas() {
   const nodeCount = useDiagramStore((s) => s.diagram.nodes.length);
   const showGrid = useDiagramStore((s) => s.showGrid);
@@ -425,35 +434,7 @@ export function Canvas() {
         </div>
       )}
 
-      <SemanticLegend />
     </main>
-  );
-}
-
-/** 连线语义色基线（规格 §3.5），M2 起由属性面板复用 */
-function SemanticLegend() {
-  return (
-    <div className="absolute bottom-3 left-3 z-10 rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)]/95 p-2.5 text-[11px]">
-      <div className="mb-1.5 font-semibold text-[var(--text-secondary)]">连线语义色</div>
-      <ul className="space-y-1">
-        {Object.values(SEMANTIC_EDGES).map((style) => (
-          <li key={style.kind} className="flex items-center gap-2">
-            <span
-              className="inline-block w-6 rounded"
-              style={{
-                background: style.strokeColor,
-                height: Math.max(style.strokeWidth, 1),
-                opacity: style.strokeDasharray ? 0.75 : 1,
-              }}
-            />
-            <span className="text-[var(--text-secondary)]">
-              {style.label} · {style.strokeWidth}px
-              {style.strokeDasharray ? ' 虚线' : ''}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

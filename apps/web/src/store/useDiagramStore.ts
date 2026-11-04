@@ -211,6 +211,35 @@ function keepValidSelection(diagram: ArchitectureDiagram, selectedId: string | n
   return exists ? selectedId : null;
 }
 
+/** 真正执行删除：连线 → 节点 → 分组（removeGroupLifting 会把剩余子节点提上一层） */
+function applyDeletion(
+  state: Pick<DiagramStore, 'diagram' | 'past' | 'future' | 'undoKey' | 'undoAt'>,
+  pending: { nodeIds: string[]; edgeIds: string[]; groupIds: string[] },
+): Pick<DiagramStore, 'diagram' | 'saveState' | 'pendingDelete' | 'selectedId' | 'selectedIds'> & Partial<HistoryPatch> {
+  let diagram = state.diagram;
+  const nodeSet = new Set(pending.nodeIds);
+  const edgeSet = new Set(pending.edgeIds);
+  diagram = {
+    ...diagram,
+    edges: diagram.edges.filter(
+      (e) => !edgeSet.has(e.edgeId) && !nodeSet.has(e.sourceNodeId) && !nodeSet.has(e.targetNodeId),
+    ),
+    nodes: diagram.nodes.filter((n) => !nodeSet.has(n.nodeId)),
+  };
+  for (const groupId of pending.groupIds) {
+    diagram = removeGroupLifting(diagram, groupId);
+  }
+  const removed = pending.nodeIds.length + pending.edgeIds.length + pending.groupIds.length;
+  return {
+    ...withHistory(state as HistoryCarrier, `delete:${removed}`),
+    diagram,
+    saveState: 'dirty',
+    pendingDelete: null,
+    selectedId: null,
+    selectedIds: [],
+  };
+}
+
 /** 组自身深度：顶层 = 1（与 MAX_GROUP_DEPTH 口径一致） */
 function countDepth(groups: DiagramGroup[], groupId: string): number {
   let depth = 0;
@@ -294,37 +323,13 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
       const edgeIds = ids.filter((id) => s.diagram.edges.some((e) => e.edgeId === id));
       const groupIds = ids.filter((id) => s.diagram.groups.some((g) => g.groupId === id));
       if (nodeIds.length + edgeIds.length + groupIds.length === 0) return s;
-      return { pendingDelete: { nodeIds, edgeIds, groupIds } };
+      const pending = { nodeIds, edgeIds, groupIds };
+      // 只有"删分组"和"多选（≥2 个元素）"才弹二次确认，单个节点/连线直接删
+      const needsConfirm = groupIds.length > 0 || ids.length > 1;
+      return needsConfirm ? { pendingDelete: pending } : applyDeletion(s, pending);
     }),
 
-  confirmDelete: () =>
-    set((s) => {
-      const pending = s.pendingDelete;
-      if (!pending) return s;
-      let diagram = s.diagram;
-      // 先删连线与节点，最后删分组（removeGroupLifting 会把剩余子节点提上一层）
-      const nodeSet = new Set(pending.nodeIds);
-      const edgeSet = new Set(pending.edgeIds);
-      diagram = {
-        ...diagram,
-        edges: diagram.edges.filter(
-          (e) => !edgeSet.has(e.edgeId) && !nodeSet.has(e.sourceNodeId) && !nodeSet.has(e.targetNodeId),
-        ),
-        nodes: diagram.nodes.filter((n) => !nodeSet.has(n.nodeId)),
-      };
-      for (const groupId of pending.groupIds) {
-        diagram = removeGroupLifting(diagram, groupId);
-      }
-      const removed = pending.nodeIds.length + pending.edgeIds.length + pending.groupIds.length;
-      return {
-        ...withHistory(s, `delete:${removed}`),
-        diagram,
-        saveState: 'dirty',
-        pendingDelete: null,
-        selectedId: null,
-        selectedIds: [],
-      };
-    }),
+  confirmDelete: () => set((s) => (s.pendingDelete ? applyDeletion(s, s.pendingDelete) : s)),
 
   cancelDelete: () => set({ pendingDelete: null }),
 

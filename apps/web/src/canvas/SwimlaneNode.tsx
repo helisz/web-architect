@@ -17,7 +17,6 @@ import type { SwimlaneFlowNode } from './flowMapping.js';
 function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
   const group = data.group;
   const patchGroup = useDiagramStore((s) => s.patchGroup);
-  const requestDelete = useDiagramStore((s) => s.requestDelete);
   const toggleGroupCollapsed = useDiagramStore((s) => s.toggleGroupCollapsed);
 
   const [editing, setEditing] = useState(false);
@@ -57,23 +56,11 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
         handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--primary)] !bg-white"
       />
 
-      {/* 标题栏：拖动组、折叠、改名、删除都在这里 */}
+      {/* 标题栏：拖动组、改名、折叠都在这里；折叠三角固定在标题栏最右边 */}
       <div
         className="flex items-center gap-1 rounded-t-lg px-2 text-xs font-medium"
         style={{ height: GROUP_HEADER_HEIGHT, color: group.titleColor, borderBottom: `1px solid ${group.borderColor}` }}
       >
-        <button
-          type="button"
-          className="nodrag grid h-4 w-4 place-items-center rounded hover:bg-black/5"
-          title={group.collapsed ? '展开分组' : '折叠分组'}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleGroupCollapsed(group.groupId);
-          }}
-        >
-          {group.collapsed ? '▸' : '▾'}
-        </button>
-
         {editing ? (
           <input
             ref={inputRef}
@@ -92,35 +79,33 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           />
         ) : (
           <>
-          <NodeIcon iconKey={resolveIconKey({ nodeType: 'group', extJson: group.extJson })} size={13} className="shrink-0 opacity-60" />
-          <span
-            className="truncate"
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setEditing(true);
-            }}
-          >
-            {group.label}
-          </span>
+            <NodeIcon
+              iconKey={resolveIconKey({ nodeType: 'group', extJson: group.extJson })}
+              size={13}
+              className="shrink-0 opacity-60"
+            />
+            <span
+              className="truncate"
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+              }}
+            >
+              {group.label}
+            </span>
           </>
         )}
 
-        <span className="mono ml-auto text-[10px] opacity-50">
-          {group.collapsed ? '已折叠' : `${group.width}×${group.height}`}
-        </span>
         <button
           type="button"
-          className="nodrag grid h-4 w-4 place-items-center rounded text-[10px] hover:bg-black/5"
-          title="删除分组（里面的节点会保留并提升到上一层）"
+          className="nodrag ml-auto grid h-4 w-4 shrink-0 place-items-center rounded hover:bg-black/5"
+          title={group.collapsed ? '展开分组' : '折叠分组'}
           onClick={(e) => {
             e.stopPropagation();
-            // 规格 §5.3：删除分组要二次确认（里面的节点不会被删，只提升到上一层）
-            if (window.confirm(`删除分组「${group.label}」？组里的节点会保留并移到上一层。`)) {
-              requestDelete([group.groupId]);
-            }
+            toggleGroupCollapsed(group.groupId);
           }}
         >
-          ✕
+          {group.collapsed ? '▸' : '▾'}
         </button>
       </div>
     </div>

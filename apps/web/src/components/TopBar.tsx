@@ -56,6 +56,8 @@ export function TopBar() {
   // 直接选长度：数字稳定，不会触发 zustand 的无限重渲染
   const pastCount = useDiagramStore((s) => s.past.length);
   const futureCount = useDiagramStore((s) => s.future.length);
+  // 删除确认框弹着的时候不允许动历史
+  const historyLocked = useDiagramStore((s) => s.pendingDelete !== null);
   const { exportJson, exportPng, importJson } = useTransfer();
   const fileRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -90,7 +92,7 @@ export function TopBar() {
         <div className="mx-2 h-5 w-px bg-[var(--panel-border)]" />
         <button
           type="button"
-          disabled={pastCount === 0}
+          disabled={pastCount === 0 || historyLocked}
           title="撤销（Ctrl+Z）"
           onClick={() => undo()}
           className="rounded border border-[var(--panel-border)] px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-40"
@@ -99,7 +101,7 @@ export function TopBar() {
         </button>
         <button
           type="button"
-          disabled={futureCount === 0}
+          disabled={futureCount === 0 || historyLocked}
           title="重做（Ctrl+Shift+Z / Ctrl+Y）"
           onClick={() => redo()}
           className="rounded border border-[var(--panel-border)] px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-40"

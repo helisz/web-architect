@@ -185,5 +185,13 @@ export function buildOrthoPath(
   targetAnchor: Anchor,
 ): { points: Point[]; d: string; labelPoint: Point } {
   const points = orthoPoints(source, sourceAnchor, target, targetAnchor);
+  // 端点贴住节点边框：路由内部用外扩点算出入口方向，但首尾两点回到边框上，
+  // 这样线和箭头不会与节点之间留一条缝。
+  const touchStart = anchorPoint(source, sourceAnchor);
+  const touchEnd = anchorPoint(target, targetAnchor);
+  if (points.length >= 2) {
+    points[0] = touchStart;
+    points[points.length - 1] = touchEnd;
+  }
   return { points, d: toRoundedPath(points), labelPoint: labelAnchorPoint(points) };
 }

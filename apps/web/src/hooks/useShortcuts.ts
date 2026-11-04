@@ -13,6 +13,14 @@ import { useDiagramStore } from '../store/useDiagramStore.js';
 export function useShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      // 确认框打开时锁死撤销/重做，避免"一边弹窗一边改历史"导致的错乱
+      if (useDiagramStore.getState().pendingDelete) {
+        const mod = event.ctrlKey || event.metaKey;
+        const key = event.key.toLowerCase();
+        if (mod && (key === 'z' || key === 'y')) event.preventDefault();
+        return;
+      }
+
       const mod = event.ctrlKey || event.metaKey;
       if (!mod) return;
 

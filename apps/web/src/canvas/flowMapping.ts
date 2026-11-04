@@ -1,4 +1,4 @@
-import { MarkerType, type Edge, type Node } from '@xyflow/react';
+﻿import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import {
   GROUP_HEADER_HEIGHT,
   isHiddenByCollapse,
@@ -103,7 +103,7 @@ export function toFlowNodes(
   return [...groups, ...nodes];
 }
 
-export function toFlowEdges(diagram: ArchitectureDiagram): Edge[] {
+export function toFlowEdges(diagram: ArchitectureDiagram, selectedIds: readonly string[] = []): Edge[] {
   const visible = new Set(
     diagram.nodes
       .filter((n) => !n.isDeleted && n.visible && !isHiddenByCollapse(diagram.groups, n.groupId))
@@ -123,6 +123,7 @@ export function toFlowEdges(diagram: ArchitectureDiagram): Edge[] {
       };
       return {
         id: e.edgeId,
+        selected: selectedIds.includes(e.edgeId),
         type: EDGE_COMPONENTS[e.edgeType] ?? 'orthoEdge',
         source: e.sourceNodeId,
         target: e.targetNodeId,

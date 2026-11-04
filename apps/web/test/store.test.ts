@@ -27,33 +27,37 @@ describe('多选与删除', () => {
     expect(store().selectedId).toBe(b.nodeId);
   });
 
-  it('删除先挂起，确认后才真的删（含连带连线）', () => {
+  it('单个节点 / 单条连线直接删，不弹确认框', () => {
     const a = store().addNode('waf', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 300, y: 0 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
     expect(store().diagram.edges).toHaveLength(1);
 
-    store().requestDelete([a.nodeId]);
-    expect(store().pendingDelete?.nodeIds).toEqual([a.nodeId]);
-    // 还没删
-    expect(store().diagram.nodes).toHaveLength(2);
-
-    store().confirmDelete();
-    expect(store().diagram.nodes.map((n) => n.nodeId)).toEqual([b.nodeId]);
-    expect(store().diagram.edges).toHaveLength(0);
+    // 单条连线：直接消失
+    store().requestDelete([store().diagram.edges[0]!.edgeId]);
     expect(store().pendingDelete).toBeNull();
+    expect(store().diagram.edges).toHaveLength(0);
+
+    // 单个节点：直接消失（含连带连线，此时已无线）
+    store().requestDelete([a.nodeId]);
+    expect(store().pendingDelete).toBeNull();
+    expect(store().diagram.nodes.map((n) => n.nodeId)).toEqual([b.nodeId]);
     expect(store().selectedIds).toEqual([]);
   });
 
-  it('取消删除：数据原样保留', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
-    store().requestDelete([a.nodeId]);
+  it('取消删除：数据原样保留（分组删除会弹框）', () => {
+    const diagram = store().diagram;
+    const group = createGroup(diagram.diagramId, { x: 0, y: 0, width: 300, height: 200 }, { label: 'DMZ' });
+    store().setDiagram({ ...diagram, groups: [group] });
+
+    store().requestDelete([group.groupId]);
+    expect(store().pendingDelete?.groupIds).toEqual([group.groupId]);
     store().cancelDelete();
     expect(store().pendingDelete).toBeNull();
-    expect(store().diagram.nodes).toHaveLength(1);
+    expect(store().diagram.groups).toHaveLength(1);
   });
 
-  it('删分组时把子节点提上一层，不连坐', () => {
+  it('删分组要先确认，确认后把子节点提上一层，不连坐', () => {
     const diagram = store().diagram;
     const group = createGroup(diagram.diagramId, { x: 0, y: 0, width: 300, height: 200 }, { label: 'DMZ' });
     store().setDiagram({ ...diagram, groups: [group] });
@@ -61,6 +65,9 @@ describe('多选与删除', () => {
     store().setDiagram({ ...store().diagram, nodes: [child] });
 
     store().requestDelete([group.groupId]);
+    expect(store().pendingDelete?.groupIds).toEqual([group.groupId]);
+    expect(store().diagram.groups).toHaveLength(1);
+
     store().confirmDelete();
 
     expect(store().diagram.groups).toHaveLength(0);
@@ -68,20 +75,33 @@ describe('多选与删除', () => {
     expect(store().diagram.nodes[0]?.groupId).toBeNull();
   });
 
-  it('批量删除节点 + 连线一次确认', () => {
+  it('多选（≥2 个元素）删除要确认，确认后一次删干净', () => {
     const a = store().addNode('waf', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 300, y: 0 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
     const created = store().diagram.edges[0]!;
-    expect(created).toBeDefined();
 
     store().requestDelete([a.nodeId, created.edgeId]);
     expect(store().pendingDelete?.nodeIds).toHaveLength(1);
     expect(store().pendingDelete?.edgeIds).toHaveLength(1);
+    // 还没删
+    expect(store().diagram.nodes).toHaveLength(2);
+
     store().confirmDelete();
 
     expect(store().diagram.nodes).toHaveLength(1);
     expect(store().diagram.edges).toHaveLength(0);
+  });
+
+  it('直接删除也进撤销栈，Ctrl+Z 能恢复', () => {
+    const a = store().addNode('waf', { x: 0, y: 0 });
+    store().updateSelection([a.nodeId], []);
+    store().requestDelete([a.nodeId]);
+    expect(store().diagram.nodes).toHaveLength(0);
+
+    store().undo();
+    expect(store().diagram.nodes).toHaveLength(1);
+    expect(store().diagram.nodes[0]?.nodeId).toBe(a.nodeId);
   });
 });
 
