@@ -1,7 +1,9 @@
-import { useCallback } from 'react';
+﻿import { useCallback } from 'react';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import { exportFileName, parseImport, serializeDiagram } from '../data/transfer.js';
 import { decodeSvgDataUrl, downloadBlob, downloadDataUrl, downloadText, renderPng, renderSvg } from '../export/exportPng.js';
+import { saveDiagram } from '../data/diagramRepo.js';
+import { rememberSavedPayload } from '../data/usePersistence.js';
 import { buildPdfFromPng, type PdfPageSize } from '../export/exportPdf.js';
 import { toEdgesCsv, toNodesCsv } from '../export/exportCsv.js';
 
@@ -116,17 +118,27 @@ export function useTransfer() {
         setSaveError(`导入失败：${result.error}`);
         return;
       }
-      // 导入 = 换一张新图（id 已重编），自动保存会把它作为一个新图存进去
+      // 导入 = 换一张新图（id 已重编）。
+      // 自动保存只处理"已落库"的图，所以这里必须显式存一次，
+      // 否则刷新页面导入内容就没了。
       setDiagram(result.diagram);
+      const saved = await saveDiagram(result.diagram, null);
+      if (saved.ok) {
+        useDiagramStore.getState().applySaved(saved.version, saved.savedAt);
+        rememberSavedPayload(result.diagram);
+      } else {
+        setSaveError(`导入已载入，但保存失败：${saved.message}`);
+      }
       setNotice(
         result.warnings.length > 0
           ? `已导入 ${result.diagram.nodes.length} 个节点；其中 ${result.warnings.length} 处不合法已自动修复（${result.warnings[0]}）`
           : null,
       );
     },
-    [setDiagram, setNotice],
+    [setDiagram, setNotice, setSaveError],
   );
 
   return { exportJson, exportPng, exportSvg, exportPdf, exportCsv, importJson };
 }
+
 

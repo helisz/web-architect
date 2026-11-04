@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import { createEmptyDiagram } from '@arch/schema';
 import type { ArchitectureDiagram } from '@arch/schema';
 import { listDiagrams, loadDiagram, patchDiagram, saveDiagram, toSavePayload, type SaveResult } from './diagramRepo.js';
@@ -22,8 +22,9 @@ export function useBootstrap(): void {
 
     void (async () => {
       try {
-        const summaries = await listDiagrams();
-        const target = summaries[0];
+        // 只要最近更新的一张：limit 1，别把整个图库拉下来
+        const { rows } = await listDiagrams({ limit: 1 });
+        const target = rows[0];
 
         if (target) {
           const loaded = await loadDiagram(target.diagramId);
@@ -179,12 +180,23 @@ export function useAutosave(): void {
   const diagram = useDiagramStore((s) => s.diagram);
   const saveState = useDiagramStore((s) => s.saveState);
   const booted = useDiagramStore((s) => s.booted);
+  const persisted = useDiagramStore((s) => s.persisted);
   const conflict = useDiagramStore((s) => s.conflict);
   const saveDisabled = useDiagramStore((s) => s.saveDisabled);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!booted || conflict || saveDisabled || saveState !== 'dirty') return;
+
+    /**
+     * 还没落过库的图不自动保存。
+     *
+     * 否则 store 初始那张空图（或任何"换图"中间态）被标脏后，800ms 一到就会
+     * 作为一张**新图**插进 art_diagram —— 用户下次打开看到的是空白画布。
+     * 新建图有两条显式路径（bootstrap 的 else 分支、图库的"新建架构图"），
+     * 它们自己调 saveDiagram，不需要自动保存兜底。
+     */
+    if (!persisted) return;
 
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
@@ -196,7 +208,7 @@ export function useAutosave(): void {
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
     };
-  }, [diagram, saveState, booted, conflict, saveDisabled]);
+  }, [diagram, saveState, booted, persisted, conflict, saveDisabled]);
 
   // 关页面前尽量把未存的改动刷出去
   useEffect(() => {
@@ -235,5 +247,8 @@ export function forceSave(): void {
     }
   });
 }
+
+
+
 
 

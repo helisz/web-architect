@@ -1,4 +1,4 @@
-﻿import {
+import {
   TABLES,
   assembleDiagram,
   parseDiagram,
@@ -38,24 +38,78 @@ export interface DiagramSummary {
   name: string;
   version: number;
   updatedAt: string;
+  tags: string[];
 }
 
-/** 图列表（阶段 3 · 图库用；M1 先给"打开最近一张"兜底） */
-export async function listDiagrams(): Promise<DiagramSummary[]> {
-  const { data, error } = await client()
-    .from(TABLES.diagram)
-    .select('diagram_id,name,version,updated_at')
-    .eq('is_deleted', false)
-    .order('updated_at', { ascending: false });
+export interface ListOptions {
+  /** 按名称模糊匹配（ilike） */
+  search?: string;
+  /** 必须包含这个标签 */
+  tag?: string;
+  sort?: 'updated' | 'name' | 'version';
+  limit?: number;
+  offset?: number;
+}
 
+export interface DiagramPage {
+  rows: DiagramSummary[];
+  /** 满足筛选条件的总数（用于分页） */
+  total: number;
+}
+
+/**
+ * 图列表（图库用）。
+ *
+ * 分页 + 名称模糊 + 标签包含 + 三种排序全部下推给 PostgREST；
+ * 前端不做二次过滤 —— 图多了以后"先拉全量再过滤"等于没分页。
+ */
+export async function listDiagrams(options: ListOptions = {}): Promise<DiagramPage> {
+  const { search, tag, sort = 'updated', limit = 12, offset = 0 } = options;
+
+  let query = client()
+    .from(TABLES.diagram)
+    .select('diagram_id,name,version,updated_at,tags', { count: 'exact' })
+    .eq('is_deleted', false);
+
+  if (search && search.trim()) query = query.ilike('name', `%${search.trim()}%`);
+  if (tag) query = query.contains('tags', [tag]);
+
+  if (sort === 'name') query = query.order('name', { ascending: true });
+  else if (sort === 'version') query = query.order('version', { ascending: false });
+  else query = query.order('updated_at', { ascending: false });
+
+  const { data, error, count } = await query.range(offset, offset + Math.max(0, limit - 1));
   if (error) fail('读取图列表失败', error);
 
-  return (data ?? []).map((row) => ({
-    diagramId: row.diagram_id as string,
-    name: row.name as string,
-    version: row.version as number,
-    updatedAt: row.updated_at as string,
-  }));
+  return {
+    rows: (data ?? []).map((row) => ({
+      diagramId: row.diagram_id as string,
+      name: row.name as string,
+      version: row.version as number,
+      updatedAt: row.updated_at as string,
+      tags: (row.tags as string[] | null) ?? [],
+    })),
+    total: count ?? 0,
+  };
+}
+
+/** 图库里出现过的所有标签（去重后按字面排序） */
+export async function listAllTags(): Promise<string[]> {
+  const { data, error } = await client().from(TABLES.diagram).select('tags').eq('is_deleted', false);
+  if (error) fail('读取标签失败', error);
+
+  const set = new Set<string>();
+  for (const row of data ?? []) {
+    for (const tag of (row.tags as string[] | null) ?? []) set.add(tag);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+}
+
+/** 改图的标签（图库卡片里编辑，最多 12 个） */
+export async function updateDiagramTags(diagramId: string, tags: string[]): Promise<void> {
+  const cleaned = [...new Set(tags.map((t) => t.trim()).filter(Boolean))].slice(0, 12);
+  const { error } = await client().from(TABLES.diagram).update({ tags: cleaned }).eq('diagram_id', diagramId);
+  if (error) fail('保存标签失败', error);
 }
 
 export interface LoadedDiagram {
