@@ -170,6 +170,12 @@ web-architect/
 
 1. 按规格 §4.3 的 A1–A4、A7、D1、D2、D4、D6 逐条过验收门（每项留证据）
 2. 用 `sample-saas.json` 复刻一张完整样图，作为导出与验收的基准
-3. 收尾：README 截图更新、`.env.example` 补齐、首次 `git commit`
+3. 收尾：README 截图更新、`.env.example` 补齐
+
+## 开发约定
+
+- **每批改动完成后都要提交并推送到 `origin/main`**（本项目的规定动作，不要攒着）。
+- 提交信息写清楚"改了什么 + 为什么"，测试/验收结论附在正文里。
+- `.env.local`、`.cache/`、`dist/` 不入库；新增数据库对象一律 `arch_` 前缀。
 
 
