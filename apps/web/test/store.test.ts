@@ -13,6 +13,9 @@ describe('多选与删除', () => {
     const a = store().addNode('waf', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 200, y: 0 });
 
+    // 新建节点会自动选中（拖进来就该是选中态），先清空再验选择逻辑
+    store().updateSelection([], store().selectedIds);
+
     store().updateSelection([a.nodeId], []);
     expect(store().selectedIds).toEqual([a.nodeId]);
     expect(store().selectedId).toBe(a.nodeId);

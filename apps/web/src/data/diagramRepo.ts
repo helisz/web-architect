@@ -119,6 +119,7 @@ export type SaveResult =
   | { ok: true; version: number; savedAt: string; snapshot: boolean }
   | { ok: false; reason: 'version_conflict'; currentVersion?: number; message: string }
   | { ok: false; reason: 'missing_function'; message: string }
+  | { ok: false; reason: 'invalid'; message: string; paths: string[] }
   | { ok: false; reason: 'failed'; message: string };
 
 interface RpcSaveResponse {
@@ -139,6 +140,19 @@ export async function saveDiagram(
   diagram: ArchitectureDiagram,
   baseVersion: number | null,
 ): Promise<SaveResult> {
+  // 前端闸：枚举 / 引用 / 数值 / 规模的硬错误直接拒，别放到数据库里撞约束 ——
+  // 那边只会回一句 "violates foreign key constraint"，定位不到字段（D4）
+  const check = validateDiagram(diagram, { repair: false });
+  if (!check.ok) {
+    const errors = check.errors.slice(0, 5);
+    return {
+      ok: false,
+      reason: 'invalid',
+      message: `数据不合法，已拒绝保存：${errors.map((e) => `${e.path}：${e.message}`).join('；')}`,
+      paths: errors.map((e) => e.path),
+    };
+  }
+
   const { data, error } = await client().rpc('arch_save_diagram', {
     p_payload: toSavePayload(diagram),
     p_base_version: baseVersion,
@@ -184,7 +198,7 @@ export async function saveDiagram(
  * 只发需要的字段：`is_deleted` 之类由函数自己维护，前端不传，
  * 避免客户端一个手误把整张图软删掉。
  */
-function toSavePayload(diagram: ArchitectureDiagram) {
+export function toSavePayload(diagram: ArchitectureDiagram) {
   return {
     diagramId: diagram.diagramId,
     schemaVersion: diagram.schemaVersion,

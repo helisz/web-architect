@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { create } from 'zustand';
 import {
   EDGE_DEFAULTS,
@@ -340,6 +340,7 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
       ...withHistory(s, `add:${node.nodeId}`),
       diagram: { ...s.diagram, nodes: [...s.diagram.nodes, node] },
       selectedId: node.nodeId,
+      selectedIds: [node.nodeId],
       saveState: 'dirty',
     }));
     return node;
@@ -432,6 +433,7 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
       ...withHistory(s, `addGroup:${group.groupId}`),
       diagram: { ...s.diagram, groups: [...s.diagram.groups, group] },
       selectedId: group.groupId,
+      selectedIds: [group.groupId],
       saveState: 'dirty',
     }));
     return group;

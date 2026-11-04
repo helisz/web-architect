@@ -1,7 +1,8 @@
-import { StrictMode } from 'react';
+﻿import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.js';
 import { useDiagramStore } from './store/useDiagramStore.js';
+import { loadDiagram, saveDiagram, toSavePayload } from './data/diagramRepo.js';
 import '@xyflow/react/dist/style.css';
 import './styles/index.css';
 
@@ -11,6 +12,7 @@ if (!container) throw new Error('#root 未找到');
 // 开发期调试入口：控制台可直接看/改 store（生产构建不包含）
 if (import.meta.env.DEV) {
   (window as unknown as { __archStore: typeof useDiagramStore }).__archStore = useDiagramStore;
+  (window as unknown as { __archRepo: unknown }).__archRepo = { loadDiagram, saveDiagram, toSavePayload };
 }
 
 createRoot(container).render(

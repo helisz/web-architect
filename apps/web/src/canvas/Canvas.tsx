@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -17,6 +17,8 @@ import {
 } from '@xyflow/react';
 import type { NodeType } from '@arch/schema';
 import {
+  COMPONENT_INDEX,
+  NODE_DEFAULTS,
   groupOffset,
   hitGroup,
   isAncestorOf,
@@ -53,6 +55,13 @@ function nearestAnchor(
   const normalizedY = Math.abs(dy) / Math.max(1, rect.height / 2);
   if (normalizedX > normalizedY) return dx > 0 ? 'right' : 'left';
   return dy > 0 ? 'bottom' : 'top';
+}
+
+/** 拖线起点手柄 → 锚点；拿不到（中键/脚本触发）时退回右边 */
+function anchorOfHandle(handleId: string | null): 'top' | 'right' | 'bottom' | 'left' {
+  return handleId === 'top' || handleId === 'right' || handleId === 'bottom' || handleId === 'left'
+    ? handleId
+    : 'right';
 }
 
 function CanvasInner() {
@@ -188,22 +197,25 @@ function CanvasInner() {
     [addEdge],
   );
 
-  // 记录起线节点：松手时如果落在某个节点身上，自动接到最近的一边
-  const connectFrom = useRef<string | null>(null);
+  // 记录起线节点与起点手柄：松手时如果落在某个节点身上，自动接到最近的一边
+  const connectFrom = useRef<{ nodeId: string; handleId: string | null } | null>(null);
   // 本次拖拽开始时的连线数：用来判断"松手时是不是已经连上了"，
   // 避免 onConnect 和下面的自动吸附各建一条（历史上出现过一次拖出两条箭头）
   const edgesAtStart = useRef(0);
 
-  const onConnectStart = useCallback((_event: unknown, params: { nodeId: string | null }) => {
-    connectFrom.current = params.nodeId;
-    edgesAtStart.current = useDiagramStore.getState().diagram.edges.length;
-  }, []);
+  const onConnectStart = useCallback(
+    (_event: unknown, params: { nodeId: string | null; handleId?: string | null }) => {
+      connectFrom.current = params.nodeId ? { nodeId: params.nodeId, handleId: params.handleId ?? null } : null;
+      edgesAtStart.current = useDiagramStore.getState().diagram.edges.length;
+    },
+    [],
+  );
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent) => {
-      const sourceId = connectFrom.current;
+      const from = connectFrom.current;
       connectFrom.current = null;
-      if (!sourceId) return;
+      if (!from) return;
 
       // 正常落到手柄上时 onConnect 已经建过线了，这里直接收手
       if (useDiagramStore.getState().diagram.edges.length > edgesAtStart.current) return;
@@ -217,14 +229,22 @@ function CanvasInner() {
 
       // 指针下最上层的节点（跳过自己），按最近的一边接上
       const target = [...diagram.nodes]
-        .filter((n) => n.nodeId !== sourceId && !isHiddenByCollapse(diagram.groups, n.groupId))
+        .filter((n) => n.nodeId !== from.nodeId && !isHiddenByCollapse(diagram.groups, n.groupId))
         .map((n) => ({ node: n, rect: nodeAbsoluteRect(diagram.groups, n) }))
         .filter(({ rect }) => rectContainsPoint(rect, point))
         .pop();
 
       if (!target) return;
-      const anchor = nearestAnchor(point, target.rect);
-      addEdge(sourceId, target.node.nodeId, anchor, anchor);
+      // 源端用"你实际拖出的那个手柄"，不能拿目标端的一边顶替，
+      // 否则从任意手柄拖出来都变成同一条线（曾经的 bug）。
+      // 目标端按"朝向起点的那个边"接上：落在节点中间时不至于随机挑一边。
+      const sourceAnchor = anchorOfHandle(from.handleId);
+      const sourceNode = diagram.nodes.find((n) => n.nodeId === from.nodeId);
+      const sourceRect = sourceNode ? nodeAbsoluteRect(diagram.groups, sourceNode) : null;
+      const targetAnchor = sourceRect
+        ? nearestAnchor({ x: sourceRect.x + sourceRect.width / 2, y: sourceRect.y + sourceRect.height / 2 }, target.rect)
+        : nearestAnchor(point, target.rect);
+      addEdge(from.nodeId, target.node.nodeId, sourceAnchor, targetAnchor);
     },
     [addEdge, diagram.groups, diagram.nodes, screenToFlowPosition],
   );
@@ -257,10 +277,12 @@ function CanvasInner() {
       // 2) 普通节点
       const nodeType = event.dataTransfer.getData(NODE_TYPE_MIME) as NodeType;
       if (!nodeType) return;
-      // 落点对齐指针中心：拖拽时视觉上更符合"放在这里"
+      // 落点对齐指针中心：拖拽时视觉上更符合"放在这里"。
+      // 尺寸按组件表取默认值 —— 交换机/路由器是 120×60，用统一的 160×80 会偏出十几像素。
       const target = hitGroup(diagram.groups, point);
       const offset = target ? groupOffset(diagram.groups, target.groupId) : { x: 0, y: 0 };
-      const size = { width: 160, height: 80 };
+      const spec = COMPONENT_INDEX[nodeType];
+      const size = { width: spec?.width ?? NODE_DEFAULTS.width, height: spec?.height ?? NODE_DEFAULTS.height };
       addNode(
         nodeType,
         {

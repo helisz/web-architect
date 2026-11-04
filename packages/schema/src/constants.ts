@@ -14,6 +14,8 @@ export const LIMITS = {
   diagramNameMax: 120,
   zoomMin: 0.1,
   zoomMax: 4,
+  /** 坐标绝对值上限：防住 1e9 这类值把 SVG 撑爆（V6 只要求有限数，这里是工程护栏） */
+  coordLimit: 100000,
   nodeMinWidth: 64,
   nodeMinHeight: 40,
   groupMinWidth: 120,

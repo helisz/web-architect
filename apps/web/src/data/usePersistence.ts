@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { createEmptyDiagram } from '@arch/schema';
 import type { ArchitectureDiagram } from '@arch/schema';
 import { listDiagrams, loadDiagram, saveDiagram, type SaveResult } from './diagramRepo.js';
@@ -114,6 +114,13 @@ async function runSave(diagram: ArchitectureDiagram): Promise<void> {
 
   if (result.reason === 'missing_function') {
     after.setSaveDisabled(true);
+    after.setSaveError(result.message);
+    after.markDirty();
+    return;
+  }
+
+  if (result.reason === 'invalid') {
+    // 数据不合法：不进网络、不丢状态，只把"哪个字段不对"摆到界面上
     after.setSaveError(result.message);
     after.markDirty();
     return;

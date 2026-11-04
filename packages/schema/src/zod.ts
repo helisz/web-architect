@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 import { LIMITS } from './constants.js';
 import { ANCHORS, ARROW_TYPES, EDGE_TYPES, NODE_TYPES } from './types.js';
 import type { Anchor, ArrowType, EdgeType, NodeType, ValidationIssue } from './types.js';
@@ -28,6 +28,9 @@ const isoDateTime = z
 
 const extJsonSchema = z.record(z.string(), z.unknown());
 
+/** 坐标：有限数 + 工程量级护栏（±100000） */
+const coordNumber = () => finiteNumber(-LIMITS.coordLimit, LIMITS.coordLimit);
+
 const nodeTypeValues = NODE_TYPES as unknown as [NodeType, ...NodeType[]];
 const edgeTypeValues = EDGE_TYPES as unknown as [EdgeType, ...EdgeType[]];
 const anchorValues = ANCHORS as unknown as [Anchor, ...Anchor[]];
@@ -48,8 +51,8 @@ export const groupSchema = z.object({
   diagramId: uuidSchema,
   parentGroupId: uuidSchema.nullable().optional(),
   label: z.string().max(LIMITS.labelMax),
-  x: finiteNumber(),
-  y: finiteNumber(),
+  x: coordNumber(),
+  y: coordNumber(),
   width: finiteNumber(LIMITS.groupMinWidth),
   height: finiteNumber(LIMITS.groupMinHeight),
   bgColor: colorSchema,
@@ -68,8 +71,8 @@ export const nodeSchema = z.object({
   label: z.string().max(LIMITS.labelMax),
   subLabel: z.string().max(LIMITS.subLabelMax),
   nodeType: z.enum(nodeTypeValues),
-  x: finiteNumber(),
-  y: finiteNumber(),
+  x: coordNumber(),
+  y: coordNumber(),
   width: finiteNumber(LIMITS.nodeMinWidth),
   height: finiteNumber(LIMITS.nodeMinHeight),
   bgColor: colorSchema,
