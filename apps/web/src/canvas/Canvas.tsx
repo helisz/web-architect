@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -27,10 +27,23 @@ import {
   rectContainsPoint,
 } from '@arch/schema';
 import { useDiagramStore } from '../store/useDiagramStore.js';
+import { useTransfer } from '../hooks/useTransfer.js';
+import { ContextMenu, type MenuNode } from '../components/ContextMenu.js';
+import {
+  buildBlankMenu,
+  buildEdgeMenu,
+  buildGroupMenu,
+  buildNodeMenu,
+  setMenuEnv,
+  type MenuEnv,
+} from './contextMenus.js';
 import { GROUP_MIME, NODE_TYPE_MIME } from '../components/ComponentPanel.js';
 import { toFlowEdges, toFlowNodes, type ArchFlowNode, type SwimlaneFlowNode } from './flowMapping.js';
 import { ArchNode } from './ArchNode.js';
 import { SwimlaneNode } from './SwimlaneNode.js';
+import { AlignToolbar } from '../components/AlignToolbar.js';
+import { SearchDialog } from '../components/SearchDialog.js';
+import { LayerPanel } from '../components/LayerPanel.js';
 import { OrthoEdge } from './OrthoEdge.js';
 
 const nodeTypes = { archNode: ArchNode, swimlane: SwimlaneNode };
@@ -86,7 +99,14 @@ function CanvasInner() {
   const showGrid = useDiagramStore((s) => s.showGrid);
   const setViewport = useDiagramStore((s) => s.setViewport);
 
-  const { screenToFlowPosition, getViewport, setViewport: applyViewport } = useReactFlow();
+  const { screenToFlowPosition, getViewport, setViewport: applyViewport, fitView } = useReactFlow();
+
+  // 右键菜单位置与内容（四套菜单在 contextMenus.ts 里组装）
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuNode[] } | null>(null);
+  const { exportJson, exportPng } = useTransfer();
+  const setCursor = useDiagramStore((s) => s.setCursor);
+  const cursorFrame = useRef<number | null>(null);
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
 
   // Schema → ReactFlow：每次 diagram 变化重建，ReactFlow 内部按 id diff
   // 多选高亮交给 ReactFlow 的 selected 标记（框选/Ctrl 点选都由它维护）
@@ -348,10 +368,89 @@ function CanvasInner() {
     [setViewport],
   );
 
+  /* ---------------- 右键菜单 ---------------- */
+
+  const menuEnv = useCallback(
+    (event: { clientX: number; clientY: number }): MenuEnv => ({
+      flowPoint: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+      fitView: () => void fitView({ padding: 0.12, duration: 260 }),
+      resetZoom: () => {
+        const { x, y } = getViewport();
+        applyViewport({ x, y, zoom: 1 }, { duration: 200 });
+      },
+      exportJson: () => void exportJson(),
+      exportPng: () => void exportPng(),
+    }),
+    [applyViewport, exportJson, exportPng, fitView, getViewport, screenToFlowPosition],
+  );
+
+  const openMenu = useCallback((event: { clientX: number; clientY: number }, items: MenuNode[]) => {
+    setMenuEnv(menuEnv(event));
+    setMenu({ x: event.clientX, y: event.clientY, items });
+  }, [menuEnv]);
+
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: { id: string }) => {
+      event.preventDefault();
+      const state = useDiagramStore.getState();
+      if (!state.selectedIds.includes(node.id)) state.select(node.id);
+      const group = state.diagram.groups.find((g) => g.groupId === node.id);
+      if (group) {
+        openMenu(event, buildGroupMenu(group));
+        return;
+      }
+      const target = state.diagram.nodes.find((n) => n.nodeId === node.id);
+      if (target) openMenu(event, buildNodeMenu(target));
+    },
+    [openMenu],
+  );
+
+  const onEdgeContextMenu = useCallback(
+    (event: React.MouseEvent, edge: { id: string }) => {
+      event.preventDefault();
+      const state = useDiagramStore.getState();
+      state.select(edge.id);
+      const target = state.diagram.edges.find((e) => e.edgeId === edge.id);
+      if (target) openMenu(event, buildEdgeMenu(target));
+    },
+    [openMenu],
+  );
+
+  const onPaneContextMenu = useCallback(
+    (event: React.MouseEvent | MouseEvent) => {
+      event.preventDefault();
+      useDiagramStore.getState().select(null);
+      openMenu(event as React.MouseEvent, buildBlankMenu());
+    },
+    [openMenu],
+  );
+
+  /** 状态栏坐标：rAF 节流，避免每次 mousemove 都推一次 store */
+  const onPointerMove = useCallback(
+    (event: React.MouseEvent) => {
+      lastPointer.current = { x: event.clientX, y: event.clientY };
+      if (cursorFrame.current !== null) return;
+      cursorFrame.current = requestAnimationFrame(() => {
+        cursorFrame.current = null;
+        const point = lastPointer.current;
+        if (!point) return;
+        setCursor(screenToFlowPosition({ x: point.x, y: point.y }));
+      });
+    },
+    [screenToFlowPosition, setCursor],
+  );
+
+  const onPointerLeave = useCallback(() => {
+    lastPointer.current = null;
+    setCursor(null);
+  }, [setCursor]);
+
   return (
     <div
       ref={wrapperRef}
       className={`h-full w-full ${spaceHeld ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      onMouseMove={onPointerMove}
+      onMouseLeave={onPointerLeave}
     >
     <ReactFlow
       nodes={nodes}
@@ -390,6 +489,9 @@ function CanvasInner() {
       onNodeDragStop={onNodeDragStop}
       onMoveEnd={onMoveEnd}
       onPaneClick={() => select(null)}
+      onNodeContextMenu={onNodeContextMenu}
+      onEdgeContextMenu={onEdgeContextMenu}
+      onPaneContextMenu={onPaneContextMenu}
       deleteKeyCode={deleting ? null : ['Delete', 'Backspace']}
       proOptions={{ hideAttribution: false }}
       className="bg-transparent"
@@ -405,6 +507,8 @@ function CanvasInner() {
         style={{ width: 160, height: 110 }}
       />
     </ReactFlow>
+    {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+    <SearchDialog />
     </div>
   );
 }
@@ -420,6 +524,8 @@ export function Canvas() {
       <ReactFlowProvider>
         <CanvasInner />
       </ReactFlowProvider>
+      <AlignToolbar />
+      <LayerPanel />
 
       {/* 右上角：网格开关（本地记忆） */}
       <button

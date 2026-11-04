@@ -18,10 +18,21 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
   const group = data.group;
   const patchGroup = useDiagramStore((s) => s.patchGroup);
   const toggleGroupCollapsed = useDiagramStore((s) => s.toggleGroupCollapsed);
+  const editRequestId = useDiagramStore((s) => s.editRequestId);
+  const highlighted = useDiagramStore((s) => s.highlightId === group.groupId);
+  const requestEdit = useDiagramStore((s) => s.requestEdit);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(group.label);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 右键菜单「重命名」通过 store 请求进入行内编辑
+  useEffect(() => {
+    if (editRequestId && editRequestId === group.groupId) {
+      setEditing(true);
+      requestEdit(null);
+    }
+  }, [editRequestId, group.groupId, requestEdit]);
 
   useEffect(() => {
     if (!editing) setDraft(group.label);
@@ -44,7 +55,9 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
       style={{
         background: group.bgColor,
         borderColor: selected ? 'var(--primary)' : group.borderColor,
-        borderWidth: selected ? 2 : 1,
+        borderWidth: selected || highlighted ? 2 : 1,
+        outline: highlighted ? '3px solid rgba(36,91,219,0.35)' : undefined,
+        outlineOffset: highlighted ? 2 : undefined,
         boxShadow: 'none',
       }}
     >

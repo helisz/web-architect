@@ -61,6 +61,7 @@ export function TopBar() {
   const { exportJson, exportPng, importJson } = useTransfer();
   const fileRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const layerOpen = useDiagramStore((s) => s.layerPanelOpen);
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--panel-border)] bg-[var(--panel-bg)] px-4">
@@ -109,6 +110,26 @@ export function TopBar() {
           重做
         </button>
         <EdgeSettings />
+        <button
+          type="button"
+          onClick={() => useDiagramStore.getState().setLayerPanelOpen(!layerOpen)}
+          title="图层（调整遮挡与上下层级）"
+          className={`rounded border px-2.5 py-1 text-xs ${
+            layerOpen
+              ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+              : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[#F9FAFB]'
+          }`}
+        >
+          图层
+        </button>
+        <button
+          type="button"
+          onClick={() => useDiagramStore.getState().setSearchOpen(true)}
+          title="搜索定位（Ctrl+F）"
+          className="rounded border border-[var(--panel-border)] px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB]"
+        >
+          搜索
+        </button>
         <button
           type="button"
           onClick={() => fileRef.current?.click()}

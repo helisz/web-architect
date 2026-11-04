@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+﻿import { memo, useEffect, useRef, useState } from 'react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { ANCHOR_ORDER, resolveIconKey, type Anchor } from '@arch/schema';
@@ -25,9 +25,20 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
   const showIcon = node.height >= 52;
   const iconSize = Math.max(14, Math.min(22, Math.round(node.height * 0.28)));
   const patchNode = useDiagramStore((s) => s.patchNode);
+  // 右键菜单「编辑名称」通过 store 请求进入行内编辑
+  const editRequestId = useDiagramStore((s) => s.editRequestId);
+  const highlighted = useDiagramStore((s) => s.highlightId === node.nodeId);
+  const requestEdit = useDiagramStore((s) => s.requestEdit);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(node.label);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editRequestId && editRequestId === node.nodeId && !node.locked) {
+      setEditing(true);
+      requestEdit(null);
+    }
+  }, [editRequestId, node.nodeId, node.locked, requestEdit]);
 
   useEffect(() => {
     if (!editing) setDraft(node.label);
@@ -50,7 +61,9 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
       style={{
         background: node.bgColor,
         borderColor: selected ? 'var(--primary)' : node.borderColor,
-        borderWidth: selected ? 2 : 1,
+        borderWidth: selected || highlighted ? 2 : 1,
+        outline: highlighted ? '3px solid rgba(36,91,219,0.35)' : undefined,
+        outlineOffset: highlighted ? 2 : undefined,
         color: node.textColor,
         // 规格 §5.2：禁止阴影，选中只用描边宽度与颜色区分
         boxShadow: 'none',

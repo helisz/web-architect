@@ -6,6 +6,7 @@ export function StatusBar() {
   const schemaVersion = useDiagramStore((s) => s.diagram.schemaVersion);
   const setViewport = useDiagramStore((s) => s.setViewport);
   const viewport = useDiagramStore((s) => s.diagram.viewport);
+  const cursor = useDiagramStore((s) => s.cursor);
   const stats = useDiagramStats();
 
   return (
@@ -18,12 +19,14 @@ export function StatusBar() {
       >
         {Math.round(zoom * 100)}%
       </button>
-      <span className="mono">x: — / y: —</span>
+      <span className="mono" title="光标所在的画布坐标（10px 网格）">
+        x: {cursor ? Math.round(cursor.x) : '—'} / y: {cursor ? Math.round(cursor.y) : '—'}
+      </span>
       <span>
         节点 {stats.nodeCount} · 连线 {stats.edgeCount} · 分组 {stats.groupCount}
       </span>
       <span className="ml-auto mono">schema v{schemaVersion}</span>
-      <span className="hidden sm:inline">空格拖拽平移 · 滚轮缩放</span>
+      <span className="hidden lg:inline">空格拖拽平移 · Ctrl+滚轮缩放 · Ctrl+F 搜索 · 右键菜单</span>
     </footer>
   );
 }

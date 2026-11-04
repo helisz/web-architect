@@ -1,4 +1,4 @@
-﻿import { MarkerType, type Edge, type Node } from '@xyflow/react';
+import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import {
   GROUP_HEADER_HEIGHT,
   isHiddenByCollapse,
@@ -96,8 +96,8 @@ export function toFlowNodes(
       selected: selected.has(n.nodeId),
       draggable: !n.locked,
       parentId: n.groupId ?? undefined,
-      // 节点盖在分组之上
-      zIndex: 1,
+      // 节点盖在分组之上；sort 决定同层节点的遮挡关系（右键置顶/置底、图层面板）
+      zIndex: 10 + n.sort,
     }));
 
   return [...groups, ...nodes];

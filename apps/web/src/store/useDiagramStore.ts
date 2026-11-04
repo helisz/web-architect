@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import {
   EDGE_DEFAULTS,
@@ -7,7 +7,10 @@ import {
   createGroup,
   createNode,
   diagramStats,
+  groupAbsoluteRect,
+  groupOffset,
   MAX_GROUP_DEPTH,
+  nodeAbsoluteRect,
   removeGroupLifting,
   setGroupParent,
   setNodeGroup,
@@ -20,6 +23,7 @@ import {
   type Point,
   type Viewport,
 } from '@arch/schema';
+import { alignRects, distributeRects, type AlignMode, type Rect } from '../canvas/align.js';
 
 const PREF_KEY = 'arch.ui.prefs';
 
@@ -145,6 +149,45 @@ interface DiagramStore {
   edgeDefaults: { edgeType: DiagramEdge['edgeType']; strokeWidth: number };
   setEdgeDefaults: (patch: Partial<{ edgeType: DiagramEdge['edgeType']; strokeWidth: number }>) => void;
   applyEdgeDefaultsToAll: () => void;
+
+  /* ---------------- 阶段 2：批量编辑 / 层级 / 剪贴板 ---------------- */
+
+  /** 6 种对齐：以选中集合的整体外框为准，精度 1px */
+  alignSelection: (mode: AlignMode) => void;
+  /** 2 种等距分布：首尾不动，中间按等间隙摆 */
+  distributeSelection: (axis: 'horizontal' | 'vertical') => void;
+  /** 置顶 / 置底（写 sort；节点与分组共用一套层级） */
+  bringToFront: (ids: string[]) => void;
+  sendToBack: (ids: string[]) => void;
+  /** 图层面板拖拽排序：按"从最上层到最下层"的顺序重写 sort */
+  setLayerOrder: (orderedIds: string[]) => void;
+  /** 锁定 / 解锁（只对节点生效：锁上后不可拖动，仍可选中、可连线） */
+  toggleLock: (ids: string[]) => void;
+  selectAll: () => void;
+  copySelection: () => void;
+  pasteClipboard: (offset?: Point) => void;
+  clipboard: { nodes: DiagramNode[]; edges: DiagramEdge[]; groups: DiagramGroup[] } | null;
+
+  /** 搜索定位后的 2 秒高亮 */
+  highlightId: string | null;
+  setHighlight: (id: string | null) => void;
+
+  /** 状态栏坐标（flow 坐标；离开画布为 null） */
+  cursor: Point | null;
+  setCursor: (cursor: Point | null) => void;
+
+  /** 右键"重命名/编辑"：请求某个元素进入行内编辑 */
+  editRequestId: string | null;
+  requestEdit: (id: string | null) => void;
+
+  /** 解组：只拆这一层，子分组与节点提升到上一层（内容全留） */
+  ungroup: (groupId: string) => void;
+
+  /** Ctrl+F 搜索面板 / 图层面板开关 */
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
+  layerPanelOpen: boolean;
+  setLayerPanelOpen: (open: boolean) => void;
 }
 
 const applyNode = (
@@ -209,6 +252,93 @@ function keepValidSelection(diagram: ArchitectureDiagram, selectedId: string | n
     diagram.edges.some((e) => e.edgeId === selectedId) ||
     diagram.groups.some((g) => g.groupId === selectedId);
   return exists ? selectedId : null;
+}
+
+/* ------------------------------------------------------------------ */
+/* 对齐 / 分布用的选中项快照                                            */
+/* ------------------------------------------------------------------ */
+
+interface SelectionItem {
+  id: string;
+  kind: 'node' | 'group';
+  /** 绝对包围盒（跨分组比较要用绝对坐标） */
+  rect: Rect;
+  /** 存回来的局部坐标（节点在组内时是相对父组） */
+  local: Point;
+}
+
+/** 把选中项换算成"绝对包围盒 + 局部坐标"；连线不参与对齐 */
+function collectSelection(state: Pick<DiagramStore, 'diagram' | 'selectedIds'>): SelectionItem[] {
+  const { diagram, selectedIds } = state;
+  const items: SelectionItem[] = [];
+  for (const id of selectedIds) {
+    const node = diagram.nodes.find((n) => n.nodeId === id);
+    if (node) {
+      items.push({
+        id,
+        kind: 'node',
+        rect: nodeAbsoluteRect(diagram.groups, node),
+        local: { x: node.x, y: node.y },
+      });
+      continue;
+    }
+    const group = diagram.groups.find((g) => g.groupId === id);
+    if (group) {
+      items.push({
+        id,
+        kind: 'group',
+        rect: groupAbsoluteRect(diagram.groups, group),
+        local: { x: group.x, y: group.y },
+      });
+    }
+  }
+  return items;
+}
+
+/**
+ * 把节点与分组的 sort 重排成 0..N-1。
+ *
+ * 层级操作如果一直 +1/-1，值会越跑越远（甚至跑成负数），
+ * 而 ReactFlow 的 zIndex 直接用它 —— 统一在每次层级变更后归一化。
+ */
+function renumberSorts(diagram: ArchitectureDiagram): ArchitectureDiagram {
+  const entries = [
+    ...diagram.nodes.map((n) => ({ id: n.nodeId, sort: n.sort })),
+    ...diagram.groups.map((g) => ({ id: g.groupId, sort: g.sort })),
+  ].sort((a, b) => a.sort - b.sort);
+  const rank = new Map(entries.map((entry, index) => [entry.id, index]));
+  return {
+    ...diagram,
+    nodes: diagram.nodes.map((n) => ({ ...n, sort: rank.get(n.nodeId) ?? n.sort })),
+    groups: diagram.groups.map((g) => ({ ...g, sort: rank.get(g.groupId) ?? g.sort })),
+  };
+}
+
+/** 按每个元素的位移量改写坐标（对齐 / 分布共用；1px 取整） */function applyMoves(
+  state: Pick<DiagramStore, 'diagram' | 'past' | 'future' | 'undoKey' | 'undoAt'>,
+  items: SelectionItem[],
+  deltas: { dx: number; dy: number }[],
+  key: string,
+): Pick<DiagramStore, 'diagram' | 'saveState'> & Partial<HistoryPatch> {
+  let diagram = state.diagram;
+  items.forEach((item, index) => {
+    const delta = deltas[index];
+    if (!delta || (delta.dx === 0 && delta.dy === 0)) return;
+    const x = Math.round(item.local.x + delta.dx);
+    const y = Math.round(item.local.y + delta.dy);
+    if (item.kind === 'node') {
+      diagram = {
+        ...diagram,
+        nodes: diagram.nodes.map((n) => (n.nodeId === item.id ? { ...n, x, y } : n)),
+      };
+      return;
+    }
+    diagram = {
+      ...diagram,
+      groups: diagram.groups.map((g) => (g.groupId === item.id ? { ...g, x, y } : g)),
+    };
+  });
+  return { ...withHistory(state, key), diagram, saveState: 'dirty' };
 }
 
 /** 真正执行删除：连线 → 节点 → 分组（removeGroupLifting 会把剩余子节点提上一层） */
@@ -518,6 +648,210 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
       const next = setGroupParent(s.diagram, groupId, parentGroupId);
       if (next === s.diagram) return s;
       return { ...withHistory(s, `reparentGroup:${groupId}`), diagram: next, saveState: 'dirty' };
+    }),
+
+  /* —— 阶段 2：对齐 / 分布 / 层级 / 锁定 / 剪贴板 —— */
+
+  alignSelection: (mode) =>
+    set((s) => {
+      const items = collectSelection(s);
+      if (items.length < 2) return s;
+      const deltas = alignRects(items.map((item) => item.rect), mode);
+      return applyMoves(s, items, deltas, `align:${mode}`);
+    }),
+
+  distributeSelection: (axis) =>
+    set((s) => {
+      const items = collectSelection(s);
+      if (items.length < 3) return s;
+      const deltas = distributeRects(items.map((item) => item.rect), axis);
+      return applyMoves(s, items, deltas, `distribute:${axis}`);
+    }),
+
+  bringToFront: (ids) =>
+    set((s) => {
+      const targets = new Set(ids);
+      const present = [...s.diagram.nodes.map((n) => n.nodeId), ...s.diagram.groups.map((g) => g.groupId)];
+      const moved = present.filter((id) => targets.has(id));
+      if (moved.length === 0) return s;
+      const maxSort = Math.max(0, ...s.diagram.nodes.map((n) => n.sort), ...s.diagram.groups.map((g) => g.sort));
+      const sortOf = new Map(moved.map((id, index) => [id, maxSort + 1 + index]));
+      return {
+        ...withHistory(s, 'layer:front'),
+        diagram: renumberSorts({
+          ...s.diagram,
+          nodes: s.diagram.nodes.map((n) => (sortOf.has(n.nodeId) ? { ...n, sort: sortOf.get(n.nodeId)! } : n)),
+          groups: s.diagram.groups.map((g) => (sortOf.has(g.groupId) ? { ...g, sort: sortOf.get(g.groupId)! } : g)),
+        }),
+        saveState: 'dirty',
+      };
+    }),
+
+  sendToBack: (ids) =>
+    set((s) => {
+      const targets = new Set(ids);
+      const present = [...s.diagram.nodes.map((n) => n.nodeId), ...s.diagram.groups.map((g) => g.groupId)];
+      const moved = present.filter((id) => targets.has(id));
+      if (moved.length === 0) return s;
+      const minSort = Math.min(0, ...s.diagram.nodes.map((n) => n.sort), ...s.diagram.groups.map((g) => g.sort));
+      // 顺序保持：第一个传进来的排最底，后面的依次往上
+      const sortOf = new Map(moved.map((id, index) => [id, minSort - moved.length + index]));
+      return {
+        ...withHistory(s, 'layer:back'),
+        diagram: renumberSorts({
+          ...s.diagram,
+          nodes: s.diagram.nodes.map((n) => (sortOf.has(n.nodeId) ? { ...n, sort: sortOf.get(n.nodeId)! } : n)),
+          groups: s.diagram.groups.map((g) => (sortOf.has(g.groupId) ? { ...g, sort: sortOf.get(g.groupId)! } : g)),
+        }),
+        saveState: 'dirty',
+      };
+    }),
+
+  setLayerOrder: (orderedIds) =>
+    set((s) => {
+      if (orderedIds.length === 0) return s;
+      // 列表是从上到下：第一个 sort 最大
+      const sortOf = new Map(orderedIds.map((id, index) => [id, orderedIds.length - index]));
+      return {
+        ...withHistory(s, 'layer:order'),
+        diagram: renumberSorts({
+          ...s.diagram,
+          nodes: s.diagram.nodes.map((n) => (sortOf.has(n.nodeId) ? { ...n, sort: sortOf.get(n.nodeId)! } : n)),
+          groups: s.diagram.groups.map((g) => (sortOf.has(g.groupId) ? { ...g, sort: sortOf.get(g.groupId)! } : g)),
+        }),
+        saveState: 'dirty',
+      };
+    }),
+
+  toggleLock: (ids) =>
+    set((s) => {
+      const targets = new Set(ids);
+      const hit = s.diagram.nodes.filter((n) => targets.has(n.nodeId));
+      if (hit.length === 0) return s;
+      const nextLocked = !hit.every((n) => n.locked);
+      return {
+        ...withHistory(s, `lock:${ids.join(',')}`),
+        diagram: {
+          ...s.diagram,
+          nodes: s.diagram.nodes.map((n) => (targets.has(n.nodeId) ? { ...n, locked: nextLocked } : n)),
+        },
+        saveState: 'dirty',
+      };
+    }),
+
+  selectAll: () =>
+    set((s) => {
+      const selectedIds = [
+        ...s.diagram.nodes.map((n) => n.nodeId),
+        ...s.diagram.groups.map((g) => g.groupId),
+      ];
+      return { selectedIds, selectedId: selectedIds.length === 1 ? selectedIds[0]! : null };
+    }),
+
+  clipboard: null,
+  copySelection: () =>
+    set((s) => {
+      const nodes = s.diagram.nodes.filter((n) => s.selectedIds.includes(n.nodeId));
+      const groups = s.diagram.groups.filter((g) => s.selectedIds.includes(g.groupId));
+      if (nodes.length === 0 && groups.length === 0) return s;
+      // 两端都在复制范围内的连线才带走
+      const nodeIds = new Set(nodes.map((n) => n.nodeId));
+      const edges = s.diagram.edges.filter(
+        (e) => nodeIds.has(e.sourceNodeId) && nodeIds.has(e.targetNodeId),
+      );
+      return { clipboard: { nodes, edges, groups } };
+    }),
+
+  pasteClipboard: (offset) =>
+    set((s) => {
+      const clip = s.clipboard;
+      if (!clip || (clip.nodes.length === 0 && clip.groups.length === 0)) return s;
+      const dx = offset?.x ?? 24;
+      const dy = offset?.y ?? 24;
+      const idMap = new Map<string, string>();
+      const newId = (): string => crypto.randomUUID();
+
+      const groups = clip.groups.map((g) => {
+        const groupId = newId();
+        idMap.set(g.groupId, groupId);
+        return { ...g, groupId, x: g.x + dx, y: g.y + dy };
+      });
+      const nodes = clip.nodes.map((n) => {
+        const nodeId = newId();
+        idMap.set(n.nodeId, nodeId);
+        return {
+          ...n,
+          nodeId,
+          // 父组没被一起复制时，落到顶层（否则会指向一个不存在的组）
+          groupId: n.groupId ? (idMap.get(n.groupId) ?? null) : null,
+          x: n.x + dx,
+          y: n.y + dy,
+        };
+      });
+      const edges = clip.edges.map((e) => ({
+        ...e,
+        edgeId: newId(),
+        sourceNodeId: idMap.get(e.sourceNodeId) ?? e.sourceNodeId,
+        targetNodeId: idMap.get(e.targetNodeId) ?? e.targetNodeId,
+      }));
+      const selectedIds = [...groups.map((g) => g.groupId), ...nodes.map((n) => n.nodeId)];
+      return {
+        ...withHistory(s, `paste:${Date.now()}`),
+        diagram: {
+          ...s.diagram,
+          groups: [...s.diagram.groups, ...groups],
+          nodes: [...s.diagram.nodes, ...nodes],
+          edges: [...s.diagram.edges, ...edges],
+        },
+        selectedIds,
+        selectedId: selectedIds.length === 1 ? selectedIds[0]! : null,
+        saveState: 'dirty',
+      };
+    }),
+
+  highlightId: null,
+  setHighlight: (highlightId) => set({ highlightId }),
+
+  cursor: null,
+  setCursor: (cursor) => set({ cursor }),
+
+  editRequestId: null,
+  requestEdit: (editRequestId) => set({ editRequestId }),
+
+  searchOpen: false,
+  setSearchOpen: (searchOpen) => set({ searchOpen }),
+  layerPanelOpen: readPref('layerPanelOpen', false),
+  setLayerPanelOpen: (layerPanelOpen) => {
+    writePref('layerPanelOpen', layerPanelOpen);
+    set({ layerPanelOpen });
+  },
+
+  ungroup: (groupId) =>
+    set((s) => {
+      const group = s.diagram.groups.find((g) => g.groupId === groupId);
+      if (!group) return s;
+      const parentId = group.parentGroupId ?? null;
+      const offset = groupOffset(s.diagram.groups, parentId);
+      // 只拆这一层：直属节点与直属子分组都提到上一层，坐标换算回父级坐标系
+      const nodes = s.diagram.nodes.map((node) => {
+        if (node.groupId !== groupId) return node;
+        const absolute = nodeAbsoluteRect(s.diagram.groups, node);
+        return { ...node, groupId: parentId, x: absolute.x - offset.x, y: absolute.y - offset.y };
+      });
+      const groups = s.diagram.groups
+        .filter((g) => g.groupId !== groupId)
+        .map((g) => {
+          if (g.parentGroupId !== groupId) return g;
+          const absolute = groupAbsoluteRect(s.diagram.groups, g);
+          return { ...g, parentGroupId: parentId, x: absolute.x - offset.x, y: absolute.y - offset.y };
+        });
+      return {
+        ...withHistory(s, `ungroup:${groupId}`),
+        diagram: { ...s.diagram, nodes, groups },
+        selectedId: s.selectedId === groupId ? null : s.selectedId,
+        selectedIds: s.selectedIds.filter((id) => id !== groupId),
+        saveState: 'dirty',
+      };
     }),
 
   /* —— 命令栈 —— */
