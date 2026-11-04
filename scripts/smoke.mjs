@@ -70,6 +70,26 @@ async function resolveDiagramId() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * 新开一个空白标签页并返回它的 target 描述。
+ *
+ * 新版 Chrome 要求 `PUT /json/new`，老版本用 GET；两种都试，失败才报错 ——
+ * 无论如何都不碰用户已经开着的页面。
+ */
+async function openOwnTab() {
+  for (const method of ['PUT', 'GET']) {
+    try {
+      const response = await fetch(`${CDP}/json/new?about:blank`, { method });
+      if (!response.ok) continue;
+      const target = await response.json();
+      if (target?.id && target.webSocketDebuggerUrl) return target;
+    } catch {
+      /* 换下一种方法 */
+    }
+  }
+  throw new Error('开不出新的调试标签页，先启动带 --remote-debugging-port 的浏览器');
+}
+
 async function main() {
   const diagramId = await resolveDiagramId();
   const stamp = Date.now();
@@ -78,9 +98,16 @@ async function main() {
     diagramId ? `${BASE_URL}/?smoke=${stamp}#/d/${diagramId}` : `${BASE_URL}/?smoke=${stamp}`,
   );
 
-  const targets = await (await fetch(`${CDP}/json/list`)).json();
-  const page = targets.find((t) => t.type === 'page');
-  if (!page) throw new Error('没有可用的页面目标，先启动带 --remote-debugging-port 的浏览器');
+  // 自己开一个标签页，**绝不复用**用户正开着的画布：复用了会在结束时把它一起关掉，
+  // 用户没保存的编辑就没了（2026-11-04 真的踩到过）。
+  const page = await openOwnTab();
+  const closeTab = async () => {
+    try {
+      await fetch(`${CDP}/json/close/${page.id}`);
+    } catch {
+      /* 关不掉就算了，不影响结论 */
+    }
+  };
 
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
@@ -191,10 +218,12 @@ async function main() {
   if (failures.length) {
     for (const line of failures) console.error('✗', line);
     ws.close();
+    await closeTab();
     process.exit(1);
   }
   console.log('✓ 冒烟通过');
   ws.close();
+  await closeTab();
 }
 
 main().catch((error) => {
