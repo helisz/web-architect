@@ -8,6 +8,7 @@ const db = () => {
 };
 import type { SaveResult } from './diagramRepo.js';
 import type { SavePayload } from './payloadDiff.js';
+import { thumbnailDataUrl } from '../export/thumbnail.js';
 
 /**
  * 快照与回滚（阶段 3 · D7）。
@@ -37,6 +38,8 @@ export interface SnapshotSummary {
   createdBy: string;
   /** 快照里的节点 / 连线 / 分组数量（列表里直接显示，省一次点击） */
   counts: { nodes: number; edges: number; groups: number } | null;
+  /** 缩略图 data URL（用 payload 现算，不额外占存储） */
+  thumbnail: string | null;
 }
 
 const countOf = (payload: SavePayload | null): SnapshotSummary['counts'] => {
@@ -65,6 +68,7 @@ export async function listSnapshots(diagramId: string): Promise<SnapshotSummary[
     createdAt: row.created_at,
     createdBy: row.created_by ?? '',
     counts: countOf(row.payload),
+    thumbnail: row.payload ? thumbnailDataUrl(row.payload, 96) : null,
   }));
 }
 
@@ -81,12 +85,75 @@ export async function loadSnapshotPayload(snapshotId: string): Promise<SavePaylo
 }
 
 /**
- * 回滚：把快照 payload 作为一次新的整图保存提交。
+ * 手动保存当前版本为快照（C8 的"手动命名快照"）。
  *
- * 不校验 —— payload 来自我们自己的库，落库时已经校验过一次；
+ * payload 用服务端的 `arch_diagram_payload` 重建 —— 这样快照内容与库里的行完全一致，
+ * 也不需要在浏览器里再拼一遍 payload。
+ * 同一版本已有快照时（`arch_uq_snapshot_version`）改成重命名，不报错。
+ */
+export async function saveManualSnapshot(
+  diagramId: string,
+  version: number,
+  name: string,
+): Promise<{ created: true } | { created: false; renamed: true }> {
+  const { data: payload, error: payloadError } = await db().rpc('arch_diagram_payload', {
+    p_diagram_id: diagramId,
+  });
+  if (payloadError) throw new Error(payloadError.message);
+
+  const snapshotId = crypto.randomUUID();
+  const { error } = await db().from(TABLES.snapshot).insert({
+    snapshot_id: snapshotId,
+    diagram_id: diagramId,
+    version,
+    name,
+    payload,
+    created_by: 'manual',
+  });
+
+  if (!error) return { created: true };
+
+  // 23505 = unique_violation：这一版已经有快照了，把名字改掉即可
+  if ((error as { code?: string }).code === '23505') {
+    const { error: renameError } = await db()
+      .from(TABLES.snapshot)
+      .update({ name })
+      .eq('diagram_id', diagramId)
+      .eq('version', version);
+    if (renameError) throw new Error(renameError.message);
+    return { created: false, renamed: true };
+  }
+
+  throw new Error(error.message);
+}
+
+/**
+ * 回滚（B6）：优先走 `arch_restore_snapshot` RPC（版本 +1 的逻辑在库里）；
+ * 函数还没装时退回到"取 payload → 整图保存"，行为一致，只是多一次往返。
+ *
+ * 不校验 payload —— 它来自我们自己的库，落库时已经校验过一次；
  * 再校验反而会因为"当时合法的旧枚举"被现在的规则拒掉。
  */
-export async function restoreSnapshot(payload: SavePayload): Promise<SaveResult> {
+export async function restoreSnapshot(
+  snapshotId: string,
+  fallbackPayload?: SavePayload,
+): Promise<SaveResult> {
+  const { data, error } = await db().rpc('arch_restore_snapshot', { p_snapshot_id: snapshotId });
+
+  if (error) {
+    const message = error.message ?? String(error);
+    const missing = (error as { code?: string }).code === 'PGRST202' || message.includes('arch_restore_snapshot');
+    if (!missing) return { ok: false, reason: 'failed', message };
+    // 没有 RPC：退回整图保存
+    if (!fallbackPayload) return { ok: false, reason: 'missing_function', message };
+    return restoreSnapshotBySave(fallbackPayload);
+  }
+
+  return parseSaveResponse(data);
+}
+
+/** 旧路径：直接以 payload 发起整图保存（baseVersion = null 表示强制覆盖） */
+export async function restoreSnapshotBySave(payload: SavePayload): Promise<SaveResult> {
   const { data, error } = await db().rpc('arch_save_diagram', {
     p_payload: payload,
     p_base_version: null,
@@ -100,6 +167,11 @@ export async function restoreSnapshot(payload: SavePayload): Promise<SaveResult>
     return { ok: false, reason: 'failed', message };
   }
 
+  return parseSaveResponse(data);
+}
+
+/** 保存类 RPC 的返回都长这样：{ version, savedAt, snapshot } */
+function parseSaveResponse(data: unknown): SaveResult {
   const response = (Array.isArray(data) ? data[0] : data) as
     | { version: number; savedAt: string; snapshot: boolean }
     | null;
@@ -108,3 +180,4 @@ export async function restoreSnapshot(payload: SavePayload): Promise<SaveResult>
   }
   return { ok: true, version: response.version, savedAt: response.savedAt, snapshot: response.snapshot };
 }
+

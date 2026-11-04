@@ -1,4 +1,4 @@
-﻿import { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import { exportFileName, parseImport, serializeDiagram } from '../data/transfer.js';
 import { decodeSvgDataUrl, downloadBlob, downloadDataUrl, downloadText, renderPng, renderSvg } from '../export/exportPng.js';
@@ -50,13 +50,14 @@ export function useTransfer() {
 
   /** PNG：scale 为 1 / 2 / 3 倍像素密度 */
   const exportPng = useCallback(
-    async (scale: 1 | 2 | 3 = 2) => {
+    async (scale: 1 | 2 | 3 = 2, transparent = false) => {
       let restore: (() => void) | null = null;
       try {
         restore = await prepare();
         const viewport = document.querySelector<HTMLElement>('.react-flow__viewport')!;
-        const dataUrl = await renderPng(viewport, { margin: 40, pixelRatio: scale });
-        downloadDataUrl(dataUrl, fileName('png', scale === 1 ? '' : `@${scale}x`));
+        const dataUrl = await renderPng(viewport, { margin: 40, pixelRatio: scale, transparent });
+        const suffix = transparent ? `@${scale}x-transparent` : scale === 1 ? '' : `@${scale}x`;
+        downloadDataUrl(dataUrl, fileName('png', suffix));
       } catch (error) {
         setSaveError(`导出 PNG 失败：${(error as Error).message}`);
       } finally {
@@ -128,3 +129,4 @@ export function useTransfer() {
 
   return { exportJson, exportPng, exportSvg, exportPdf, exportCsv, importJson };
 }
+

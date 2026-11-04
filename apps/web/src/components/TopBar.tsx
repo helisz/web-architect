@@ -218,6 +218,14 @@ export function TopBar() {
               <MenuItem
                 onClick={() => {
                   setMenuOpen(false);
+                  void exportPng(2, true);
+                }}
+              >
+                导出 PNG（2×，透明底）
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
                   void exportSvg();
                 }}
               >

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useDiagramStore } from '../store/useDiagramStore.js';
-import { listSnapshots, loadSnapshotPayload, restoreSnapshot, type SnapshotSummary } from '../data/snapshotRepo.js';
+import { listSnapshots, loadSnapshotPayload, restoreSnapshot, saveManualSnapshot, type SnapshotSummary } from '../data/snapshotRepo.js';
 import { loadDiagram } from '../data/diagramRepo.js';
 import { rememberSavedPayload } from '../data/usePersistence.js';
 
@@ -21,6 +21,7 @@ export function VersionDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<SnapshotSummary | null>(null);
+  const [snapshotName, setSnapshotName] = useState('');
 
   const refresh = useCallback(async () => {
     setRows(null);
@@ -48,9 +49,10 @@ export function VersionDialog({ onClose }: { onClose: () => void }) {
     setBusy(snapshot.snapshotId);
     setError(null);
     try {
+      // 优先走 arch_restore_snapshot；函数没装时用 payload 走整图保存
       const payload = await loadSnapshotPayload(snapshot.snapshotId);
       if (!payload) throw new Error('这个快照没有内容');
-      const result = await restoreSnapshot(payload);
+      const result = await restoreSnapshot(snapshot.snapshotId, payload);
       if (!result.ok) throw new Error(result.message);
 
       const loaded = await loadDiagram(diagramId);
@@ -64,6 +66,23 @@ export function VersionDialog({ onClose }: { onClose: () => void }) {
     } finally {
       setBusy(null);
       setConfirming(null);
+    }
+  };
+
+  /** 手动把当前版本存成命名快照（C8） */
+  const saveManual = async (): Promise<void> => {
+    const label = snapshotName.trim() || `手动快照 v${version}`;
+    setBusy('manual');
+    setError(null);
+    try {
+      const outcome = await saveManualSnapshot(diagramId, version, label);
+      setSnapshotName('');
+      await refresh();
+      setNotice(outcome.created ? `已保存快照「${label}」` : `v${version} 已有快照，已改名为「${label}」`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -92,6 +111,27 @@ export function VersionDialog({ onClose }: { onClose: () => void }) {
 
         {error && <p className="border-b border-[#FECACA] bg-[#FEF2F2] px-4 py-2 text-[12px] text-[#B91C1C]">{error}</p>}
 
+        {/* 手动快照：把当前版本命名存下来，和自动快照一起进列表 */}
+        <div className="flex items-center gap-2 border-b border-[var(--panel-border)] bg-[#F9FAFB] px-4 py-2">
+          <input
+            className="min-w-0 flex-1 rounded border border-[var(--panel-border)] px-2 py-1 text-[12px] outline-none focus:border-[var(--primary)]"
+            placeholder={`给 v${version} 起个名字，例如「上线前」`}
+            value={snapshotName}
+            onChange={(event) => setSnapshotName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && busy === null) void saveManual();
+            }}
+          />
+          <button
+            type="button"
+            className="shrink-0 rounded bg-[var(--primary)] px-2.5 py-1 text-[12px] text-white hover:bg-[var(--primary-hover,#1D4ED8)] disabled:opacity-50"
+            disabled={busy !== null}
+            onClick={() => void saveManual()}
+          >
+            {busy === 'manual' ? '保存中…' : '存为快照'}
+          </button>
+        </div>
+
         <div className="max-h-[360px] overflow-y-auto">
           {rows === null ? (
             <p className="px-4 py-6 text-center text-[12px] text-[var(--text-secondary)]">正在读取快照…</p>
@@ -106,6 +146,15 @@ export function VersionDialog({ onClose }: { onClose: () => void }) {
                   key={row.snapshotId}
                   className="flex items-center gap-3 border-b border-[var(--panel-border)] px-4 py-2 last:border-b-0"
                 >
+                  {row.thumbnail ? (
+                    <img
+                      src={row.thumbnail}
+                      alt={`v${row.version} 缩略图`}
+                      className="h-[46px] w-[80px] shrink-0 rounded border border-[var(--panel-border)] bg-white object-contain"
+                    />
+                  ) : (
+                    <div className="h-[46px] w-[80px] shrink-0 rounded border border-[var(--panel-border)] bg-[#F9FAFB]" />
+                  )}
                   <span className="mono w-12 shrink-0 text-[12px] font-medium">v{row.version}</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px]">{row.name}</p>
@@ -156,3 +205,4 @@ export function VersionDialog({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+

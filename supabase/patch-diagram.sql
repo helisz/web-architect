@@ -323,3 +323,43 @@ grant execute on function public.arch_patch_diagram(uuid, integer, jsonb) to ano
 commit;
 
 notify pgrst, 'reload schema';
+
+begin;
+
+-- ---------------------------------------------------------------------------
+-- arch_restore_snapshot：把某个快照回滚成一次新的整图保存
+-- 语义（D7）：回滚不是"倒带"，而是"把旧内容当成一次新提交" —— 版本号 max+1，
+-- 历史不丢；实现上直接复用 arch_save_diagram，避免两套写库逻辑走偏。
+-- ---------------------------------------------------------------------------
+create or replace function public.arch_restore_snapshot(p_snapshot_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_diagram_id uuid;
+  v_payload    jsonb;
+begin
+  select s.diagram_id, s.payload
+    into v_diagram_id, v_payload
+    from public.arch_snapshot s
+   where s.snapshot_id = p_snapshot_id;
+
+  if v_diagram_id is null then
+    raise exception 'SNAPSHOT_NOT_FOUND: %', p_snapshot_id using errcode = 'P0002';
+  end if;
+
+  -- baseVersion 传 null：强制覆盖，避免"读的时候恰好有人保存过"导致冲突
+  return public.arch_save_diagram(v_payload, null);
+end
+$fn$;
+
+comment on function public.arch_restore_snapshot(uuid)
+  is '快照回滚：以快照 payload 发起一次新保存，version = max + 1（D7）';
+
+grant execute on function public.arch_restore_snapshot(uuid) to anon, authenticated;
+
+commit;
+
+notify pgrst, 'reload schema';
