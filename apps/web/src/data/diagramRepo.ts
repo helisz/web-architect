@@ -11,6 +11,7 @@ import {
   type ValidationIssue,
 } from '@arch/schema';
 import { supabase } from '../lib/supabase.js';
+import type { PayloadPatch } from './payloadDiff.js';
 
 /**
  * 数据访问层：浏览器 → Supabase PostgREST。
@@ -119,6 +120,7 @@ export type SaveResult =
   | { ok: true; version: number; savedAt: string; snapshot: boolean }
   | { ok: false; reason: 'version_conflict'; currentVersion?: number; message: string }
   | { ok: false; reason: 'missing_function'; message: string }
+  | { ok: false; reason: 'missing_patch'; message: string }
   | { ok: false; reason: 'invalid'; message: string; paths: string[] }
   | { ok: false; reason: 'failed'; message: string };
 
@@ -184,6 +186,66 @@ export async function saveDiagram(
     return { ok: false, reason: 'failed', message: '保存返回结构异常' };
   }
 
+  return {
+    ok: true,
+    version: response.version,
+    savedAt: response.savedAt,
+    snapshot: response.snapshot,
+  };
+}
+
+/**
+ * 增量保存：只提交差异行（`diffPayload` 的结果）。
+ *
+ * 语义与整图保存一致（版本 +1、VERSION_CONFLICT、条件快照），
+ * 但写入量 ≈ 本次改动量。函数还没建（用户没跑 patch-diagram.sql）时
+ * 返回 `missing_patch`，由调用方回退到整图保存 —— 功能不因缺 SQL 而坏。
+ */
+export async function patchDiagram(
+  diagram: ArchitectureDiagram,
+  baseVersion: number,
+  patch: PayloadPatch,
+): Promise<SaveResult> {
+  const check = validateDiagram(diagram, { repair: false });
+  if (!check.ok) {
+    const errors = check.errors.slice(0, 5);
+    return {
+      ok: false,
+      reason: 'invalid',
+      message: `数据不合法，已拒绝保存：${errors.map((e) => `${e.path}：${e.message}`).join('；')}`,
+      paths: errors.map((e) => e.path),
+    };
+  }
+
+  const { data, error } = await client().rpc('arch_patch_diagram', {
+    p_diagram_id: diagram.diagramId,
+    p_base_version: baseVersion,
+    p_patch: patch,
+  });
+
+  if (error) {
+    const message = error.message ?? String(error);
+    if (message.includes('VERSION_CONFLICT')) {
+      const match = /库内版本\s+(\d+)/.exec(message);
+      return {
+        ok: false,
+        reason: 'version_conflict',
+        currentVersion: match ? Number(match[1]) : undefined,
+        message,
+      };
+    }
+    const code = (error as { code?: string }).code;
+    // 函数不存在 / PostgREST 缓存还没刷 → 回退整图保存
+    if (code === 'PGRST202' || message.includes('arch_patch_diagram')) {
+      return { ok: false, reason: 'missing_patch', message };
+    }
+    return { ok: false, reason: 'failed', message };
+  }
+
+  const response = (Array.isArray(data) ? data[0] : data) as RpcSaveResponse | null;
+  if (!response || typeof response.version !== 'number') {
+    return { ok: false, reason: 'failed', message: '增量保存返回结构异常' };
+  }
   return {
     ok: true,
     version: response.version,

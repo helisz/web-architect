@@ -4,6 +4,8 @@
 -- 用法：Supabase Dashboard → SQL Editor → New query → 粘贴本文件全文 → Run。
 --       可重复执行：表用 if not exists，列用 add column if not exists，
 --       策略先 drop 再 create，触发器先 drop 再建。
+--       阶段 2 起另有增量保存函数，装完本文件后再执行 supabase/patch-diagram.sql
+--       （不装也能用，前端会自动回退到整图保存）。
 --
 -- 命名：本项目与 toolbox 共用同一个 Supabase 项目（public schema），
 --       所有对象统一 arch_ 前缀，避免与其既有对象冲突。
