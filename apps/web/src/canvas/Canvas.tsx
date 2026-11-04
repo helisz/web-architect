@@ -3,6 +3,7 @@ import {
   Background,
   BackgroundVariant,
   ConnectionMode,
+  ControlButton,
   Controls,
   MiniMap,
   ReactFlow,
@@ -31,6 +32,7 @@ import { useDiagramStats, useDiagramStore } from '../store/useDiagramStore.js';
 import { saveLocalViewport } from '../data/viewportPrefs.js';
 import { useTransfer } from '../hooks/useTransfer.js';
 import { ContextMenu, type MenuNode } from '../components/ContextMenu.js';
+import { ToolIcon } from '../components/ToolIcons.js';
 import {
   buildBlankMenu,
   buildEdgeMenu,
@@ -46,10 +48,14 @@ import { SwimlaneNode } from './SwimlaneNode.js';
 import { AlignToolbar } from '../components/AlignToolbar.js';
 import { SearchDialog } from '../components/SearchDialog.js';
 import { LayerPanel } from '../components/LayerPanel.js';
-import { OrthoEdge } from './OrthoEdge.js';
+import { ArchEdge } from './ArchEdge.js';
+import { ArchConnectionLine } from './ArchConnectionLine.js';
+import { nextZoom, zoomAroundCenter, ZOOM_RESET_EVENT } from './zoom.js';
 
 const nodeTypes = { archNode: ArchNode, swimlane: SwimlaneNode };
-const edgeTypes = { orthoEdge: OrthoEdge };
+// 三种线型（正交 / 曲线 / 直线）都走同一支自绘线：端点统一贴节点边框，
+// 曲线和直线内部仍是 ReactFlow 标准的 getBezierPath / getStraightPath。
+const edgeTypes = { archEdge: ArchEdge };
 
 /** 吸附网格（px）：背景线密度与吸附粒度保持一致 */
 export const SNAP_GRID: [number, number] = [10, 10];
@@ -194,20 +200,66 @@ const cursorFrame = useRef<number | null>(null);
     };
   }, []);
 
-  // 普通滚轮 = 上下平移；Ctrl/Cmd + 滚轮交给 ReactFlow 缩放
+  // 普通滚轮 = 上下平移；Ctrl/Cmd + 滚轮 = 按 20% 档位缩放（用户 2026-11-04 定稿）
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const lastWheelStep = useRef(0);
+  const stepZoomRef = useRef<(direction: 1 | -1) => void>(() => {});
   useEffect(() => {
     const element = wrapperRef.current;
     if (!element) return;
     const onWheelNative = (event: WheelEvent): void => {
-      if (event.ctrlKey || event.metaKey) return;
+      if (event.ctrlKey || event.metaKey) {
+        // 必须在捕获阶段就把事件截下来：d3-zoom 的 wheel 监听挂在里面的 pane 上，
+        // 冒泡阶段处理的话它已经先缩过一次，档位就不再是 20% 的整数倍了。
+        event.preventDefault();
+        event.stopPropagation();
+        const now = Date.now();
+        // 触控板一次手势会连发几十个 wheel 事件，节流一下，免得一口气跳好几档
+        if (now - lastWheelStep.current < 160) return;
+        lastWheelStep.current = now;
+        stepZoomRef.current(event.deltaY < 0 ? 1 : -1);
+        return;
+      }
       event.preventDefault();
       const { x, y, zoom } = getViewport();
       applyViewport({ x, y: y - (event.deltaY / zoom) * 0.9, zoom });
     };
-    element.addEventListener('wheel', onWheelNative, { passive: false });
-    return () => element.removeEventListener('wheel', onWheelNative);
+    element.addEventListener('wheel', onWheelNative, { passive: false, capture: true });
+    return () => element.removeEventListener('wheel', onWheelNative, { capture: true });
   }, [applyViewport, getViewport]);
+
+  /**
+   * 缩放到下一档 20%（Ctrl+滚轮 与左下角 +/- 共用）。
+   * 保持视口中心不动；已经到头就不再动。
+   */
+  const applyZoomLevel = useCallback(
+    (target: number) => {
+      const current = getViewport();
+      if (Math.abs(target - current.zoom) < 1e-6) return;
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (!rect || rect.width <= 0 || rect.height <= 0) {
+        applyViewport({ ...current, zoom: target }, { duration: 160 });
+        return;
+      }
+      applyViewport(zoomAroundCenter(current, target, { width: rect.width, height: rect.height }), {
+        duration: 160,
+      });
+    },
+    [applyViewport, getViewport],
+  );
+
+  const stepZoom = useCallback(
+    (direction: 1 | -1) => applyZoomLevel(nextZoom(getViewport().zoom, direction)),
+    [applyZoomLevel, getViewport],
+  );
+  stepZoomRef.current = stepZoom;
+
+  // 状态条上的「100%」在 provider 外面，用事件把"恢复 1:1"传进来
+  useEffect(() => {
+    const onReset = (): void => applyZoomLevel(1);
+    window.addEventListener(ZOOM_RESET_EVENT, onReset);
+    return () => window.removeEventListener(ZOOM_RESET_EVENT, onReset);
+  }, [applyZoomLevel]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -570,9 +622,10 @@ const cursorFrame = useRef<number | null>(null);
       selectionMode={SelectionMode.Partial}
       multiSelectionKeyCode={['Meta', 'Control', 'Shift']}
       zoomOnScroll={false}
-      zoomActivationKeyCode={['Control', 'Meta']}
       zoomOnPinch
       zoomOnDoubleClick={false}
+      // 拖线预览：主色虚线 + 箭头（RF 默认那条 1px 淡灰线基本看不见）
+      connectionLineComponent={ArchConnectionLine}
       // 手柄命中半径放大，拖到节点附近就能接上
       connectionRadius={CONNECTION_RADIUS}
       defaultViewport={diagram.viewport}
@@ -598,7 +651,22 @@ const cursorFrame = useRef<number | null>(null);
     >
       {/* 规格 §5.1：网格。用户 2026-11-04 定稿：网点，间距与吸附一致（10px），点略深一点才看得清 */}
       {showGrid && <Background variant={BackgroundVariant.Dots} gap={SNAP_GRID[0]} size={1.4} color="#D9DCE1" />}
-      <Controls showInteractive={false} />
+      {/* 缩放按钮自己画：ReactFlow 内置的 ± 是 "×1.2"，和状态条上的 20% 档位对不上 */}
+      <Controls showZoom={false} showFitView={false} showInteractive={false}>
+        <ControlButton onClick={() => stepZoom(1)} title="放大（+20%）" aria-label="放大">
+          <ToolIcon name="plus" />
+        </ControlButton>
+        <ControlButton onClick={() => stepZoom(-1)} title="缩小（−20%）" aria-label="缩小">
+          <ToolIcon name="minus" />
+        </ControlButton>
+        <ControlButton
+          onClick={() => void fitView({ padding: 0.12, duration: 260 })}
+          title="适配视图（Fit view）"
+          aria-label="适配视图"
+        >
+          <ToolIcon name="fit" />
+        </ControlButton>
+      </Controls>
       <MiniMap
         pannable
         zoomable
@@ -647,8 +715,6 @@ export function Canvas() {
  */
 function CanvasStatus() {
   const zoom = useDiagramStore((s) => s.diagram.viewport.zoom);
-  const viewport = useDiagramStore((s) => s.diagram.viewport);
-  const setViewport = useDiagramStore((s) => s.setViewport);
   const schemaVersion = useDiagramStore((s) => s.diagram.schemaVersion);
   const cursor = useDiagramStore((s) => s.cursor);
   const stats = useDiagramStats();
@@ -657,7 +723,8 @@ function CanvasStatus() {
     <div className="pointer-events-none absolute bottom-1 left-[76px] z-10 flex items-center gap-3 text-[11px] leading-4 text-[var(--text-secondary)]">
       <button
         type="button"
-        onClick={() => setViewport({ ...viewport, zoom: 1 })}
+        // 真的把画布缩放到 1:1（以前只改了 store 里的副本，画面动都不动）
+        onClick={() => window.dispatchEvent(new Event(ZOOM_RESET_EVENT))}
         className="mono pointer-events-auto rounded px-0.5 hover:text-[var(--text-primary)]"
         title="点击恢复 100%"
       >

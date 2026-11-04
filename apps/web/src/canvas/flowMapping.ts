@@ -1,4 +1,4 @@
-import { MarkerType, type Edge, type Node } from '@xyflow/react';
+import { type Edge, type Node } from '@xyflow/react';
 import {
   GROUP_HEADER_HEIGHT,
   isHiddenByCollapse,
@@ -35,7 +35,7 @@ export interface SwimlaneData extends Record<string, unknown> {
 
 export type SwimlaneFlowNode = Node<SwimlaneData, 'swimlane'>;
 
-export interface OrthoEdgeData extends Record<string, unknown> {
+export interface ArchEdgeData extends Record<string, unknown> {
   edge: DiagramEdge;
   /**
    * 全图节点的绝对矩形（不含自己两端），供正交路由做冲突绕行。
@@ -44,7 +44,8 @@ export interface OrthoEdgeData extends Record<string, unknown> {
   obstacles?: Rect[];
 }
 
-export type OrthoFlowEdge = Edge<OrthoEdgeData, 'orthoEdge'>;
+/** 三种线型（ortho / bezier / straight）共用一支自绘组件 */
+export type ArchFlowEdge = Edge<ArchEdgeData, 'archEdge'>;
 
 /** 组折叠后只显示标题栏；Schema 里的 height 仍是展开高度（C9），不能改 */
 export function displayGroupHeight(group: DiagramGroup): number {
@@ -168,16 +169,11 @@ export function toFlowEdges(
     // 端点被折叠藏起来时，线也一起隐藏（否则会连到不存在的节点）
     .filter((e) => visible.has(e.sourceNodeId) && visible.has(e.targetNodeId))
     .map((e) => {
-      const marker = {
-        type: MarkerType.ArrowClosed,
-        color: e.strokeColor,
-        width: 14,
-        height: 14,
-      };
       return {
         id: e.edgeId,
         selected: selectedIds.includes(e.edgeId),
-        type: EDGE_COMPONENTS[e.edgeType] ?? 'orthoEdge',
+        // 三种线型都走同一个自绘组件：端点贴节点边框、箭头尺寸固定
+        type: 'archEdge',
         source: e.sourceNodeId,
         target: e.targetNodeId,
         sourceHandle: e.sourceAnchor ?? null,
@@ -188,20 +184,11 @@ export function toFlowEdges(
           strokeWidth: e.strokeWidth,
           ...(e.strokeDasharray ? { strokeDasharray: e.strokeDasharray } : {}),
         },
-        // 箭头方向：forward = 指向目标端；backward = 指向源端；both = 两端都有
-        markerEnd: e.arrow === 'forward' || e.arrow === 'both' ? marker : undefined,
-        markerStart: e.arrow === 'backward' || e.arrow === 'both' ? marker : undefined,
+        // 箭头由 ArchEdge 按 data.edge.arrow 画（marker 需要跟线颜色走，见 ArchEdge）
         data: { edge: e, obstacles },
       } as Edge;
     });
 }
-
-/** 线型 → ReactFlow 组件名（正交用自绘，另两种用内置） */
-const EDGE_COMPONENTS: Record<DiagramEdge['edgeType'], string> = {
-  ortho: 'orthoEdge',
-  bezier: 'default',
-  straight: 'straight',
-};
 
 export function anchorOf(handleId: string | null | undefined): Anchor {
   return handleId === 'top' || handleId === 'right' || handleId === 'bottom' || handleId === 'left'

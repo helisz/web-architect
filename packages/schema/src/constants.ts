@@ -121,9 +121,14 @@ export const EDGE_DEFAULTS = {
   strokeColor: '#6B7280',
   strokeWidth: 2,
   strokeDasharray: null,
-  /** 新线默认单向箭头（指向目标端） */
-  // 规格 §5.2 规则 3 / §11.5 第 7 条：默认无箭头，方向靠布局与颜色表达
-  arrow: 'none' as const,
+  /**
+   * 新线默认**单向箭头**，箭头指向目标端（箭头跟着拖线方向走）。
+   *
+   * 用户 2026-11-04 改定：以前默认 `none`（规格 §5.2 规则 3 的老口径），
+   * 实际用起来"谁指向谁"看不清，改回默认带箭头。老图里的 `arrow` 是显式存的，
+   * 不会被这个默认值改掉。
+   */
+  arrow: 'forward' as const,
 };
 
 export const GROUP_DEFAULTS = {

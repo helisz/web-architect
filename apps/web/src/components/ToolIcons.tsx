@@ -20,7 +20,10 @@ export type ToolIconName =
   | 'lock'
   | 'unlock'
   | 'close'
-  | 'chevronLeft';
+  | 'chevronLeft'
+  | 'plus'
+  | 'minus'
+  | 'fit';
 
 const PATHS: Record<ToolIconName, string> = {
   undo: 'M9 14 5 10l4-4M5 10h11a4 4 0 0 1 0 8h-2',
@@ -38,6 +41,10 @@ const PATHS: Record<ToolIconName, string> = {
   unlock: 'M6 11h12v9H6zM8.5 11V7.5A3.5 3.5 0 0 1 15 5.4',
   close: 'M6 6l12 12M18 6 6 18',
   chevronLeft: 'M15 5l-7 7 7 7',
+  plus: 'M12 5v14M5 12h14',
+  minus: 'M5 12h14',
+  // 四角对准画布边框的"适配视图"图标
+  fit: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
 };
 
 export function ToolIcon({

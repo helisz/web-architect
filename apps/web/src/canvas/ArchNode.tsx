@@ -218,15 +218,17 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
       )}
 
       {/* 四边各一个 Handle；配合 ConnectionMode.Loose，任意边都能起线/接收。
-          命中区 24px（透明），视觉圆点仍是 8px —— 拖出/接收都更好点中 */}
+          手柄本体 8px（RF 会读它的 DOM 矩形来算连线端点，做大了端点会离边框十来像素），
+          24px 的命中区由 .arch-handle::after 提供，不参与测量。
+          未选中时也淡显，鼠标移到节点上就全亮 —— 以前只在选中时可见，
+          根本看不出能从哪儿拉线。 */}
       {ANCHOR_ORDER.map((anchor) => (
         <Handle
           key={anchor}
           id={anchor}
           type="source"
           position={POSITION[anchor]}
-          className="arch-handle"
-          style={{ opacity: selected ? 1 : 0 }}
+          className={`arch-handle${selected ? ' is-visible' : ''}`}
         >
           <span className="arch-handle-dot" />
         </Handle>

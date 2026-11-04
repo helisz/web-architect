@@ -144,7 +144,7 @@ describe('连线全局配置', () => {
     const edge = store().diagram.edges[0]!;
     expect(edge.strokeColor).toBe('#6B7280');
     expect(edge.strokeWidth).toBe(2);
-    expect(edge.arrow).toBe('none');
+    expect(edge.arrow).toBe('forward');
   });
 
   it('新建连线跟随全局配置，已有连线不动；"应用到全部"才批量改', () => {

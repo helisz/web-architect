@@ -1,4 +1,4 @@
-﻿@import 'tailwindcss';
+@import 'tailwindcss';
 
 /*
  * 视觉 Token —— 规格 §3.4 / §3.5。
@@ -65,14 +65,26 @@ body {
 }
 
 
-/* 连线手柄：24px 透明命中区 + 8px 视觉圆点（拖出/接收都更好点中） */
+/* 连线手柄（用户 2026-11-04）：
+   本体只有 8px —— ReactFlow 会读这个 DOM 矩形来算连线端点，做大了一圈线头
+   就离节点边框十来像素，看着"没连上"。所以 24px 的命中区放到 ::after 上，
+   它不参与 RF 的测量，事件照样冒泡到手柄本身。 */
 .arch-handle {
-  width: 24px !important;
-  height: 24px !important;
+  width: 8px !important;
+  height: 8px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
   background: transparent !important;
   border: none !important;
-  display: grid !important;
-  place-items: center;
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+}
+/* 拖拽命中区：24×24 透明方块，比视觉圆点大得多 */
+.arch-handle::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 6px;
 }
 .arch-handle-dot {
   width: 8px;
@@ -81,8 +93,14 @@ body {
   background: var(--primary);
   border: 1.5px solid #fff;
   pointer-events: none;
+  box-sizing: border-box;
 }
-/* 未选中时圆点若隐若现：看得见位置，又不干扰读图 */
+/* 悬停节点 / 选中节点时全部点亮：一眼看得出能从哪条边拉线 */
+.react-flow__node:hover .arch-handle,
+.arch-handle.is-visible,
+.arch-handle:hover {
+  opacity: 1;
+}
 .arch-handle:hover .arch-handle-dot {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }

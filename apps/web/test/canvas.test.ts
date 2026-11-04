@@ -157,7 +157,7 @@ describe('Schema → ReactFlow 映射（ADR-0001）', () => {
     const flow = toFlowEdges(useDiagramStore.getState().diagram);
     expect(flow[0]!.sourceHandle).toBe('bottom');
     expect(flow[0]!.targetHandle).toBe('top');
-    expect(flow[0]!.type).toBe('orthoEdge');
+    expect(flow[0]!.type).toBe('archEdge');
     expect(anchorOf(flow[0]!.sourceHandle)).toBe('bottom');
   });
 
