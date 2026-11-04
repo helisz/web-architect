@@ -1,4 +1,4 @@
-import { memo } from 'react';
+﻿import { memo, useMemo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, useInternalNode } from '@xyflow/react';
 import type { EdgeProps, InternalNode } from '@xyflow/react';
 import { buildOrthoPath, type Rect } from '@arch/schema';
@@ -42,12 +42,15 @@ function OrthoEdgeImpl({
   if (!sourceRect || !targetRect) return null;
 
   const edge = data?.edge;
-  const { d, labelPoint } = buildOrthoPath(
-    sourceRect,
-    anchorOf(sourceHandleId),
-    targetRect,
-    anchorOf(targetHandleId),
-    data?.obstacles,
+  const obstacles = data?.obstacles;
+  const sourceAnchor = anchorOf(sourceHandleId);
+  const targetAnchor = anchorOf(targetHandleId);
+
+  // 路径按"端点矩形 + 锚点 + 障碍数组"缓存：拖动时只有被拖节点的相邻边重算，
+  // 其余边的入参都没变（obstacles 在拖动期间被冻结，见 Canvas），直接复用 path
+  const { d, labelPoint } = useMemo(
+    () => buildOrthoPath(sourceRect, sourceAnchor, targetRect, targetAnchor, obstacles),
+    [sourceRect.x, sourceRect.y, sourceRect.width, sourceRect.height, targetRect.x, targetRect.y, targetRect.width, targetRect.height, sourceAnchor, targetAnchor, obstacles],
   );
 
   const stroke = edge?.strokeColor ?? '#8B5CF6';

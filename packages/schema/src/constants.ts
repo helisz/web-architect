@@ -112,7 +112,8 @@ export const EDGE_DEFAULTS = {
   strokeWidth: 2,
   strokeDasharray: null,
   /** 新线默认单向箭头（指向目标端） */
-  arrow: 'forward' as const,
+  // 规格 §5.2 规则 3 / §11.5 第 7 条：默认无箭头，方向靠布局与颜色表达
+  arrow: 'none' as const,
 };
 
 export const GROUP_DEFAULTS = {

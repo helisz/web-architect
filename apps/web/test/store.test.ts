@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+﻿import { beforeEach, describe, expect, it } from 'vitest';
 import { createEmptyDiagram, createGroup, createNode } from '@arch/schema';
 import { useDiagramStore } from '../src/store/useDiagramStore.js';
 
@@ -109,14 +109,14 @@ describe('多选与删除', () => {
 });
 
 describe('连线全局配置', () => {
-  it('默认：灰色 #6B7280 / 2px / 单向箭头', () => {
+  it('默认：灰色 #6B7280 / 2px / 无箭头（规格 §5.2 规则 3）', () => {
     const a = store().addNode('waf', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 300, y: 0 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
     const edge = store().diagram.edges[0]!;
     expect(edge.strokeColor).toBe('#6B7280');
     expect(edge.strokeWidth).toBe(2);
-    expect(edge.arrow).toBe('forward');
+    expect(edge.arrow).toBe('none');
   });
 
   it('新建连线跟随全局配置，已有连线不动；"应用到全部"才批量改', () => {

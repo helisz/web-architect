@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { EDGE_DEFAULTS, EDGE_TYPES } from '@arch/schema';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
@@ -89,7 +89,7 @@ export function EdgeSettings() {
             应用到全部 {edgeCount} 条连线
           </button>
           <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">
-            默认：灰 #6B7280 / {EDGE_DEFAULTS.strokeWidth}px / 单向箭头
+            默认：灰 #6B7280 / {EDGE_DEFAULTS.strokeWidth}px / 无箭头
           </p>
         </div>
       )}
