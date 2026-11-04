@@ -105,6 +105,8 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   title: 'tabler:typography',
   sticky: 'tabler:typography',
   annotation: 'tabler:typography',
+  // 单行元素：默认不显示图标（高度 40 本来就不画），这里只给一个兜底 key
+  element: 'tabler:typography',
   custom: 'tabler:cube',
 };
 

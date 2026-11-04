@@ -2,11 +2,19 @@ import { useMemo, useState } from 'react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
+  FONT_SIZE_PRESETS,
   iconKeyFor,
   isIconHidden,
+  isSingleLineGroup,
+  parseFontSize,
+  textStyleOf,
+  withTextStyle,
   type DiagramEdge,
   type DiagramGroup,
   type DiagramNode,
+  type TextStyle,
 } from '@arch/schema';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import { NodeIcon } from '../icons/index.js';
@@ -347,14 +355,17 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         />
       </Field>
 
-      <Field label="副文本">
-        <input
-          className={inputClass}
-          value={group.subLabel}
-          placeholder="标题下面那行小字，例如 10.0.0.0/24"
-          onChange={(e) => patchGroup(group.groupId, { subLabel: e.target.value })}
-        />
-      </Field>
+      {/* 通用分组不支持副文本（用户 2026-11-04）：不给输入框，标题栏也只有一行 */}
+      {!isSingleLineGroup(group) && (
+        <Field label="副文本">
+          <input
+            className={inputClass}
+            value={group.subLabel}
+            placeholder="标题下面那行小字，例如 10.0.0.0/24"
+            onChange={(e) => patchGroup(group.groupId, { subLabel: e.target.value })}
+          />
+        </Field>
+      )}
 
       <Field label={`图标（${isIconHidden(group) ? '不显示' : iconKey}）`}>
         <div className="flex items-center gap-2">
@@ -482,6 +493,9 @@ function NodeForm({ node }: { node: DiagramNode }) {
   const spec = COMPONENT_INDEX[node.nodeType];
   const iconKey = (node.extJson?.iconKey as string | undefined) ?? iconKeyFor(node.nodeType);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const textStyle = textStyleOf(node.nodeType, node.extJson);
+  const setTextStyle = (stylePatch: Partial<TextStyle>): void =>
+    patch(node.nodeId, { extJson: withTextStyle(node.extJson, stylePatch) });
 
   return (
     <div>
@@ -500,6 +514,68 @@ function NodeForm({ node }: { node: DiagramNode }) {
           placeholder={spec?.defaultSubLabel ?? ''}
           onChange={(e) => patch(node.nodeId, { subLabel: e.target.value })}
         />
+      </Field>
+
+      {/* 文字样式（用户 2026-11-04）：字号 + 加粗/斜体/下划线，存在 extJson 里 */}
+      <Field label="文字">
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={FONT_SIZE_MIN}
+            max={FONT_SIZE_MAX}
+            step={1}
+            aria-label="字号"
+            className={`${inputClass} w-16`}
+            value={textStyle.fontSize}
+            onChange={(e) => {
+              const size = parseFontSize(e.target.value);
+              if (size !== null) setTextStyle({ fontSize: size });
+            }}
+          />
+          <span className="text-[11px] text-[var(--text-secondary)]">px</span>
+          <div className="ml-1 flex items-center gap-1">
+            {(
+              [
+                ['bold', 'B', '加粗', 'font-bold'],
+                ['italic', 'I', '斜体', 'italic'],
+                ['underline', 'U', '下划线', 'underline'],
+              ] as const
+            ).map(([key, label, title, cls]) => (
+              <button
+                key={key}
+                type="button"
+                title={title}
+                aria-label={title}
+                aria-pressed={textStyle[key]}
+                onClick={() => setTextStyle({ [key]: !textStyle[key] })}
+                className={`grid h-7 w-7 place-items-center rounded border text-[12px] ${cls} ${
+                  textStyle[key]
+                    ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                    : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="arch-hscroll mt-1 flex items-center gap-1">
+          {FONT_SIZE_PRESETS.map((size) => (
+            <button
+              key={size}
+              type="button"
+              title={`${size}px`}
+              onClick={() => setTextStyle({ fontSize: size })}
+              className={`h-6 shrink-0 rounded border px-1.5 text-[11px] ${
+                textStyle.fontSize === size
+                  ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                  : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
       </Field>
 
       {/* 宽高按用户要求隐藏：调尺寸走画布手柄，属性面板不再重复一套数字 */}

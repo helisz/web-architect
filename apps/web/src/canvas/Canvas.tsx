@@ -417,7 +417,8 @@ const cursorFrame = useRef<number | null>(null);
                 titleColor: preset.titleColor,
                 extJson: { iconKey: preset.iconKey },
               }
-            : { width: size.width, height: size.height },
+            : // 通用分组：用户要求它**不支持副文本**（标题栏只有一行），用 extJson 标记
+              { width: size.width, height: size.height, extJson: { singleLine: true } },
         );
         // 拖进另一个分组里 = 嵌套（上限 3 层，超出会被 store 拒绝）
         if (target) reparentGroup(created.groupId, target.groupId);

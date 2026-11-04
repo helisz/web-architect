@@ -4,12 +4,16 @@ import {
   createGroup,
   createNode,
   descendantGroupIds,
+  GROUP_HEADER_HEIGHT,
+  GROUP_HEADER_HEIGHT_SINGLE,
   groupAbsoluteRect,
   groupDepth,
+  groupHeaderHeight,
   groupOffset,
   hitGroup,
   isAncestorOf,
   isHiddenByCollapse,
+  isSingleLineGroup,
   nodeAbsoluteRect,
   removeGroupLifting,
   setGroupParent,
@@ -122,6 +126,35 @@ describe('分组几何（C1：局部坐标）', () => {
     const { diagram, zone } = nested();
     const collapsed = { ...zone, collapsed: true };
     expect(groupAbsoluteRect(diagram.groups, collapsed)).toMatchObject({ width: 600, height: 400 });
+  });
+});
+
+describe('分组标题栏高度（用户 2026-11-04）', () => {
+  it('通用分组标了 singleLine：不给副文本，标题栏按一行高度', () => {
+    const { diagram } = nested();
+    const plain = createGroup(diagram.diagramId, { x: 0, y: 0 }, {
+      label: '分组',
+      extJson: { singleLine: true },
+      subLabel: '不该显示',
+    });
+    expect(isSingleLineGroup(plain)).toBe(true);
+    expect(groupHeaderHeight(plain)).toBe(GROUP_HEADER_HEIGHT_SINGLE);
+  });
+
+  it('预设分组有副文本：两行高度', () => {
+    const { diagram } = nested();
+    const preset = createGroup(diagram.diagramId, { x: 0, y: 0 }, {
+      label: '服务器',
+      subLabel: '物理机 / 虚拟机',
+    });
+    expect(isSingleLineGroup(preset)).toBe(false);
+    expect(groupHeaderHeight(preset)).toBe(GROUP_HEADER_HEIGHT);
+  });
+
+  it('没有副文本的普通分组也只用一行高度（不留空白第二行）', () => {
+    const { diagram } = nested();
+    const empty = createGroup(diagram.diagramId, { x: 0, y: 0 }, { label: '空组' });
+    expect(groupHeaderHeight(empty)).toBe(GROUP_HEADER_HEIGHT_SINGLE);
   });
 });
 

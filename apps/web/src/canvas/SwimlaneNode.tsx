@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { NodeResizer } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { GROUP_HEADER_HEIGHT, isIconHidden, resolveIconKey } from '@arch/schema';
+import { groupHeaderHeight, isIconHidden, isSingleLineGroup, resolveIconKey } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { SwimlaneFlowNode } from './flowMapping.js';
@@ -49,6 +49,8 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
     else setDraft(group.label);
   };
 
+  const showSubLabel = Boolean(group.subLabel) && !isSingleLineGroup(group);
+
   return (
     <div
       className="h-full w-full rounded-lg border"
@@ -70,10 +72,15 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
       />
 
       {/* 标题栏：拖动组、改名、折叠都在这里；折叠三角固定在标题栏最右边。
-          两行（名称 + 副文本），图标与**第一行**顶部对齐（items-start）。 */}
+          两行（名称 + 副文本），图标与**第一行**顶部对齐（items-start）；
+          通用分组（singleLine）不给副文本，高度回到一行的 32px。 */}
       <div
         className="flex items-start gap-1.5 rounded-t-lg px-2"
-        style={{ height: GROUP_HEADER_HEIGHT, color: group.titleColor, borderBottom: `1px solid ${group.borderColor}` }}
+        style={{
+          height: groupHeaderHeight(group),
+          color: group.titleColor,
+          borderBottom: `1px solid ${group.borderColor}`,
+        }}
       >
         {editing ? (
           <input
@@ -110,7 +117,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
               >
                 {group.label}
               </div>
-              {group.subLabel && (
+              {showSubLabel && (
                 <div className="truncate text-[10px] leading-[14px] opacity-60">{group.subLabel}</div>
               )}
             </div>

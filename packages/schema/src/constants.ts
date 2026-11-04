@@ -343,9 +343,20 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
   },
 ];
 
+/**
+ * 「结构」区末尾的节点卡（不进组件分类树）。
+ *
+ * 单行元素 = 普通节点（有边框、有底色、能连线、能进分组），只是默认 200×40：
+ * 高度 <52 时图标本来就不画，副文本默认空 —— 于是视觉上就是"一行字 + 一个框"。
+ */
+export const STRUCTURE_NODE_SPECS: ComponentSpec[] = [spec('element', '单行元素', 200, 40)];
+
 /** nodeType → 默认尺寸 / 默认副文本，供拖入创建时使用 */
 export const COMPONENT_INDEX: Record<NodeType, ComponentSpec> = Object.fromEntries(
-  COMPONENT_CATEGORIES.flatMap((c) => c.items).map((i) => [i.nodeType, i]),
+  [...COMPONENT_CATEGORIES.flatMap((c) => c.items), ...STRUCTURE_NODE_SPECS].map((i) => [
+    i.nodeType,
+    i,
+  ]),
 ) as Record<NodeType, ComponentSpec>;
 
 /* ------------------------------------------------------------------ */

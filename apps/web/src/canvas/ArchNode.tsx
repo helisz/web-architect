@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { ANCHOR_ORDER, isIconHidden, resolveIconKey, type Anchor } from '@arch/schema';
+import { ANCHOR_ORDER, isIconHidden, resolveIconKey, textStyleCss, textStyleOf, type Anchor } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { ArchFlowNode } from './flowMapping.js';
@@ -31,6 +31,8 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
   const isAnnotation = kind === 'annotation';
   const isPlainText = kind === 'text';
   const isTextLike = isTitle || isSticky || isAnnotation || isPlainText;
+  // 文字样式（字号 / 加粗 / 斜体 / 下划线）：extJson 覆盖 > 按类型的默认（标题 28px 加粗）
+  const textStyle = textStyleOf(kind, node.extJson);
 
   // 小节点里图标要让位给文字，按高度自适应；太矮就干脆不画，免得挤压标签。
   // 另外节点可以主动关图标（extJson.iconHidden，属性面板里的「无」）。
@@ -130,11 +132,12 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
         if (!node.locked) setEditing(true);
       }}
     >
-      {/* 拖拽改尺寸（规格 §5.3）：锁定的节点不给手柄 */}
+      {/* 拖拽改尺寸（规格 §5.3）：锁定的节点不给手柄。
+          标题下限抬到 40：默认 28px 的字在 32 高的框里会裁掉上下沿。 */}
       <NodeResizer
         isVisible={selected && !node.locked}
         minWidth={isTitle ? 80 : 64}
-        minHeight={isTitle ? 32 : 40}
+        minHeight={40}
         lineClassName="!border-[var(--primary)]"
         handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--primary)] !bg-white"
       />
@@ -142,8 +145,14 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
       {editing ? (
         <input
           ref={inputRef}
-          className="nodrag nopan w-full rounded border border-[var(--primary)] bg-white px-1 text-[13px] outline-none"
-          style={{ color: node.textColor, textAlign: isTextLike ? 'left' : 'center' }}
+          className="nodrag nopan w-full rounded border border-[var(--primary)] bg-white px-1 outline-none"
+          style={{
+            color: node.textColor,
+            textAlign: isTextLike ? 'left' : 'center',
+            fontSize: textStyle.fontSize,
+            fontWeight: textStyle.bold ? 700 : 400,
+            fontStyle: textStyle.italic ? 'italic' : 'normal',
+          }}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
@@ -165,15 +174,16 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
           <span
             className={
               isTitle
-                ? 'w-full truncate text-[17px] font-semibold leading-snug'
+                ? 'w-full truncate leading-tight'
                 : isSticky
-                  ? 'w-full whitespace-pre-wrap break-words text-[13px] leading-snug'
+                  ? 'w-full whitespace-pre-wrap break-words leading-snug'
                   : isAnnotation
-                    ? 'w-full whitespace-pre-wrap break-words text-[12px] leading-snug'
+                    ? 'w-full whitespace-pre-wrap break-words leading-snug'
                     : isPlainText
-                      ? 'w-full whitespace-pre-wrap break-words text-[13px] leading-snug'
-                      : 'w-full truncate text-[13px] font-medium leading-tight'
+                      ? 'w-full whitespace-pre-wrap break-words leading-snug'
+                      : 'w-full truncate leading-tight'
             }
+            style={textStyleCss(textStyle)}
           >
             {node.label}
           </span>

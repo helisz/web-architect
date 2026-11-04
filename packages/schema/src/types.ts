@@ -107,6 +107,8 @@ export const NODE_TYPES = [
   'title',
   'sticky',
   'annotation',
+  // 单行元素（2026-11-04）：结构区新建，普通节点样式但只有一行字、默认无图标无副文本
+  'element',
   'custom',
 ] as const;
 

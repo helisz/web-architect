@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { COMPONENT_CATEGORIES, GROUP_PRESETS, iconKeyFor } from '@arch/schema';
+import { COMPONENT_CATEGORIES, GROUP_PRESETS, STRUCTURE_NODE_SPECS, iconKeyFor } from '@arch/schema';
 import type { ComponentSpec, GroupPreset } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 
@@ -135,6 +135,10 @@ export function ComponentPanel() {
             {presets.map((preset) => (
               <PresetCard key={preset.key} preset={preset} />
             ))}
+            {presets === GROUP_PRESETS &&
+              STRUCTURE_NODE_SPECS.filter(
+                (spec) => !keyword.trim() || spec.label.includes(keyword.trim()),
+              ).map((spec) => <ComponentCard key={spec.nodeType} item={spec} />)}
           </div>
         </section>
 

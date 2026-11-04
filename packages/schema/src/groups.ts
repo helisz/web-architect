@@ -1,4 +1,4 @@
-﻿import type { ArchitectureDiagram, DiagramGroup, DiagramNode, Point } from './types.js';
+import type { ArchitectureDiagram, DiagramGroup, DiagramNode, Point } from './types.js';
 
 /**
  * 分组（泳道）几何与挂载规则。
@@ -11,8 +11,29 @@
 
 /** 折叠后只留标题栏的高度（px） */
 export const GROUP_HEADER_HEIGHT = 42;
+/** 只有一行标题时的标题栏高度（用户 2026-11-04：通用分组不显示副文本，高度按一行算） */
+export const GROUP_HEADER_HEIGHT_SINGLE = 32;
 /** 最多 3 层（顶层组算第 1 层） */
 export const MAX_GROUP_DEPTH = 3;
+
+/**
+ * 分组标题栏是否只有一行。
+ *
+ * 用户 2026-11-04 拍板：结构区第一张卡（通用「分组」）**不支持副文本** ——
+ * 建出来的组用 `extJson.singleLine` 标记，属性面板不给副文本输入框，
+ * 标题栏也只按一行的高度画。带副文本的预设分组（服务器/集群/nginx）不受影响。
+ */
+export function isSingleLineGroup(group: { extJson?: Record<string, unknown> }): boolean {
+  return group.extJson?.singleLine === true;
+}
+
+/** 标题栏实际高度：有副文本（且没被标成单行）才用两行的高度 */
+export function groupHeaderHeight(group: {
+  subLabel?: string;
+  extJson?: Record<string, unknown>;
+}): number {
+  return group.subLabel && !isSingleLineGroup(group) ? GROUP_HEADER_HEIGHT : GROUP_HEADER_HEIGHT_SINGLE;
+}
 
 const byId = (groups: DiagramGroup[], groupId: string | null | undefined): DiagramGroup | null =>
   groupId ? (groups.find((g) => g.groupId === groupId) ?? null) : null;
