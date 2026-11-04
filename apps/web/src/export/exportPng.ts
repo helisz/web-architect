@@ -147,6 +147,30 @@ export function decodeSvgDataUrl(dataUrl: string): string {
   }
 }
 
+/**
+ * 复制到剪贴板（用户 2026-11-04 第二批）：默认 2× PNG、白底。
+ *
+ * 剪贴板只接受 Blob，而 `renderPng` 给的是 dataURL，所以先解码成二进制。
+ * 实现优先级：ClipboardItem + navigator.clipboard.write（Chrome/Edge/Safari 都支持），
+ * 不支持时（非安全上下文 / Firefox 老版本 / 权限被拒）抛错，由调用方退化成下载。
+ */
+export async function renderPngBlob(
+  viewport: HTMLElement,
+  options: PngOptions = {},
+): Promise<Blob> {
+  const dataUrl = await renderPng(viewport, { pixelRatio: 2, transparent: false, ...options });
+  const response = await fetch(dataUrl);
+  return response.blob();
+}
+
+export async function copyPngToClipboard(viewport: HTMLElement): Promise<void> {
+  if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+    throw new Error('当前浏览器不支持把图片写进剪贴板');
+  }
+  const blob = await renderPngBlob(viewport, { pixelRatio: 2, transparent: false });
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+}
+
 /** 触发浏览器下载（dataURL 版本，PNG 用这个） */
 export function downloadDataUrl(dataUrl: string, fileName: string): void {
   const link = document.createElement('a');

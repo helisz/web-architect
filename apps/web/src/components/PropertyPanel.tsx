@@ -5,10 +5,10 @@ import {
   EDGE_DASH_PRESETS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
-  FONT_SIZE_PRESETS,
   dashPresetOf,
   iconKeyFor,
   isGroupLocked,
+  isEditLocked,
   isIconHidden,
   isSingleLineGroup,
   parseFontSize,
@@ -69,7 +69,98 @@ function applyMultiField(
   } else if (field === 'iconHidden') {
     const node = useDiagramStore.getState().diagram.nodes.find((n) => n.nodeId === id);
     actions.patchNode(id, { extJson: { ...(node?.extJson ?? {}), iconHidden: value === 'hidden' } });
+  } else if (field === 'align' || field === 'valign') {
+    // 文字对齐（用户 2026-11-04 第二批）：多选时一并生效
+    const node = useDiagramStore.getState().diagram.nodes.find((n) => n.nodeId === id);
+    actions.patchNode(id, {
+      extJson: withTextStyle(node?.extJson, { [field]: value } as { align?: 'left' | 'center' | 'right'; valign?: 'top' | 'middle' | 'bottom' }),
+    });
   }
+}
+
+/**
+ * 文字对齐按钮组（用户 2026-11-04 第二批）：水平 左/中/右 + 垂直 上/中/下。
+ * 单选与多选共用一套，值不一致（多选）时全部不高亮。
+ */
+const ALIGN_OPTIONS = [
+  ['left', '水平左对齐', '⇤'],
+  ['center', '水平居中', '↔'],
+  ['right', '水平右对齐', '⇥'],
+] as const;
+
+const VALIGN_OPTIONS = [
+  ['top', '顶端对齐', '⤒'],
+  ['middle', '垂直居中', '⬍'],
+  ['bottom', '底端对齐', '⤓'],
+] as const;
+
+function AlignButtons({
+  align,
+  valign,
+  onChange,
+}: {
+  align?: string;
+  valign?: string;
+  onChange: (field: 'align' | 'valign', value: string) => void;
+}) {
+  const cls = (active: boolean): string =>
+    `grid h-6 w-7 shrink-0 place-items-center rounded border text-[11px] ${
+      active
+        ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+        : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+    }`;
+  return (
+    <div className="flex items-center gap-1">
+      {ALIGN_OPTIONS.map(([value, title, glyph]) => (
+        <button
+          key={value}
+          type="button"
+          title={title}
+          aria-label={title}
+          aria-pressed={align === value}
+          onClick={() => onChange('align', value)}
+          className={cls(align === value)}
+        >
+          {glyph}
+        </button>
+      ))}
+      <span className="mx-0.5 h-4 w-px shrink-0 bg-[var(--panel-border)]" />
+      {VALIGN_OPTIONS.map(([value, title, glyph]) => (
+        <button
+          key={value}
+          type="button"
+          title={title}
+          aria-label={title}
+          aria-pressed={valign === value}
+          onClick={() => onChange('valign', value)}
+          className={cls(valign === value)}
+        >
+          {glyph}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 虚线的示意图（用户 2026-11-04 第二批）：直接画一段带真实 stroke-dasharray 的线，
+ * 比「实线 / 短虚线 / 长虚线」三个词更快看懂。颜色跟随当前是否选中。
+ */
+function DashSample({ dasharray, color }: { dasharray: string | null; color: string }) {
+  return (
+    <svg width="44" height="10" viewBox="0 0 44 10" aria-hidden focusable="false">
+      <line
+        x1="2"
+        y1="5"
+        x2="42"
+        y2="5"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="butt"
+        strokeDasharray={dasharray ?? undefined}
+      />
+    </svg>
+  );
 }
 
 /**
@@ -130,6 +221,17 @@ function MultiForm() {
               value={find('subLabel')!.value ?? ''}
               placeholder={find('subLabel')!.mixed ? '多个值' : ''}
               onChange={(e) => apply('subLabel', e.target.value)}
+            />
+          </Field>
+        )}
+
+        {/* 文字对齐（用户 2026-11-04 第二批）：多选时也能批量改 */}
+        {(find('align') || find('valign')) && (
+          <Field label={`文字对齐${find('align')?.mixed || find('valign')?.mixed ? '（多个值）' : ''}`}>
+            <AlignButtons
+              align={find('align')?.value ?? undefined}
+              valign={find('valign')?.value ?? undefined}
+              onChange={(field, value) => apply(field, value)}
             />
           </Field>
         )}
@@ -252,6 +354,7 @@ export function PropertyPanel() {
   const selectedId = useDiagramStore((s) => s.selectedId);
   const selectedIds = useDiagramStore((s) => s.selectedIds);
   const diagram = useDiagramStore((s) => s.diagram);
+  const locked = useDiagramStore((s) => isEditLocked(s.diagram));
 
   const node = useMemo(
     () => diagram.nodes.find((n) => n.nodeId === selectedId) ?? null,
@@ -280,13 +383,24 @@ export function PropertyPanel() {
                 : '属性'}
       </div>
       <div className="flex-1 p-3">
-        {node && <NodeForm node={node} />}
-        {edge && <EdgeForm edge={edge} />}
-        {group && <GroupForm group={group} />}
-        {!node && !edge && !group && selectedIds.length > 1 && <MultiForm />}
-        {!node && !edge && !group && selectedIds.length <= 1 && (
-          <p className="text-xs text-[var(--text-secondary)]">选中一个节点、连线或分组</p>
+        {/* 全局锁定（用户 2026-11-04 第二批）：面板照常能看，但所有控件都禁用 */}
+        {locked && (
+          <div className="mb-2 flex items-start gap-1.5 rounded border border-[var(--panel-border)] bg-[#F9FAFB] px-2 py-1.5 text-[11px] text-[var(--text-secondary)]">
+            <span aria-hidden>🔒</span>
+            <span>
+              已锁定编辑，属性只能查看。点画布右上角「已锁定」解锁。
+            </span>
+          </div>
         )}
+        <div className={locked ? 'pointer-events-none select-none opacity-60' : undefined} aria-disabled={locked}>
+          {node && <NodeForm node={node} />}
+          {edge && <EdgeForm edge={edge} />}
+          {group && <GroupForm group={group} />}
+          {!node && !edge && !group && selectedIds.length > 1 && <MultiForm />}
+          {!node && !edge && !group && selectedIds.length <= 1 && (
+            <p className="text-xs text-[var(--text-secondary)]">选中一个节点、连线或分组</p>
+          )}
+        </div>
       </div>
     </aside>
   );
@@ -387,8 +501,9 @@ function GroupForm({ group }: { group: DiagramGroup }) {
       {/* 通用分组不支持副文本（用户 2026-11-04）：不给输入框，标题栏也只有一行 */}
       {!isSingleLineGroup(group) && (
         <Field label="副文本">
-          <input
-            className={inputClass}
+          {/* 允许回车换行（用户 2026-11-04 第二批）；标题栏高度固定，最多显示两行 */}
+          <textarea
+            className={`${inputClass} mono h-12 resize-none`}
             value={group.subLabel}
             placeholder="标题下面那行小字，例如 10.0.0.0/24"
             onChange={(e) => patchGroup(group.groupId, { subLabel: e.target.value })}
@@ -600,22 +715,12 @@ function NodeForm({ node }: { node: DiagramNode }) {
             ))}
           </div>
         </div>
-        <div className="arch-hscroll mt-1 flex items-center gap-1">
-          {FONT_SIZE_PRESETS.map((size) => (
-            <button
-              key={size}
-              type="button"
-              title={`${size}px`}
-              onClick={() => setTextStyle({ fontSize: size })}
-              className={`h-6 shrink-0 rounded border px-1.5 text-[11px] ${
-                textStyle.fontSize === size
-                  ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
-                  : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
-              }`}
-            >
-              {size}
-            </button>
-          ))}
+        <div className="mt-1">
+          <AlignButtons
+            align={textStyle.align}
+            valign={textStyle.valign}
+            onChange={(field, value) => setTextStyle({ [field]: value })}
+          />
         </div>
       </Field>
 
@@ -769,7 +874,7 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
           />
         </Field>
         <Field label="虚线">
-          {/* 用户 2026-11-04：只给实线 / 短虚线 / 长虚线三档，默认实线 */}
+          {/* 用户 2026-11-04 第二批：三档改成"示意图标"（画一段真实线型），文字只留 title/aria */}
           <div className="flex gap-1">
             {EDGE_DASH_PRESETS.map((preset) => {
               const active = dashPresetOf(edge.strokeDasharray) === preset.key;
@@ -777,15 +882,20 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
                 <button
                   key={preset.key}
                   type="button"
+                  title={preset.label}
+                  aria-label={preset.label}
                   aria-pressed={active}
                   onClick={() => patch(edge.edgeId, { strokeDasharray: preset.value })}
-                  className={`flex-1 rounded border px-1 py-1 text-[11px] ${
+                  className={`grid h-7 flex-1 place-items-center rounded border ${
                     active
-                      ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
-                      : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                      ? 'border-[var(--primary)] bg-[#EFF6FF]'
+                      : 'border-[var(--panel-border)] hover:border-[var(--primary)]'
                   }`}
                 >
-                  {preset.label}
+                  <DashSample
+                    dasharray={preset.value}
+                    color={active ? 'var(--primary)' : '#6B7280'}
+                  />
                 </button>
               );
             })}
@@ -832,9 +942,6 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
     </div>
   );
 }
-
-
-
 
 
 

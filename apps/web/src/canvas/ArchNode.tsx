@@ -1,7 +1,17 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { ANCHOR_ORDER, isIconHidden, resolveIconKey, textStyleCss, textStyleOf, type Anchor } from '@arch/schema';
+import {
+  ANCHOR_ORDER,
+  isEditLocked,
+  horizontalToFlex,
+  isIconHidden,
+  resolveIconKey,
+  textStyleCss,
+  textStyleOf,
+  verticalToFlex,
+  type Anchor,
+} from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { ArchFlowNode } from './flowMapping.js';
@@ -33,6 +43,8 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
   const isTextLike = isTitle || isSticky || isAnnotation || isPlainText;
   // 文字样式（字号 / 加粗 / 斜体 / 下划线）：extJson 覆盖 > 按类型的默认（标题 28px 加粗）
   const textStyle = textStyleOf(kind, node.extJson);
+  // 全局锁定编辑时不给改名（双击也只是选中）
+  const editLocked = useDiagramStore((s) => isEditLocked(s.diagram));
 
   // 小节点里图标要让位给文字，按高度自适应；太矮就干脆不画，免得挤压标签。
   // 另外节点可以主动关图标（extJson.iconHidden，属性面板里的「无」）。
@@ -106,14 +118,14 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
       ref={boxRef}
       className={`relative flex h-full w-full flex-col ${
         isTitle
-          ? 'items-start justify-center px-1 text-left'
+          ? 'px-1'
           : isSticky
-            ? 'items-start justify-start overflow-hidden rounded-sm px-2.5 py-2 text-left'
+            ? 'overflow-hidden rounded-sm px-2.5 py-2'
             : isAnnotation
-              ? 'items-start justify-start rounded-lg px-2.5 py-2 text-left'
+              ? 'rounded-lg px-2.5 py-2'
               : isPlainText
-                ? 'items-start justify-center px-2 text-left'
-                : 'items-center justify-center gap-0.5 rounded-lg border px-2 text-center'
+                ? 'px-2'
+                : 'gap-0.5 rounded-lg border px-2'
       }`}
       style={{
         background: node.bgColor,
@@ -126,10 +138,14 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
         // 规格 §5.2：禁止阴影，选中只用描边宽度与颜色区分
         boxShadow: 'none',
         opacity: node.visible ? 1 : 0.4,
+        // 对齐（用户 2026-11-04）：水平/垂直都由 extJson 决定，文本类默认左上
+        justifyContent: horizontalToFlex(textStyle.align),
+        alignItems: verticalToFlex(textStyle.valign),
+        textAlign: textStyle.align,
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        if (!node.locked) setEditing(true);
+        if (!node.locked && !editLocked) setEditing(true);
       }}
     >
       {/* 拖拽改尺寸（规格 §5.3）：锁定的节点不给手柄。
@@ -148,9 +164,9 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
           className="nodrag nopan w-full rounded border border-[var(--primary)] bg-white px-1 outline-none"
           style={{
             color: node.textColor,
-            textAlign: isTextLike ? 'left' : 'center',
+            textAlign: textStyle.align,
             fontSize: textStyle.fontSize,
-            fontWeight: textStyle.bold ? 700 : 400,
+            fontWeight: textStyle.weight,
             fontStyle: textStyle.italic ? 'italic' : 'normal',
           }}
           value={draft}
@@ -190,11 +206,11 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
         </>
       )}
 
+      {/* 副文本（2026-11-04 第二批）：10px、等宽字体；允许回车换行，最多显示两行 */}
       {node.subLabel && !isAnnotation && (
         <span
-          className={`mono w-full truncate text-[11px] leading-tight opacity-70 ${
-            isTitle || isPlainText || isSticky ? 'text-left' : ''
-          }`}
+          className="mono line-clamp-2 w-full whitespace-pre-line break-words text-[10px] leading-[13px] opacity-70"
+          style={{ textAlign: textStyle.align }}
         >
           {node.subLabel}
         </span>

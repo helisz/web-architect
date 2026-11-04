@@ -22,6 +22,7 @@ import {
   GROUP_PRESETS,
   NODE_DEFAULTS,
   groupOffset,
+  isEditLocked,
   hitGroup,
   isAncestorOf,
   isHiddenByCollapse,
@@ -88,6 +89,8 @@ function anchorOfHandle(handleId: string | null): 'top' | 'right' | 'bottom' | '
 
 function CanvasInner() {
   const diagram = useDiagramStore((s) => s.diagram);
+  // 全局锁定：只读模式下关掉拖动/连线/删除等一切改写入口（store 里还有一层兜底）
+  const editLocked = useDiagramStore((s) => isEditLocked(s.diagram));
   const addNode = useDiagramStore((s) => s.addNode);
   const addGroup = useDiagramStore((s) => s.addGroup);
   const moveNode = useDiagramStore((s) => s.moveNode);
@@ -395,6 +398,8 @@ const cursorFrame = useRef<number | null>(null);
   const onDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
+      // 锁定编辑时不吃任何拖入（面板拖组件、拖图片都算改图）
+      if (editLocked) return;
       const point = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
       // 1) 拖进来的是"分组"：建框，落点即框的左上角附近（居中更像"框住这里"）
@@ -456,7 +461,7 @@ const cursorFrame = useRef<number | null>(null);
         target?.groupId ?? null,
       );
     },
-    [addGroup, addNode, diagram.groups, reparentGroup, screenToFlowPosition],
+    [addGroup, addNode, diagram.groups, editLocked, reparentGroup, screenToFlowPosition],
   );
 
   /**
@@ -552,6 +557,9 @@ const cursorFrame = useRef<number | null>(null);
     (event: React.MouseEvent, node: { id: string }) => {
       event.preventDefault();
       const state = useDiagramStore.getState();
+
+      // 锁定编辑时不给右键菜单：里面的每一项都是改图操作
+      if (editLocked) return;
       if (!state.selectedIds.includes(node.id)) state.select(node.id);
       const group = state.diagram.groups.find((g) => g.groupId === node.id);
       if (group) {
@@ -561,27 +569,30 @@ const cursorFrame = useRef<number | null>(null);
       const target = state.diagram.nodes.find((n) => n.nodeId === node.id);
       if (target) openMenu(event, buildNodeMenu(target));
     },
-    [openMenu],
+    [editLocked, openMenu],
   );
 
   const onEdgeContextMenu = useCallback(
     (event: React.MouseEvent, edge: { id: string }) => {
       event.preventDefault();
       const state = useDiagramStore.getState();
+
+      if (editLocked) return;
       state.select(edge.id);
       const target = state.diagram.edges.find((e) => e.edgeId === edge.id);
       if (target) openMenu(event, buildEdgeMenu(target));
     },
-    [openMenu],
+    [editLocked, openMenu],
   );
 
   const onPaneContextMenu = useCallback(
     (event: React.MouseEvent | MouseEvent) => {
       event.preventDefault();
       useDiagramStore.getState().select(null);
+      if (editLocked) return;
       openMenu(event as React.MouseEvent, buildBlankMenu());
     },
-    [openMenu],
+    [editLocked, openMenu],
   );
 
   /** 状态栏坐标：rAF 节流，避免每次 mousemove 都推一次 store */
@@ -621,6 +632,10 @@ const cursorFrame = useRef<number | null>(null);
       edgeTypes={edgeTypes}
       // Loose：任意 Handle 都能起线/接收，四边皆可（规格 §4.2 建线）
       connectionMode={ConnectionMode.Loose}
+      // 锁定编辑：节点不能拖、不能拉线，但还能选中/平移/缩放/搜索
+      nodesDraggable={!editLocked}
+      nodesConnectable={!editLocked}
+      edgesReconnectable={!editLocked}
       // 吸附：元素按 10px 网格对齐（背景栅格密度与之保持一致）
       snapToGrid
       snapGrid={SNAP_GRID}
@@ -656,7 +671,7 @@ const cursorFrame = useRef<number | null>(null);
       onNodeContextMenu={onNodeContextMenu}
       onEdgeContextMenu={onEdgeContextMenu}
       onPaneContextMenu={onPaneContextMenu}
-      deleteKeyCode={deleting ? null : ['Delete', 'Backspace']}
+      deleteKeyCode={deleting || editLocked ? null : ['Delete', 'Backspace']}
       proOptions={{ hideAttribution: false }}
       className="bg-transparent"
     >
@@ -686,8 +701,35 @@ const cursorFrame = useRef<number | null>(null);
         style={{ width: 160, height: 110 }}
       />
     </ReactFlow>
+    {/* 全局锁定编辑（用户 2026-11-04 第二批）：画布右上角一枚 toggle，状态随图保存 */}
+    <EditLockButton />
     {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
     <SearchDialog />
+    </div>
+  );
+}
+
+/** 右上角「锁定编辑」开关 */
+function EditLockButton() {
+  const locked = useDiagramStore((s) => isEditLocked(s.diagram));
+  const setEditLocked = useDiagramStore((s) => s.setEditLocked);
+  return (
+    <div className="absolute right-3 top-3 z-10">
+      <button
+        type="button"
+        aria-pressed={locked}
+        aria-label={locked ? '解锁编辑' : '锁定编辑'}
+        title={locked ? '已锁定：点一下恢复编辑' : '锁定编辑：防止误改（仍可查看、选中、平移缩放）'}
+        onClick={() => setEditLocked(!locked)}
+        className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs shadow-sm ${
+          locked
+            ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+            : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
+        }`}
+      >
+        <ToolIcon name={locked ? 'lock' : 'unlock'} />
+        {locked ? '已锁定' : '锁定编辑'}
+      </button>
     </div>
   );
 }
@@ -752,12 +794,6 @@ function CanvasStatus() {
     </div>
   );
 }
-
-
-
-
-
-
 
 
 

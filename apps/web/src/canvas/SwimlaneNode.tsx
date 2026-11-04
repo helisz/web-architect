@@ -5,6 +5,7 @@ import {
   ANCHOR_ORDER,
   groupHeaderHeight,
   isGroupLocked,
+  isEditLocked,
   isIconHidden,
   isSingleLineGroup,
   resolveIconKey,
@@ -44,6 +45,8 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
 
   const showSubLabel = Boolean(group.subLabel) && !isSingleLineGroup(group);
   const locked = isGroupLocked(group);
+  // 全局锁定编辑：改名也一起关掉
+  const editLocked = useDiagramStore((s) => isEditLocked(s.diagram));
 
   // 右键菜单「重命名」通过 store 请求进入行内编辑（锁定的组不给改名）
   useEffect(() => {
@@ -129,13 +132,16 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
                 className="truncate text-xs font-medium leading-[16px]"
                 onDoubleClick={(e) => {
                   e.stopPropagation();
-                  if (!locked) setEditing(true);
+                  if (!locked && !editLocked) setEditing(true);
                 }}
               >
                 {group.label}
               </div>
+              {/* 副文本：10px 等宽、允许回车换行，固定高度里最多显示两行 */}
               {showSubLabel && (
-                <div className="truncate text-[10px] leading-[14px] opacity-60">{group.subLabel}</div>
+                <div className="mono line-clamp-2 whitespace-pre-line break-words text-[10px] leading-[13px] opacity-60">
+                  {group.subLabel}
+                </div>
               )}
             </div>
           </>
@@ -185,6 +191,5 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
 }
 
 export const SwimlaneNode = memo(SwimlaneNodeImpl);
-
 
 

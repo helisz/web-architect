@@ -18,6 +18,8 @@ export interface ArchitectureDiagram {
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
   viewport: Viewport;
+  /** 图级扩展字段（全局锁定等），存 arch_diagram.ext_json */
+  extJson?: Record<string, unknown>;
   groups: DiagramGroup[];
   nodes: DiagramNode[];
   edges: DiagramEdge[];

@@ -8,4 +8,5 @@ export * from './convert.js';
 export * from './geometry.js';
 export * from './groups.js';
 export * from './textStyle.js';
+export * from './lock.js';
 

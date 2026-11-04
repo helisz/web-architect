@@ -1,3 +1,4 @@
+import { normalizeDiagramExt } from './lock.js';
 import type { ArchitectureDiagram, DiagramEdge, DiagramGroup, DiagramNode } from './types.js';
 
 /**
@@ -21,6 +22,8 @@ export interface DiagramMasterRow {
   viewport_x: number;
   viewport_y: number;
   viewport_zoom: number;
+  /** patch-diagram-ext.sql 之前不存在，读出来是 undefined */
+  ext_json?: unknown;
   is_deleted: boolean;
 }
 
@@ -175,6 +178,8 @@ export function assembleDiagram(
       y: Number(master.viewport_y),
       zoom: Number(master.viewport_zoom),
     },
+    // 图级扩展（全局锁定）；没跑 patch-diagram-ext.sql 时该列为 undefined，归一成 {}
+    extJson: normalizeDiagramExt(master.ext_json),
     groups: groups.map(rowToGroup),
     nodes: nodes.map(rowToNode),
     edges: edges.map(rowToEdge),

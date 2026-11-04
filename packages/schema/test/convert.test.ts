@@ -36,7 +36,8 @@ describe('convert 往返（对应验收 D1 / D2）', () => {
       sample.nodes.map((n) => nodeToRow(n, sample.diagramId)),
       sample.edges.map((e) => edgeToRow(e, sample.diagramId)),
     );
-    expect(rebuilt).toEqual(sample);
+    // assembleDiagram 会补上 extJson（图级扩展，老库读出来是 null → 归一成 {}）
+    expect(rebuilt).toEqual({ ...sample, extJson: {} });
   });
 
   it('单条边往返保留线型、锚点、虚线', () => {

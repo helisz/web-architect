@@ -1,3 +1,4 @@
+import { textStyleOf } from '@arch/schema';
 import type { DiagramEdge, DiagramGroup, DiagramNode } from '@arch/schema';
 
 /**
@@ -18,11 +19,13 @@ export type MultiField =
   | 'textColor'
   | 'iconKey'
   | 'iconHidden'
+  | 'align'
+  | 'valign'
   | 'strokeColor';
 
 /** 每类对象支持哪些可批量编辑的字段 */
 const SUPPORT: Record<MultiKind, readonly MultiField[]> = {
-  node: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden'],
+  node: [ 'label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden', 'align', 'valign' ],
   group: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden'],
   edge: ['label', 'strokeColor'],
 };
@@ -36,6 +39,8 @@ export const FIELD_LABEL: Record<MultiField, string> = {
   textColor: '文字颜色',
   iconKey: '图标',
   iconHidden: '图标开关',
+  align: '水平对齐',
+  valign: '垂直对齐',
   strokeColor: '线条颜色',
 };
 
@@ -48,6 +53,8 @@ const ORDER: MultiField[] = [
   'strokeColor',
   'iconKey',
   'iconHidden',
+  'align',
+  'valign',
 ];
 
 export interface MultiSelection {
@@ -109,6 +116,8 @@ export function readField(
   if (field === 'textColor') return node.textColor;
   if (field === 'iconKey') return typeof node.extJson?.iconKey === 'string' ? node.extJson.iconKey : '';
   if (field === 'iconHidden') return node.extJson?.iconHidden === true ? 'hidden' : 'shown';
+  if (field === 'align') return textStyleOf(node.nodeType, node.extJson).align;
+  if (field === 'valign') return textStyleOf(node.nodeType, node.extJson).valign;
   return undefined;
 }
 

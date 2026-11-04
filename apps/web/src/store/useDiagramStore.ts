@@ -10,12 +10,14 @@ import {
   diagramStats,
   groupAbsoluteRect,
   groupOffset,
+  isEditLocked,
   isGroupLocked,
   MAX_GROUP_DEPTH,
   nodeAbsoluteRect,
   removeGroupLifting,
   setGroupParent,
   setNodeGroup,
+  withEditLock,
   type Anchor,
   type ArchitectureDiagram,
   type DiagramEdge,
@@ -26,6 +28,7 @@ import {
   type Viewport,
 } from '@arch/schema';
 import { alignRects, distributeRects, type AlignMode, type Rect } from '../canvas/align.js';
+import { persistDiagramExt } from '../data/diagramRepo.js';
 
 const PREF_KEY = 'arch.ui.prefs';
 
@@ -125,6 +128,8 @@ interface DiagramStore {
   setBootError: (message: string | null) => void;
   rename: (name: string) => void;
   setViewport: (viewport: Viewport) => void;
+  /** 全局锁定编辑（随图保存到 arch_diagram.ext_json） */
+  setEditLocked: (locked: boolean) => void;
   select: (id: string | null) => void;
   /** 多选：按 ReactFlow 的 select 变更增量更新 */
   updateSelection: (add: string[], remove: string[]) => void;
@@ -440,7 +445,52 @@ function countSubtreeHeight(groups: DiagramGroup[], groupId: string): number {
  * 不引入第二套 UI 专用结构（规格 §0.1 的红线）。
  * 命令栈在 M2 拆成独立 store，这里先留接口位。
  */
-export const useDiagramStore = create<DiagramStore>()((set, get) => ({
+
+/**
+ * 锁定编辑时把「改图」的写入全部挡在 store 这一层（用户 2026-11-04 第二批）。
+ *
+ * 判断依据很朴素：一次 set 里如果 `diagram` 换了新对象，就算"改图"。
+ * 选中、开关面板、视口这些只动 UI / viewport 的写入不受影响；
+ * 折叠分组与切换锁定自己是例外（纯浏览行为 / 元数据），用 `bypassLock` 放行。
+ *
+ * 放在这一层而不是逐个动作里，是因为动作有三十多个，漏一个就是"锁了还能改"。
+ */
+let bypassLock = false;
+function withLockBypass<T>(fn: () => T): T {
+  const previous = bypassLock;
+  bypassLock = true;
+  try {
+    return fn();
+  } finally {
+    bypassLock = previous;
+  }
+}
+
+export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
+  /**
+   * 一层薄包装：锁定编辑时丢弃所有"会换掉 diagram 对象"的写入。
+   * 类型上跟着 zustand 的 set 走，内部用 unknown 兜住重载，避免在泛型上打架。
+   */
+  const set = ((partial: unknown, replace?: unknown) => {
+    rawSet(((state: DiagramStore) => {
+      const next =
+        typeof partial === 'function'
+          ? (partial as (s: DiagramStore) => Partial<DiagramStore>)(state)
+          : (partial as Partial<DiagramStore>);
+      if (next === state || next === undefined || next === null) return state as never;
+      if (
+        !bypassLock &&
+        isEditLocked(state.diagram) &&
+        next.diagram !== undefined &&
+        next.diagram !== state.diagram
+      ) {
+        // 锁定中：整次写入丢掉（连同它的历史记录），界面保持原样
+        return state as never;
+      }
+      return next as never;
+    }) as never, replace as never);
+  }) as typeof rawSet;
+  return {
   diagram: createEmptyDiagram({ name: '未命名架构图' }),
   saveState: 'saved',
   selectedId: null,
@@ -494,7 +544,28 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
     }),
   setBootError: (bootError) => set({ bootError }),
   rename: (name) => set((s) => ({ diagram: { ...s.diagram, name }, saveState: 'dirty' })),
-  setViewport: (viewport) => set((s) => ({ diagram: { ...s.diagram, viewport } })),
+  // 视口只是浏览状态，锁定编辑时也要能平移缩放
+  setViewport: (viewport) =>
+    withLockBypass(() => set((s) => ({ diagram: { ...s.diagram, viewport } }))),
+
+  setEditLocked: (locked) => {
+    withLockBypass(() =>
+      set((s) => ({
+        diagram: { ...s.diagram, extJson: withEditLock(s.diagram.extJson, locked) },
+        toasts: [
+          ...s.toasts,
+          {
+            id: s.toastSeq + 1,
+            kind: 'success' as const,
+            text: locked ? '已锁定编辑：只能查看和选中，改动入口都关掉了' : '已解锁编辑：可以继续改图',
+          },
+        ],
+        toastSeq: s.toastSeq + 1,
+      })),
+    );
+    // 元数据不占版本号：直接写一行，失败就只影响"换设备还锁不锁"
+    void persistDiagramExt(get().diagram.diagramId, get().diagram.extJson ?? {});
+  },
   select: (selectedId) => set({ selectedId, selectedIds: selectedId ? [selectedId] : [] }),
 
   updateSelection: (add, remove) =>
@@ -682,17 +753,20 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
       };
     }),
 
+  // 折叠只是浏览状态（不改几何数据），锁定编辑时仍然允许
   toggleGroupCollapsed: (groupId) =>
-    set((s) => ({
-      ...withHistory(s, `collapse:${groupId}`),
-      diagram: {
-        ...s.diagram,
-        groups: s.diagram.groups.map((g) =>
-          g.groupId === groupId ? { ...g, collapsed: !g.collapsed } : g,
-        ),
-      },
-      saveState: 'dirty',
-    })),
+    withLockBypass(() =>
+      set((s) => ({
+        ...withHistory(s, `collapse:${groupId}`),
+        diagram: {
+          ...s.diagram,
+          groups: s.diagram.groups.map((g) =>
+            g.groupId === groupId ? { ...g, collapsed: !g.collapsed } : g,
+          ),
+        },
+        saveState: 'dirty',
+      })),
+    ),
 
   reparentNode: (nodeId, groupId) =>
     set((s) => {
@@ -1078,7 +1152,8 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
         toastSeq: state.toastSeq + 1,
       };
     }),
-}));
+  };
+});
 
 /**
  * 派生统计，供状态栏使用。
@@ -1090,12 +1165,6 @@ export function useDiagramStats() {
   const diagram = useDiagramStore((s) => s.diagram);
   return useMemo(() => diagramStats(diagram), [diagram]);
 }
-
-
-
-
-
-
 
 
 

@@ -17,15 +17,34 @@ describe('textStyleOf', () => {
     expect(style.underline).toBe(false);
   });
 
-  it('普通节点默认 13px 不加粗', () => {
+  it('普通节点默认 12px / 500 字重（用户 2026-11-04 第二批）', () => {
     const style = textStyleOf('server');
-    expect(style.fontSize).toBe(13);
+    expect(style.fontSize).toBe(12);
     expect(style.bold).toBe(false);
+    expect(style.weight).toBe(500);
+    expect(style.align).toBe('center');
+    expect(style.valign).toBe('middle');
+  });
+
+  it('标题不加粗时字重掉到 500，但仍比正文大一截', () => {
+    const style = textStyleOf('title', { bold: false });
+    expect(style.weight).toBe(500);
+    expect(style.fontSize).toBe(28);
+  });
+
+  it('文本类默认左对齐、从上往下排', () => {
+    expect(textStyleOf('sticky')).toMatchObject({ align: 'left', valign: 'top', fontSize: 12 });
+    expect(textStyleOf('title')).toMatchObject({ align: 'left', valign: 'middle' });
+  });
+
+  it('对齐值可覆盖，非法值回落到类型默认', () => {
+    expect(textStyleOf('server', { align: 'right', valign: 'top' })).toMatchObject({ align: 'right', valign: 'top' });
+    expect(textStyleOf('server', { align: 'middle', valign: 'left' })).toMatchObject({ align: 'center', valign: 'middle' });
   });
 
   it('extJson 覆盖默认值', () => {
     const style = textStyleOf('title', { fontSize: 18, bold: false, italic: true, underline: true });
-    expect(style).toEqual({ fontSize: 18, bold: false, italic: true, underline: true });
+    expect(style).toMatchObject({ fontSize: 18, bold: false, italic: true, underline: true, weight: 500 });
   });
 
   it('字号越界会被夹到 8–72', () => {
@@ -39,7 +58,7 @@ describe('textStyleOf', () => {
 
   it('非法字号回落到类型默认，不返回 NaN', () => {
     expect(textStyleOf('title', { fontSize: 'abc' }).fontSize).toBe(28);
-    expect(textStyleOf('server', { fontSize: Number.NaN }).fontSize).toBe(13);
+    expect(textStyleOf('server', { fontSize: Number.NaN }).fontSize).toBe(12);
   });
 
   it('布尔字段只认真正的 boolean，其它值回落默认', () => {
@@ -47,8 +66,13 @@ describe('textStyleOf', () => {
     expect(textStyleOf('title', { bold: 0 }).bold).toBe(true);
   });
 
-  it('单行元素默认 13px，不带加粗', () => {
-    expect(textStyleOf('element')).toMatchObject({ fontSize: 13, bold: false });
+  it('单行元素默认 12px / 居中，不带加粗', () => {
+    expect(textStyleOf('element')).toMatchObject({
+      fontSize: 12,
+      bold: false,
+      align: 'center',
+      valign: 'middle',
+    });
   });
 });
 
@@ -83,15 +107,24 @@ describe('withTextStyle', () => {
 
 describe('textStyleCss', () => {
   it('转成可直接用的内联样式', () => {
-    expect(textStyleCss({ fontSize: 28, bold: true, italic: true, underline: true })).toEqual({
+    expect(textStyleCss(textStyleOf('title', { italic: true, underline: true }))).toEqual({
       fontSize: '28px',
       fontWeight: 700,
       fontStyle: 'italic',
       textDecoration: 'underline',
+      textAlign: 'left',
+      justifyContent: 'flex-start',
+      alignItems: 'center',
     });
   });
 
-  it('不加粗时是 400，而不是继承父级', () => {
-    expect(textStyleCss({ fontSize: 13, bold: false, italic: false, underline: false }).fontWeight).toBe(400);
+  it('不加粗时用类型默认字重（普通节点 500，文本类 400），不继承父级', () => {
+    expect(textStyleCss(textStyleOf('server')).fontWeight).toBe(500);
+    expect(textStyleCss(textStyleOf('sticky')).fontWeight).toBe(400);
+  });
+
+  it('对齐映射成 flex 值', () => {
+    const css = textStyleCss(textStyleOf('server', { align: 'right', valign: 'bottom' }));
+    expect(css).toMatchObject({ justifyContent: 'flex-end', alignItems: 'flex-end', textAlign: 'right' });
   });
 });

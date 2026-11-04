@@ -99,7 +99,8 @@ export function TopBar() {
   const futureCount = useDiagramStore((s) => s.future.length);
   // 删除确认框弹着的时候不允许动历史
   const historyLocked = useDiagramStore((s) => s.pendingDelete !== null);
-  const { exportJson, exportPng, exportSvg, exportPdf, exportCsv, importJson } = useTransfer();
+  const { exportJson, exportPng, exportSvg, exportPdf, exportCsv, copyImage, importJson } =
+    useTransfer();
   const fileRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const layerOpen = useDiagramStore((s) => s.layerPanelOpen);
@@ -236,6 +237,15 @@ export function TopBar() {
               </MenuItem>
 
               <MenuLabel>图片</MenuLabel>
+              {/* 复制到剪贴板（用户 2026-11-04 第二批）：固定 2× 白底 PNG，粘到文档/IM 里就能用 */}
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  void copyImage();
+                }}
+              >
+                复制图片（2× PNG，白底）
+              </MenuItem>
               <MenuItem
                 onClick={() => {
                   setMenuOpen(false);

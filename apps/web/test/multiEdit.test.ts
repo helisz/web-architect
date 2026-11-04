@@ -41,7 +41,7 @@ function makeDiagram() {
 }
 
 describe('多选字段交集', () => {
-  it('两个节点：名称/副文本/背景/边框/文字/图标 全都在', () => {
+  it('两个节点：名称/副文本/背景/边框/文字/图标/对齐 全都在', () => {
     const { diagram, a, b } = makeDiagram();
     const fields = commonFields([a.nodeId, b.nodeId], diagram);
     expect(fields.map((f) => f.field)).toEqual([
@@ -52,6 +52,8 @@ describe('多选字段交集', () => {
       'textColor',
       'iconKey',
       'iconHidden',
+      'align',
+      'valign',
     ]);
   });
 

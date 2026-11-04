@@ -112,6 +112,32 @@ export async function updateDiagramTags(diagramId: string, tags: string[]): Prom
   if (error) fail('保存标签失败', error);
 }
 
+/**
+ * 写图级扩展字段（目前只有「全局锁定编辑」）。
+ *
+ * 走一次 REST update，不进保存函数 —— 这是**元数据**：不该占版本号、
+ * 不该触发快照，也不该和画布内容抢冲突。
+ * 没跑 `patch-diagram-ext.sql` 时这一列不存在，update 会报错：静默吞掉，
+ * 锁定就只是本机状态（并留一条 console 提示），不影响画图。
+ */
+export async function persistDiagramExt(
+  diagramId: string,
+  extJson: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const { error } = await client()
+      .from(TABLES.diagram)
+      .update({ ext_json: extJson })
+      .eq('diagram_id', diagramId);
+    if (error) {
+      // 列不存在（PGRST204 / 42703）或权限问题：降级成本地状态
+      console.warn('[arch] 图级扩展写入失败（锁定状态仅本机生效）：', error.message);
+    }
+  } catch (error) {
+    console.warn('[arch] 图级扩展写入异常（锁定状态仅本机生效）', error);
+  }
+}
+
 export interface LoadedDiagram {
   diagram: ArchitectureDiagram;
   issues: ValidationIssue[];

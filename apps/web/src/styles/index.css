@@ -16,8 +16,13 @@
   --node-border: #d1d5db;
   --radius-node: 8px;
 
-  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  /*
+   * 字体（用户 2026-11-04 第二批）：除等宽（副文本/代码）外一律用这一串。
+   * Inter 有就优先用，没有就顺次落到苹方 / 微软雅黑 / 冬青黑 / 系统默认。
+   */
+  --font-ui: Inter, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', system-ui, -apple-system,
+    sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, 'Courier New', monospace;
 
   /* 语义色（连线） */
   --edge-external: #f59e0b;

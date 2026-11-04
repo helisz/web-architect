@@ -1,7 +1,15 @@
-﻿import { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import { exportFileName, parseImport, serializeDiagram } from '../data/transfer.js';
-import { decodeSvgDataUrl, downloadBlob, downloadDataUrl, downloadText, renderPng, renderSvg } from '../export/exportPng.js';
+import {
+  copyPngToClipboard,
+  decodeSvgDataUrl,
+  downloadBlob,
+  downloadDataUrl,
+  downloadText,
+  renderPng,
+  renderSvg,
+} from '../export/exportPng.js';
 import { saveDiagram } from '../data/diagramRepo.js';
 import { rememberSavedPayload } from '../data/usePersistence.js';
 import { buildPdfFromPng, type PdfPageSize } from '../export/exportPdf.js';
@@ -67,6 +75,30 @@ export function useTransfer() {
     },
     [diagram, fileName, prepare, pushToast],
   );
+
+  /** 复制图片（用户 2026-11-04 第二批）：固定 2× 白底 PNG；剪贴板不可用时退化成下载 */
+  const copyImage = useCallback(async () => {
+    let restore: (() => void) | null = null;
+    try {
+      restore = await prepare();
+      const viewport = document.querySelector<HTMLElement>('.react-flow__viewport')!;
+      try {
+        await copyPngToClipboard(viewport);
+        pushToast('已复制到剪贴板（2× PNG、白底）', 'success');
+      } catch (error) {
+        const dataUrl = await renderPng(viewport, { margin: 40, pixelRatio: 2 });
+        downloadDataUrl(dataUrl, fileName('png', '@2x'));
+        pushToast(
+          `剪贴板不可用（${(error as Error).message}），已改成下载 PNG`,
+          'info',
+        );
+      }
+    } catch (error) {
+      pushToast(`复制图片失败：${(error as Error).message}`, 'error');
+    } finally {
+      restore?.();
+    }
+  }, [fileName, prepare, pushToast]);
 
   const exportSvg = useCallback(async () => {
     let restore: (() => void) | null = null;
@@ -141,7 +173,5 @@ export function useTransfer() {
     [setDiagram, pushToast],
   );
 
-  return { exportJson, exportPng, exportSvg, exportPdf, exportCsv, importJson };
+  return { exportJson, exportPng, exportSvg, exportPdf, exportCsv, copyImage, importJson };
 }
-
-
