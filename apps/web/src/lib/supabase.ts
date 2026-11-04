@@ -10,7 +10,8 @@ import { supabaseConfig } from './env.js';
  */
 export const supabase: SupabaseClient | null = supabaseConfig
   ? createClient(supabaseConfig.url, supabaseConfig.anonKey, {
-      auth: { persistSession: false },
+      // 登录态要跨刷新保留：RLS 收紧到 authenticated 之后，会话就是唯一的通行证
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
       global: { headers: { 'x-application-name': 'web-architect' } },
     })
   : null;

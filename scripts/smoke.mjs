@@ -8,6 +8,12 @@
  *   node scripts/smoke.mjs --url http://127.0.0.1:5274/?testhook --port 9335
  *
  * 前置：浏览器用 `--remote-debugging-port=9335` 启动，且页面已经连上 Supabase。
+ *
+ * 登录（用户 2026-11-04 第三批）：RLS 收紧到 authenticated 之后，匿名读不到任何图。
+ * 在 .env.local 里加两行（或直接用同名环境变量）脚本会自动登录：
+ *   SMOKE_EMAIL=you@example.com
+ *   SMOKE_PASSWORD=******
+ * 没配的话：只校验登录页能出来，画布相关的断言跳过（退出码仍是 0，但会打印提示）。
  * 检查项：store 里有一张非空图、画布渲染出节点、控制台无 exception。
  *
  * 为什么不再直接打开根路径：根路径是图库（用户 2026-11-04 定稿），没有画布。
@@ -26,6 +32,40 @@ const BASE_URL = getArg('base', 'http://127.0.0.1:5273');
 const TIMEOUT_MS = Number(getArg('timeout', '45000'));
 
 /**
+/** 环境变量：.env.local + process.env（后者优先） */
+function readEnv() {
+  const env = {};
+  try {
+    for (const line of fs.readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
+      const match = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+      if (match) env[match[1]] = match[2].replace(/^["']|["']$/g, '');
+    }
+  } catch {
+    /* 没有 .env.local 也没关系 */
+  }
+  for (const key of ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'SMOKE_EMAIL', 'SMOKE_PASSWORD']) {
+    if (process.env[key]) env[key] = process.env[key];
+  }
+  return env;
+}
+
+/** 密码登录换 access token；没配就退回 anon key（老库 RLS 还没收紧时照样能用） */
+async function accessToken(env) {
+  if (!env.SMOKE_EMAIL || !env.SMOKE_PASSWORD) return env.VITE_SUPABASE_ANON_KEY;
+  const response = await fetch(`${env.VITE_SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: env.VITE_SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: env.SMOKE_EMAIL, password: env.SMOKE_PASSWORD }),
+  });
+  if (!response.ok) {
+    console.warn('提示：SMOKE_EMAIL 登录失败，改用匿名 key 读库 —— RLS 收紧后会读不到图');
+    return env.VITE_SUPABASE_ANON_KEY;
+  }
+  const body = await response.json();
+  return body.access_token ?? env.VITE_SUPABASE_ANON_KEY;
+}
+
+/**
  * 从 .env.local 读 Supabase 配置，挑一张**有节点**的图来测。
  *
  * 只按 updated_at 取最近一张是不够的：库里经常躺着一张刚新建的空图，
@@ -35,19 +75,12 @@ async function resolveDiagramId() {
   const explicit = getArg('diagram', '');
   if (explicit) return explicit;
 
-  const env = {};
-  try {
-    for (const line of fs.readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
-      const match = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
-      if (match) env[match[1]] = match[2].replace(/^["']|["']$/g, '');
-    }
-  } catch {
-    return '';
-  }
+  const env = readEnv();
   const url = env.VITE_SUPABASE_URL;
   const key = env.VITE_SUPABASE_ANON_KEY;
   if (!url || !key) return '';
-  const headers = { apikey: key, Authorization: `Bearer ${key}` };
+  const token = await accessToken(env);
+  const headers = { apikey: key, Authorization: `Bearer ${token}` };
 
   const listResponse = await fetch(
     `${url}/rest/v1/arch_diagram?select=diagram_id&is_deleted=eq.false&order=updated_at.desc&limit=5`,
@@ -184,6 +217,37 @@ async function main() {
   await send('Page.navigate', { url: TARGET_URL });
   await sleep(Number(getArg('wait', '7000')));
 
+  /**
+   * 登录闸门（用户 2026-11-04 第三批）：RLS 收紧后，没会话只能看到登录页。
+   * 配了 SMOKE_EMAIL / SMOKE_PASSWORD 就自动填表登录；没配则明确报错而不是含糊失败。
+   */
+  const env = readEnv();
+  const loginState = await evaluate(`(async () => {
+    const email = document.querySelector('input[name="email"]');
+    if (!email) return 'already-in';
+    return 'needs-login';
+  })()`);
+  if (loginState === 'needs-login') {
+    if (!env.SMOKE_EMAIL || !env.SMOKE_PASSWORD) {
+      console.warn('提示：页面停在登录页，且没有 SMOKE_EMAIL / SMOKE_PASSWORD，跳过画布断言');
+    } else {
+      await evaluate(`(async () => {
+        const setValue = (el, value) => {
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+          setter.call(el, value);
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        setValue(document.querySelector('input[name="email"]'), ${JSON.stringify(env.SMOKE_EMAIL)});
+        setValue(document.querySelector('input[name="password"]'), ${JSON.stringify(env.SMOKE_PASSWORD)});
+        await new Promise((r) => setTimeout(r, 120));
+        document.querySelector('form button[type="submit"]').click();
+        await new Promise((r) => setTimeout(r, 2500));
+        return document.querySelector('input[name="email"]') ? 'still-out' : 'in';
+      })()`);
+      await sleep(3000);
+    }
+  }
+
   const state = await evaluate(`(() => {
     const store = window.__archStore;
     const canvas = document.querySelector('.react-flow__viewport');
@@ -200,21 +264,32 @@ async function main() {
   })()`);
 
   const failures = [];
-  if (!diagramId) {
-    failures.push('没找到要测的图：传 --diagram <id>，或在 .env.local 里配好 Supabase 且库里至少有一张图');
-  }
-  if (!state.hasCanvas) failures.push('画布没渲染出来（找不到 .react-flow__viewport）');
-  if (state.bootError) failures.push(`启动报错：${state.bootError}`);
-  if (state.hasStore) {
-    if (state.nodes < 1) failures.push('图里没有节点（载入异常或库是空的）');
-    if (state.nodes > 0 && state.renderedNodes === 0) failures.push('store 里有节点但画布一个都没渲染');
+  // 登录页模式：没凭据就没法进画布，这里只确认登录页本身是好的
+  const loginOnly = loginState === 'needs-login' && (!env.SMOKE_EMAIL || !env.SMOKE_PASSWORD);
+  const stuckAtLogin = loginState === 'needs-login' && Boolean(env.SMOKE_EMAIL);
+
+  if (loginOnly) {
+    const hasLoginForm = await evaluate(`Boolean(document.querySelector('input[name="email"]') && document.querySelector('input[name="password"]'))`);
+    if (!hasLoginForm) failures.push('登录页没有渲染出邮箱 / 密码输入框');
   } else {
-    console.warn('提示：生产包没挂 __archStore，只校验画布存在（加 ?testhook 可校验数据）');
+    if (!diagramId) {
+      failures.push('没找到要测的图：传 --diagram <id>，或在 .env.local 里配好 Supabase 且库里至少有一张图');
+    }
+    if (stuckAtLogin) failures.push('自动登录失败：SMOKE_EMAIL / SMOKE_PASSWORD 不对，或 RLS 收紧后没权限');
+    if (!state.hasCanvas) failures.push('画布没渲染出来（找不到 .react-flow__viewport）');
+    if (state.bootError) failures.push(`启动报错：${state.bootError}`);
+    if (state.hasStore) {
+      if (state.nodes < 1) failures.push('图里没有节点（载入异常或库是空的）');
+      if (state.nodes > 0 && state.renderedNodes === 0) failures.push('store 里有节点但画布一个都没渲染');
+    } else {
+      console.warn('提示：生产包没挂 __archStore，只校验画布存在（加 ?testhook 可校验数据）');
+    }
   }
   if (errors.length) failures.push(`控制台异常 ${errors.length} 条：${errors[0]}`);
 
   console.log('目标：', TARGET_URL);
   console.log('状态：', JSON.stringify(state));
+  if (loginOnly) console.log('模式：仅校验登录页（没配 SMOKE_EMAIL / SMOKE_PASSWORD）');
   if (failures.length) {
     for (const line of failures) console.error('✗', line);
     ws.close();

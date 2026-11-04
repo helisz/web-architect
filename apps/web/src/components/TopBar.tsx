@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import { EdgeSettings } from './EdgeSettings.js';
 import { useTransfer } from '../hooks/useTransfer.js';
+import { useAuth } from '../lib/auth.js';
 import { ToolIcon, type ToolIconName } from './ToolIcons.js';
 import { goToGallery } from '../data/navigate.js';
 
@@ -86,6 +87,46 @@ function Divider() {
  * 顶部栏（规格 §3.2）。用户 2026-11-04 定稿：48px 高，功能按钮只留图标 + tooltip，
  * 只有「导入 / 导出」保留 icon + 文字。
  */
+/** 顶栏最右：当前账号 + 退出登录（用户 2026-11-04 第三批） */
+function AccountButton() {
+  const auth = useAuth();
+  const [open, setOpen] = useState(false);
+  const email = auth.user?.email ?? '';
+  return (
+    <div className="relative ml-1 shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={email ? `已登录 ${email}` : '账号'}
+        aria-label="账号"
+        className="grid h-6 w-6 place-items-center rounded-full bg-[#EEF1F4] text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[#E5E9EE] hover:text-[var(--text-primary)]"
+      >
+        {(email[0] ?? '?').toUpperCase()}
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 z-30 mt-1 w-56 rounded-md border border-[var(--panel-border)] bg-white py-1 shadow-md"
+          onMouseLeave={() => setOpen(false)}
+        >
+          <p className="truncate px-3 py-1 text-[11px] text-[var(--text-secondary)]" title={email}>
+            {email || '未登录'}
+          </p>
+          <button
+            type="button"
+            className="block w-full px-3 py-1.5 text-left text-xs hover:bg-[#F3F4F6]"
+            onClick={() => {
+              setOpen(false);
+              void auth.signOut();
+            }}
+          >
+            退出登录
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TopBar() {
   const name = useDiagramStore((s) => s.diagram.name);
   const version = useDiagramStore((s) => s.diagram.version);
@@ -210,6 +251,8 @@ export function TopBar() {
             if (file) await importJson(file);
           }}
         />
+
+        <AccountButton />
 
         <div className="relative">
           <button

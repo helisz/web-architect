@@ -7,9 +7,11 @@ import { StartupError } from './components/StartupError.js';
 import { ToastHost } from './components/ToastHost.js';
 import { TopBar } from './components/TopBar.js';
 import { Gallery } from './components/Gallery.js';
+import { AuthSplash, LoginPage } from './components/LoginPage.js';
 import { VersionPanel } from './components/VersionPanel.js';
 import { PropertyPanel } from './components/PropertyPanel.js';
 import { supabaseConfig } from './lib/env.js';
+import { useAuth } from './lib/auth.js';
 import { useRoute } from './lib/route.js';
 import { useAutosave, useRouteDiagram } from './data/usePersistence.js';
 import { useWriterLock } from './data/tabLock.js';
@@ -26,6 +28,8 @@ import { useDiagramStore } from './store/useDiagramStore.js';
  * 架构：无自建后端，浏览器用 anon key 直连 Supabase（ADR-0004）。
  */
 export default function App() {
+  // 登录（用户 2026-11-04 第三批）：Pages 是公开站点，数据权限收到 authenticated
+  const auth = useAuth();
   const route = useRoute();
   const selectedIds = useDiagramStore((s) => s.selectedIds);
   const booted = useDiagramStore((s) => s.booted);
@@ -47,7 +51,17 @@ export default function App() {
     if (versionOpen && selectedIds.length > 0) setVersionOpen(false);
   }, [versionOpen, selectedIds.length, setVersionOpen]);
 
-  // 缺环境变量时不白屏，直接给可操作的修复指引
+  // 先过登录这道门：没会话就只看登录页，连图库都不渲染（数据请求一律不发）
+  if (auth.status === 'loading') return <AuthSplash />;
+  if (auth.status === 'signed-out') {
+    return (
+      <>
+        <LoginPage auth={auth} />
+        <ToastHost />
+      </>
+    );
+  }
+
   if (!supabaseConfig) return <StartupError />;
 
   // 图库页不需要等任何图载入，先渲染出来（列表自己拉数据）

@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
+  /**
+   * 部署到 GitHub Pages 时站点在子路径下（/web-architect/），资源必须带同样的前缀。
+   * 本地开发保持 `/`；CI 里由工作流传 VITE_BASE_PATH（见 .github/workflows/pages.yml）。
+   */
+  base: process.env.VITE_BASE_PATH ?? '/',
   plugins: [react(), tailwindcss()],
   // monorepo：环境变量文件放在仓库根（.env.local），而 Vite 默认只读 apps/web 下
   envDir: fileURLToPath(new URL('../..', import.meta.url)),
