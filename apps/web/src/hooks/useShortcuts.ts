@@ -19,8 +19,9 @@ import { useDiagramStore } from '../store/useDiagramStore.js';
  *
  * 输入框里一律不拦（让浏览器原生编辑键生效），避免"改图名时按 Ctrl+Z 把图撤了"。
  */
-export function useShortcuts(): void {
+export function useShortcuts(enabled = true): void {
   useEffect(() => {
+    if (!enabled) return;
     const onKeyDown = (event: KeyboardEvent): void => {
       const state = useDiagramStore.getState();
 
@@ -127,5 +128,5 @@ export function useShortcuts(): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [enabled]);
 }

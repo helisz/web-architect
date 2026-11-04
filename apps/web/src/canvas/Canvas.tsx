@@ -654,7 +654,7 @@ function CanvasStatus() {
   const stats = useDiagramStats();
 
   return (
-    <div className="pointer-events-none absolute bottom-3 left-[46px] z-10 flex items-center gap-3 text-[11px] leading-4 text-[var(--text-secondary)]">
+    <div className="pointer-events-none absolute bottom-1 left-[76px] z-10 flex items-center gap-3 text-[11px] leading-4 text-[var(--text-secondary)]">
       <button
         type="button"
         onClick={() => setViewport({ ...viewport, zoom: 1 })}

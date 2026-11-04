@@ -3,13 +3,18 @@
  * 冒烟脚本（D1）：用 CDP 打开跑着的页面，确认"能启动 + 能载入图 + 没有报错"。
  *
  * 用法：
- *   node scripts/smoke.mjs                       # 默认 dev server http://127.0.0.1:5273
+ *   node scripts/smoke.mjs                       # 自动取库里最近一张图，打开 #/d/<id>
+ *   node scripts/smoke.mjs --diagram <id>        # 指定图
  *   node scripts/smoke.mjs --url http://127.0.0.1:5274/?testhook --port 9335
  *
  * 前置：浏览器用 `--remote-debugging-port=9335` 启动，且页面已经连上 Supabase。
  * 检查项：store 里有一张非空图、画布渲染出节点、控制台无 exception。
+ *
+ * 为什么不再直接打开根路径：根路径是图库（用户 2026-11-04 定稿），没有画布。
  * 退出码：0 通过 / 1 失败（方便挂到 CI 或 pre-push）。
  */
+import fs from 'node:fs';
+
 const args = process.argv.slice(2);
 const getArg = (name, fallback) => {
   const index = args.indexOf(`--${name}`);
@@ -17,12 +22,62 @@ const getArg = (name, fallback) => {
 };
 
 const CDP = `http://127.0.0.1:${getArg('port', '9335')}`;
-const TARGET_URL = getArg('url', 'http://127.0.0.1:5273/?smoke=1');
+const BASE_URL = getArg('base', 'http://127.0.0.1:5273');
 const TIMEOUT_MS = Number(getArg('timeout', '45000'));
+
+/**
+ * 从 .env.local 读 Supabase 配置，挑一张**有节点**的图来测。
+ *
+ * 只按 updated_at 取最近一张是不够的：库里经常躺着一张刚新建的空图，
+ * 拿它去测会得到"图里没有节点"的假失败。这里最多看 5 张，取第一个非空的。
+ */
+async function resolveDiagramId() {
+  const explicit = getArg('diagram', '');
+  if (explicit) return explicit;
+
+  const env = {};
+  try {
+    for (const line of fs.readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
+      const match = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+      if (match) env[match[1]] = match[2].replace(/^["']|["']$/g, '');
+    }
+  } catch {
+    return '';
+  }
+  const url = env.VITE_SUPABASE_URL;
+  const key = env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return '';
+  const headers = { apikey: key, Authorization: `Bearer ${key}` };
+
+  const listResponse = await fetch(
+    `${url}/rest/v1/arch_diagram?select=diagram_id&is_deleted=eq.false&order=updated_at.desc&limit=5`,
+    { headers },
+  );
+  if (!listResponse.ok) return '';
+  const rows = await listResponse.json();
+
+  for (const row of rows ?? []) {
+    const nodeResponse = await fetch(
+      `${url}/rest/v1/arch_node?select=node_id&diagram_id=eq.${row.diagram_id}&is_deleted=eq.false&limit=1`,
+      { headers },
+    );
+    if (!nodeResponse.ok) continue;
+    const nodes = await nodeResponse.json();
+    if (Array.isArray(nodes) && nodes.length > 0) return row.diagram_id;
+  }
+  return rows?.[0]?.diagram_id ?? '';
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
+  const diagramId = await resolveDiagramId();
+  const stamp = Date.now();
+  const TARGET_URL = getArg(
+    'url',
+    diagramId ? `${BASE_URL}/?smoke=${stamp}#/d/${diagramId}` : `${BASE_URL}/?smoke=${stamp}`,
+  );
+
   const targets = await (await fetch(`${CDP}/json/list`)).json();
   const page = targets.find((t) => t.type === 'page');
   if (!page) throw new Error('没有可用的页面目标，先启动带 --remote-debugging-port 的浏览器');
@@ -69,6 +124,36 @@ async function main() {
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Page.bringToFront');
+  // **绝对不写库**：这个脚本打开的是库里真实的图，如果浏览器里还留着不匹配的草稿，
+  // 页面会变"脏"从而自动保存，把用户的版本号白白 +1。这里把两个保存 RPC 拦下来，
+  // 顺便把草稿/视口的 localStorage 写入也关掉，让冒烟彻底只读。
+  await send('Page.addScriptToEvaluateOnNewDocument', {
+    source: `
+      (() => {
+        const originalFetch = window.fetch;
+        window.__smoke = { blocked: 0 };
+        window.fetch = function (input, init) {
+          const url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (/arch_save_diagram|arch_patch_diagram/.test(url)) {
+            window.__smoke.blocked += 1;
+            const body = { diagramId: null, version: 1, savedAt: new Date().toISOString(), snapshot: null };
+            return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+          }
+          return originalFetch.call(window, input, init);
+        };
+        const originalSetItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key, value) {
+          if (typeof key === 'string' && (key.startsWith('arch:draft:') || key.startsWith('arch:viewport:'))) return;
+          return originalSetItem.call(this, key, value);
+        };
+      })();
+    `,
+  });
+  // 目标页可能是上次跑过的同一 URL：同样的地址 Chrome 可能当成原地导航而不重载，
+  // 于是 Vite HMR 留下的旧模块状态（含"hook 顺序变了"这类历史报错）会被算到这次头上。
+  // 加个时间戳强制换地址，并且只从这次导航之后开始收错误。
+  await send('Runtime.discardConsoleEntries');
+  errors.length = 0;
   await send('Page.navigate', { url: TARGET_URL });
   await sleep(Number(getArg('wait', '7000')));
 
@@ -88,6 +173,9 @@ async function main() {
   })()`);
 
   const failures = [];
+  if (!diagramId) {
+    failures.push('没找到要测的图：传 --diagram <id>，或在 .env.local 里配好 Supabase 且库里至少有一张图');
+  }
   if (!state.hasCanvas) failures.push('画布没渲染出来（找不到 .react-flow__viewport）');
   if (state.bootError) failures.push(`启动报错：${state.bootError}`);
   if (state.hasStore) {

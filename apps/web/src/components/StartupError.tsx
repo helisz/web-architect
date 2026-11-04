@@ -1,9 +1,12 @@
 import { REQUIRED_ENV, missingEnv } from '../lib/env.js';
+import { navigateToGallery } from '../lib/route.js';
 
 interface StartupErrorProps {
   title?: string;
   detail?: string;
   hint?: string;
+  /** 打开图失败时给一个"回图库"的出口（用户 2026-11-04 加了 hash 路由） */
+  backToGallery?: boolean;
 }
 
 /**
@@ -13,7 +16,7 @@ interface StartupErrorProps {
  * 1. 无 props —— 缺 Supabase 环境变量时告诉人缺了什么、去哪补；
  * 2. 带 title/detail —— 打开图失败（网络、表结构、函数缺失等）。
  */
-export function StartupError({ title, detail, hint }: StartupErrorProps = {}) {
+export function StartupError({ title, detail, hint, backToGallery }: StartupErrorProps = {}) {
   const isEnvProblem = !title;
 
   return (
@@ -72,6 +75,15 @@ export function StartupError({ title, detail, hint }: StartupErrorProps = {}) {
           >
             重新加载
           </button>
+          {backToGallery && (
+            <button
+              type="button"
+              onClick={() => navigateToGallery()}
+              className="rounded bg-[var(--primary)] px-3 py-1.5 text-sm text-white hover:bg-[var(--primary-hover,#1D4ED8)]"
+            >
+              回到图库
+            </button>
+          )}
         </div>
 
         {isEnvProblem && (

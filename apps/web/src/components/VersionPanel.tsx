@@ -16,7 +16,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
   const diagramId = useDiagramStore((s) => s.diagram.diagramId);
   const version = useDiagramStore((s) => s.diagram.version);
   const setDiagram = useDiagramStore((s) => s.setDiagram);
-  const setNotice = useDiagramStore((s) => s.setNotice);
+  const pushToast = useDiagramStore((s) => s.pushToast);
 
   const [rows, setRows] = useState<SnapshotSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
       const loaded = await loadDiagram(diagramId);
       setDiagram(loaded.diagram, { persisted: true });
       rememberSavedPayload(loaded.diagram);
-      setNotice(`已回滚到 v${snapshot.version}，当前为 v${result.version}`);
+      pushToast(`已回滚到 v${snapshot.version}，当前为 v${result.version}`);
       onClose();
     } catch (err) {
       setError((err as Error).message);
@@ -70,7 +70,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
       const outcome = await saveManualSnapshot(diagramId, version, label);
       setSnapshotName('');
       await refresh();
-      setNotice(outcome.created ? `已保存快照「${label}」` : `v${version} 已有快照，已改名为「${label}」`);
+      pushToast(outcome.created ? `已保存快照「${label}」` : `v${version} 已有快照，已改名为「${label}」`);
     } catch (err) {
       setError((err as Error).message);
     } finally {

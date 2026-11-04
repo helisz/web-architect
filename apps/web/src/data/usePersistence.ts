@@ -1,106 +1,138 @@
 import { useEffect, useRef } from 'react';
-import { createEmptyDiagram } from '@arch/schema';
 import type { ArchitectureDiagram } from '@arch/schema';
-import { listDiagrams, loadDiagram, patchDiagram, saveDiagram, toSavePayload, type SaveResult } from './diagramRepo.js';
+import { loadDiagram, patchDiagram, saveDiagram, toSavePayload, type SaveResult } from './diagramRepo.js';
 import { diffPayload, isEmpty, type SavePayload } from './payloadDiff.js';
 import { clearDraft, readDraft, saveDraft } from './draft.js';
 import { nextDelay, structuralKey } from './saveScheduler.js';
 import { isWriterTab, takeOverWriter } from './tabLock.js';
 import { shouldWarnOnUnload } from './unloadGuard.js';
 import { readLocalViewport } from './viewportPrefs.js';
+import { navigateToGallery, type Route } from '../lib/route.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
+/** 上次打开的图：只用于图库里高亮，不再自动跳转（用户 2026-11-04 定稿） */
+const LAST_OPEN_KEY = 'arch:last-open';
+
+/** 图库页想知道"上次开的是哪张" */
+export function lastOpenDiagramId(): string | null {
+  try {
+    return localStorage.getItem(LAST_OPEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * 启动流程：打开最近编辑的一张图；库里没有就新建并立刻落一次库。
+ * 按路由载入：`#/d/<id>` → 打开那张图；`#/` → 图库，不载入任何图。
  *
- * 为什么新建也要立刻存：否则用户拖了两个节点就刷新，画布是空的 —— 图上
- * 什么都没有时没有"脏"可保存，反而会丢图。
+ * 为什么不"打开最近编辑的一张"了：主页是图库，点哪张开哪张，
+ * URL 里带着图的 id，刷新 / 分享链接 / 前进后退都对得上。
  */
-export function useBootstrap(): void {
-  const setDiagram = useDiagramStore((s) => s.setDiagram);
-  const setBooted = useDiagramStore((s) => s.setBooted);
-  const setBootError = useDiagramStore((s) => s.setBootError);
-  const applySaved = useDiagramStore((s) => s.applySaved);
+export function useRouteDiagram(route: Route): void {
+  const routeKey = route.kind === 'diagram' ? route.diagramId : 'gallery';
 
   useEffect(() => {
     let cancelled = false;
 
+    if (route.kind === 'gallery') {
+      // 回图库：把图从内存里卸掉，自动保存自然停手
+      const store = useDiagramStore.getState();
+      if (store.persisted && store.diagram.diagramId) {
+        try {
+          localStorage.setItem(LAST_OPEN_KEY, store.diagram.diagramId);
+        } catch {
+          // 隐私模式写不了 localStorage：不影响使用
+        }
+      }
+      store.closeDiagram();
+      store.setBooted(true);
+      store.setBootError(null);
+      return;
+    }
+
+    const targetId = route.diagramId;
+    const current = useDiagramStore.getState();
+    // 新建 / 刚从图库载入过同一张图：不要重复拉一遍（会闪一下，还会盖掉草稿提示）
+    if (current.persisted && current.diagram.diagramId === targetId) {
+      current.setBooted(true);
+      current.setBootError(null);
+      return;
+    }
+
+    current.setBooted(false);
+    current.setBootError(null);
+
     void (async () => {
       try {
-        // 只要最近更新的一张：limit 1，别把整个图库拉下来
-        const { rows } = await listDiagrams({ limit: 1 });
-        const target = rows[0];
+        const loaded = await loadDiagram(targetId);
+        if (cancelled) return;
+        if (loaded.issues.length > 0) {
+          console.warn('[arch] 载入时修复了若干问题：', loaded.issues.slice(0, 10));
+        }
 
-        if (target) {
-          const loaded = await loadDiagram(target.diagramId);
-          if (cancelled) return;
-          if (loaded.issues.length > 0) {
-            console.warn('[arch] 载入时修复了若干问题：', loaded.issues.slice(0, 10));
-          }
+        // 视口优先用本地的：平移/缩放不进库，就不该被库里的旧位置拽回去
+        const localViewport = readLocalViewport(loaded.diagram.diagramId);
+        let nextDiagram = localViewport ? { ...loaded.diagram, viewport: localViewport } : loaded.diagram;
 
-          // 视口优先用本地的：平移/缩放不进库，就不该被库里的旧位置拽回去
-          const localViewport = readLocalViewport(loaded.diagram.diagramId);
-          let nextDiagram = localViewport ? { ...loaded.diagram, viewport: localViewport } : loaded.diagram;
-
-          /**
-           * 本地草稿恢复：上次崩了 / 误关页面，草稿里会多出最后那几秒的编辑。
-           * 只在版本号一致（说明没在别处存过）且内容确实不同的时候恢复，
-           * 否则宁可相信库里的。
-           */
-          let restoredDraft: { at: number } | null = null;
-          const draft = readDraft(loaded.diagram.diagramId);
-          if (draft && draft.version === loaded.diagram.version) {
-            const differences = diffPayload(toSavePayload(loaded.diagram), toSavePayload(draft.diagram));
-            if (!isEmpty(differences)) {
-              restoredDraft = { at: draft.at };
-              nextDiagram = { ...draft.diagram, version: loaded.diagram.version, viewport: nextDiagram.viewport };
-            } else {
-              clearDraft(loaded.diagram.diagramId);
-            }
-          }
-
-          setDiagram(nextDiagram, { persisted: true });
-          // 基线永远是"库里的内容"：草稿差异才会被算成待保存的改动
-          rememberSavedPayload(loaded.diagram);
-
-          if (restoredDraft) {
-            const store = useDiagramStore.getState();
-            store.markDirty();
-            store.setNotice(
-              `已恢复上次未保存的改动（本地草稿 ${new Date(restoredDraft.at).toLocaleString('zh-CN')}）。不需要就按 Ctrl+Z 撤销，或点重载。`,
-            );
-          }
-        } else {
-          const fresh = createEmptyDiagram({ name: '未命名架构图' });
-          if (cancelled) return;
-          setDiagram(fresh);
-          const saved = await saveDiagram(fresh, null);
-          if (cancelled) return;
-          if (saved.ok) {
-            applySaved(saved.version, saved.savedAt);
-            rememberSavedPayload(fresh);
-          }
-          else if (saved.reason === 'missing_function') {
-            // 保存函数还没建：允许继续编辑，但别让自动保存每 800ms 撞一次
-            useDiagramStore.getState().setSaveDisabled(true);
-            useDiagramStore.getState().setSaveError(saved.message);
-          } else if (saved.reason !== 'version_conflict') {
-            setBootError(saved.message);
-            return;
+        /**
+         * 本地草稿恢复：上次崩了 / 误关页面，草稿里会多出最后那几秒的编辑。
+         * 只在版本号一致（说明没在别处存过）且内容确实不同的时候恢复，
+         * 否则宁可相信库里的。
+         */
+        let restoredDraft: { at: number } | null = null;
+        const draft = readDraft(loaded.diagram.diagramId);
+        if (draft && draft.version === loaded.diagram.version) {
+          const differences = diffPayload(toSavePayload(loaded.diagram), toSavePayload(draft.diagram));
+          if (!isEmpty(differences)) {
+            restoredDraft = { at: draft.at };
+            nextDiagram = { ...draft.diagram, version: loaded.diagram.version, viewport: nextDiagram.viewport };
+          } else {
+            clearDraft(loaded.diagram.diagramId);
           }
         }
 
-        if (!cancelled) setBooted(true);
+        const live = useDiagramStore.getState();
+        live.setDiagram(nextDiagram, { persisted: true });
+        // 基线永远是"库里的内容"：草稿差异才会被算成待保存的改动
+        rememberSavedPayload(loaded.diagram);
+        try {
+          localStorage.setItem(LAST_OPEN_KEY, loaded.diagram.diagramId);
+        } catch {
+          // 同上
+        }
+
+        if (restoredDraft) {
+          const after = useDiagramStore.getState();
+          after.markDirty();
+          after.pushToast(
+            `已恢复上次未保存的改动（本地草稿 ${new Date(restoredDraft.at).toLocaleString('zh-CN')}）。不需要就按 Ctrl+Z 撤销。`,
+            'info',
+          );
+        }
+        if (!cancelled) {
+          const done = useDiagramStore.getState();
+          done.setBooted(true);
+          done.setBootError(null);
+        }
       } catch (error) {
         if (cancelled) return;
-        setBootError(error instanceof Error ? error.message : String(error));
+        const message = error instanceof Error ? error.message : String(error);
+        // 图不存在 / 被删了：别把人卡在错误页，回图库并说一声
+        if (/PGRST116|no rows|not found|0 rows|图不存在|已删除/i.test(message)) {
+          const live = useDiagramStore.getState();
+          live.setBooted(true);
+          live.pushToast('这张图不存在或已被删除，已返回图库', 'error');
+          navigateToGallery();
+          return;
+        }
+        useDiagramStore.getState().setBootError(message);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [applySaved, setBooted, setBootError, setDiagram]);
+  }, [routeKey]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -422,6 +454,25 @@ export function forceSave(): void {
       after.markDirty();
     }
   });
+}
+
+/**
+ * 离开当前图（回图库 / 换成另一张图）之前，把还没落库的改动刷一次。
+ *
+ * 用户 2026-11-04 选"推荐"：先存再走，不要靠本地草稿兜底 ——
+ * 草稿只在同一张图重新打开时才恢复，换图就等于丢掉。
+ * 冲突中 / 保存不可用 / 跟随者不刷：这三种情况刷了也是错。
+ */
+export async function flushPendingSave(): Promise<void> {
+  const state = useDiagramStore.getState();
+  if (!state.persisted || state.saveState !== 'dirty') return;
+  if (state.conflict || state.saveDisabled || state.writerRole === 'follower') return;
+  try {
+    await runSave(state.diagram);
+  } catch (error) {
+    // 存不进去也别拦着导航：草稿还在，下次打开这张图会提示恢复
+    console.error('[arch] 离开前保存失败：', error);
+  }
 }
 
 

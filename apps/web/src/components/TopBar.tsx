@@ -5,6 +5,7 @@ import { useDiagramStore } from '../store/useDiagramStore.js';
 import { EdgeSettings } from './EdgeSettings.js';
 import { useTransfer } from '../hooks/useTransfer.js';
 import { ToolIcon, type ToolIconName } from './ToolIcons.js';
+import { goToGallery } from '../data/navigate.js';
 
 const SAVE_LABEL: Record<string, string> = {
   saved: '已保存',
@@ -13,15 +14,14 @@ const SAVE_LABEL: Record<string, string> = {
 };
 
 function SaveBadge({ state }: { state: string }) {
+  // 用户 2026-11-04：去掉底色/边框，只留状态色文字，和版本号同一行同一字号
   const tone =
     state === 'saved'
-      ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+      ? 'text-emerald-600'
       : state === 'saving'
-        ? 'text-amber-600 bg-amber-50 border-amber-200'
-        : 'text-[var(--text-secondary)] bg-[#F3F4F6] border-[var(--panel-border)]';
-  return (
-    <span className={`rounded border px-1.5 py-px text-[11px] ${tone}`}>{SAVE_LABEL[state] ?? state}</span>
-  );
+        ? 'text-amber-600'
+        : 'text-[var(--text-secondary)]';
+  return <span className={`shrink-0 text-[11px] leading-4 ${tone}`}>{SAVE_LABEL[state] ?? state}</span>;
 }
 
 /**
@@ -109,6 +109,16 @@ export function TopBar() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--panel-border)] bg-[var(--panel-bg)] px-3">
       <div className="flex min-w-0 items-center gap-2">
+        {/* 最左边：回图库（用户 2026-11-04：原来的「图库」按钮换成这个） */}
+        <button
+          type="button"
+          onClick={() => void goToGallery()}
+          title="返回图库"
+          aria-label="返回图库"
+          className="-ml-1 grid h-8 w-8 shrink-0 place-items-center rounded text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)]"
+        >
+          <ToolIcon name="chevronLeft" size={18} />
+        </button>
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-[var(--primary)] text-[13px] font-semibold text-white">
           架
         </span>
@@ -118,13 +128,15 @@ export function TopBar() {
           onChange={(e) => rename(e.target.value)}
           className="w-52 min-w-0 rounded border border-transparent px-1.5 py-1 text-[13px] font-semibold outline-none hover:border-[var(--panel-border)] focus:border-[var(--primary)]"
         />
-        <SaveBadge state={saveState} />
-        <span
-          className="mono shrink-0 text-[11px] text-[var(--text-secondary)]"
-          title={lastSavedAt ? `上次保存 ${new Date(lastSavedAt).toLocaleString()}` : '尚未保存'}
-        >
-          v{version}
-        </span>
+        <div className="flex shrink-0 items-baseline gap-2">
+          <SaveBadge state={saveState} />
+          <span
+            className="mono text-[11px] leading-4 text-[var(--text-secondary)]"
+            title={lastSavedAt ? `上次保存 ${new Date(lastSavedAt).toLocaleString()}` : '尚未保存'}
+          >
+            v{version}
+          </span>
+        </div>
       </div>
 
       <div className="ml-auto flex items-center gap-0.5">
@@ -156,11 +168,6 @@ export function TopBar() {
             useDiagramStore.getState().select(null);
             useDiagramStore.getState().setVersionOpen(true);
           }}
-        />
-        <IconButton
-          icon="gallery"
-          label="图库（所有架构图）"
-          onClick={() => useDiagramStore.getState().setView('gallery')}
         />
         <EdgeSettings />
         <IconButton

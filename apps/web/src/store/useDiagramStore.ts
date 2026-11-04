@@ -60,6 +60,16 @@ export type SaveState = 'saved' | 'saving' | 'dirty';
  */
 export type WriterRole = 'owner' | 'follower';
 
+/** toast 的三种语气：info 中性提示、success 成功了、error 报错 */
+export type ToastKind = 'info' | 'success' | 'error';
+
+export interface ToastItem {
+  id: number;
+  kind: ToastKind;
+  text: string;
+}
+
+
 export interface SaveConflict {
   currentVersion?: number;
   message: string;
@@ -107,6 +117,8 @@ interface DiagramStore {
 
   /** 从服务端载入（persisted=true）还是本地新建（false）：决定首次保存要不要带基线版本 */
   setDiagram: (diagram: ArchitectureDiagram, options?: { persisted?: boolean }) => void;
+  /** 回图库：把当前图从内存里卸掉（不删库），同时停掉自动保存 */
+  closeDiagram: () => void;
   setBooted: (booted: boolean) => void;
   setBootError: (message: string | null) => void;
   rename: (name: string) => void;
@@ -151,9 +163,13 @@ interface DiagramStore {
   setSaveError: (message: string | null) => void;
   setSaveDisabled: (disabled: boolean) => void;
   setWriterRole: (role: WriterRole) => void;
-  /** 中性提示（例如导入时被自动修复了几处），不会被保存成功清掉 */
-  notice: string | null;
-  setNotice: (notice: string | null) => void;
+
+  /** 一次性提示：画布底部居中的 toast，几秒后自动消失（时长见 ToastHost） */
+  toasts: ToastItem[];
+  /** toast 自增 id（不用 Date.now，避免同一毫秒重复） */
+  toastSeq: number;
+  pushToast: (text: string, kind?: ToastKind) => void;
+  dismissToast: (id: number) => void;
 
   /** 画布网格开关（右上角可切，本地记住） */
   showGrid: boolean;
@@ -200,8 +216,6 @@ interface DiagramStore {
   /** 版本历史抽屉 / 图库视图 */
   versionOpen: boolean;
   setVersionOpen: (open: boolean) => void;
-  view: 'canvas' | 'gallery';
-  setView: (view: 'canvas' | 'gallery') => void;
 
   /** Ctrl+F 搜索面板 / 图层面板开关 */
   searchOpen: boolean;
@@ -429,7 +443,9 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
   saveError: null,
   saveDisabled: false,
   writerRole: 'owner',
-  notice: null,
+  toasts: [],
+  /** toast 自增 id（不用 Date.now，避免同一毫秒重复） */
+  toastSeq: 0,
   persisted: false,
   lastSavedAt: null,
   past: [],
@@ -453,6 +469,20 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
       undoKey: null,
     }),
   setBooted: (booted) => set({ booted }),
+  closeDiagram: () =>
+    set({
+      persisted: false,
+      saveState: 'saved',
+      diagram: createEmptyDiagram({ name: '未命名架构图' }),
+      selectedId: null,
+      selectedIds: [],
+      pendingDelete: null,
+      conflict: null,
+      saveError: null,
+      past: [],
+      future: [],
+      undoKey: null,
+    }),
   setBootError: (bootError) => set({ bootError }),
   rename: (name) => set((s) => ({ diagram: { ...s.diagram, name }, saveState: 'dirty' })),
   setViewport: (viewport) => set((s) => ({ diagram: { ...s.diagram, viewport } })),
@@ -841,8 +871,6 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
 
   versionOpen: false,
   setVersionOpen: (versionOpen) => set({ versionOpen }),
-  view: 'canvas',
-  setView: (view) => set({ view }),
 
   searchOpen: false,
   setSearchOpen: (searchOpen) => set({ searchOpen }),
@@ -939,7 +967,9 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
   setSaveError: (saveError) => set({ saveError }),
   setSaveDisabled: (saveDisabled) => set({ saveDisabled }),
   setWriterRole: (writerRole) => set({ writerRole }),
-  setNotice: (notice) => set({ notice }),
+  pushToast: (text, kind = 'info') =>
+    set((s) => ({ toasts: [...s.toasts, { id: s.toastSeq + 1, kind, text }], toastSeq: s.toastSeq + 1 })),
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
   showGrid: readPref('showGrid', true),
   toggleGrid: () =>
@@ -969,7 +999,15 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
           edges: state.diagram.edges.map((edge) => ({ ...edge, edgeType, strokeWidth })),
         },
         saveState: 'dirty',
-        notice: `已把当前连线的线型与线宽应用到全部 ${state.diagram.edges.length} 条连线`,
+        toasts: [
+          ...state.toasts,
+          {
+            id: state.toastSeq + 1,
+            kind: 'success' as const,
+            text: `已把当前连线的线型与线宽应用到全部 ${state.diagram.edges.length} 条连线`,
+          },
+        ],
+        toastSeq: state.toastSeq + 1,
       };
     }),
 }));

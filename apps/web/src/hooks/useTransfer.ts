@@ -19,8 +19,7 @@ export function useTransfer() {
   const selectedId = useDiagramStore((s) => s.selectedId);
   const select = useDiagramStore((s) => s.select);
   const setDiagram = useDiagramStore((s) => s.setDiagram);
-  const setSaveError = useDiagramStore((s) => s.setSaveError);
-  const setNotice = useDiagramStore((s) => s.setNotice);
+  const pushToast = useDiagramStore((s) => s.pushToast);
 
   /** 文件名：带倍率时插在扩展名前面（图名@2x.png），别拼成 图名.png@2x */
   const fileName = useCallback(
@@ -61,12 +60,12 @@ export function useTransfer() {
         const suffix = transparent ? `@${scale}x-transparent` : scale === 1 ? '' : `@${scale}x`;
         downloadDataUrl(dataUrl, fileName('png', suffix));
       } catch (error) {
-        setSaveError(`导出 PNG 失败：${(error as Error).message}`);
+        pushToast(`导出 PNG 失败：${(error as Error).message}`, 'error');
       } finally {
         restore?.();
       }
     },
-    [diagram, fileName, prepare, setSaveError],
+    [diagram, fileName, prepare, pushToast],
   );
 
   const exportSvg = useCallback(async () => {
@@ -79,11 +78,11 @@ export function useTransfer() {
       const svg = decodeSvgDataUrl(dataUrl);
       downloadBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), fileName('svg'));
     } catch (error) {
-      setSaveError(`导出 SVG 失败：${(error as Error).message}`);
+      pushToast(`导出 SVG 失败：${(error as Error).message}`, 'error');
     } finally {
       restore?.();
     }
-  }, [diagram, prepare, setSaveError]);
+  }, [diagram, prepare, pushToast]);
 
   const exportPdf = useCallback(
     async (size: PdfPageSize = 'a4') => {
@@ -94,12 +93,12 @@ export function useTransfer() {
         const png = await renderPng(viewport, { margin: 24, pixelRatio: 2 });
         downloadBlob(await buildPdfFromPng(png, { size }), fileName('pdf'));
       } catch (error) {
-        setSaveError(`导出 PDF 失败：${(error as Error).message}`);
+        pushToast(`导出 PDF 失败：${(error as Error).message}`, 'error');
       } finally {
         restore?.();
       }
     },
-    [diagram, prepare, setSaveError],
+    [diagram, prepare, pushToast],
   );
 
   const exportCsv = useCallback(
@@ -115,7 +114,8 @@ export function useTransfer() {
       const text = await file.text();
       const result = parseImport(text);
       if (!result.ok) {
-        setSaveError(`导入失败：${result.error}`);
+        // 导入失败是这个动作自己的事，不该占顶部"重新载入"那条横幅
+        pushToast(`导入失败：${result.error}`, 'error');
         return;
       }
       // 导入 = 换一张新图（id 已重编）。
@@ -127,15 +127,18 @@ export function useTransfer() {
         useDiagramStore.getState().applySaved(saved.version, saved.savedAt);
         rememberSavedPayload(result.diagram);
       } else {
-        setSaveError(`导入已载入，但保存失败：${saved.message}`);
+        pushToast(`导入已载入，但保存失败：${saved.message}`, 'error');
       }
-      setNotice(
-        result.warnings.length > 0
-          ? `已导入 ${result.diagram.nodes.length} 个节点；其中 ${result.warnings.length} 处不合法已自动修复（${result.warnings[0]}）`
-          : null,
-      );
+      if (result.warnings.length > 0) {
+        pushToast(
+          `已导入 ${result.diagram.nodes.length} 个节点；其中 ${result.warnings.length} 处不合法已自动修复（${result.warnings[0]}）`,
+          'info',
+        );
+      } else {
+        pushToast(`已导入 ${result.diagram.nodes.length} 个节点`, 'success');
+      }
     },
-    [setDiagram, setNotice, setSaveError],
+    [setDiagram, pushToast],
   );
 
   return { exportJson, exportPng, exportSvg, exportPdf, exportCsv, importJson };

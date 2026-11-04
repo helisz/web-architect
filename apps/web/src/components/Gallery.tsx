@@ -6,13 +6,14 @@ import {
   duplicateDiagram,
   listAllTags,
   listDiagrams,
-  loadDiagram,
   renameDiagram,
   saveDiagram,
   updateDiagramTags,
   type DiagramSummary,
 } from '../data/diagramRepo.js';
-import { rememberSavedPayload } from '../data/usePersistence.js';
+import { lastOpenDiagramId, rememberSavedPayload } from '../data/usePersistence.js';
+import { goToDiagram } from '../data/navigate.js';
+import { navigateToDiagram } from '../lib/route.js';
 
 type SortKey = 'updated' | 'name' | 'version';
 
@@ -32,14 +33,16 @@ const SORT_LABEL: Record<SortKey, string> = {
  * 前端只保存"当前条件"，不缓存全量列表。
  */
 export function Gallery() {
-  const setView = useDiagramStore((s) => s.setView);
   const setDiagram = useDiagramStore((s) => s.setDiagram);
-  const setNotice = useDiagramStore((s) => s.setNotice);
+  const pushToast = useDiagramStore((s) => s.pushToast);
   const currentId = useDiagramStore((s) => s.diagram.diagramId);
+
+  /** 上次打开的图：只用来给「返回画布」兜个落点，不自动跳转 */
+  const lastOpen = useMemo(() => lastOpenDiagramId(), []);
+  const [lastOpenName, setLastOpenName] = useState<string | null>(null);
 
   const [rows, setRows] = useState<DiagramSummary[] | null>(null);
   const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   // 筛选条件
@@ -68,9 +71,9 @@ export function Gallery() {
       const result = await listDiagrams({ search, tag: tag ?? undefined, sort, limit: PAGE_SIZE, offset: page * PAGE_SIZE });
       setRows(result.rows);
       setTotal(result.total);
-      setError(null);
+      // 错误统一走 toast（用户 2026-11-04）
     } catch (err) {
-      setError((err as Error).message);
+      pushToast((err as Error).message, 'error');
       setRows([]);
       setTotal(0);
     }
@@ -86,21 +89,19 @@ export function Gallery() {
       .catch(() => setTags([]));
   }, [rows]);
 
+  // 「返回画布」的 tooltip 想显示图名：只在当前页里找，找不到就退化成一个泛称
+  useEffect(() => {
+    if (!rows || !lastOpen) return;
+    setLastOpenName(rows.find((row) => row.diagramId === lastOpen)?.name ?? null);
+  }, [rows, lastOpen]);
+
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const open = async (id: string): Promise<void> => {
-    if (id === currentId) {
-      setView('canvas');
-      return;
-    }
+    // 路由即状态：改 hash 由 useRouteDiagram 去载入（切图逻辑只写一份）
     setBusy(id);
     try {
-      const loaded = await loadDiagram(id);
-      setDiagram(loaded.diagram, { persisted: true });
-      rememberSavedPayload(loaded.diagram);
-      setView('canvas');
-    } catch (err) {
-      setError((err as Error).message);
+      navigateToDiagram(id);
     } finally {
       setBusy(null);
     }
@@ -108,14 +109,14 @@ export function Gallery() {
 
   const createNew = async (): Promise<void> => {
     const fresh = createEmptyDiagram({ name: '未命名架构图' });
-    setDiagram(fresh);
     const saved = await saveDiagram(fresh, null);
     if (saved.ok) {
+      setDiagram({ ...fresh, version: saved.version }, { persisted: true });
       rememberSavedPayload(fresh);
-      setNotice('已新建一张空图');
-      setView('canvas');
+      pushToast('已新建一张空图', 'success');
+      navigateToDiagram(fresh.diagramId);
     } else {
-      setError(saved.message);
+      pushToast(saved.message, 'error');
     }
   };
 
@@ -130,7 +131,7 @@ export function Gallery() {
       }
       await refresh();
     } catch (err) {
-      setError((err as Error).message);
+      pushToast((err as Error).message, 'error');
     }
   };
 
@@ -148,7 +149,7 @@ export function Gallery() {
       );
       await refresh();
     } catch (err) {
-      setError((err as Error).message);
+      pushToast((err as Error).message, 'error');
     }
   };
 
@@ -156,10 +157,10 @@ export function Gallery() {
     setBusy(id);
     try {
       const copy = await duplicateDiagram(id);
-      setNotice(`已复制为「${copy.name}」`);
+      pushToast(`已复制为「${copy.name}」`);
       await refresh();
     } catch (err) {
-      setError((err as Error).message);
+      pushToast((err as Error).message, 'error');
     } finally {
       setBusy(null);
     }
@@ -172,7 +173,7 @@ export function Gallery() {
       if (rows && rows.length === 1 && page > 0) setPage(page - 1);
       await refresh();
     } catch (err) {
-      setError((err as Error).message);
+      pushToast((err as Error).message, 'error');
     } finally {
       setBusy(null);
     }
@@ -197,13 +198,17 @@ export function Gallery() {
           >
             新建架构图
           </button>
-          <button
-            type="button"
-            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB]"
-            onClick={() => setView('canvas')}
-          >
-            返回画布
-          </button>
+          {/* 只有"上次开过某张图"才给这个出口；刚进站点时没有画布可回（用户 2026-11-04 的 hash 路由） */}
+          {lastOpen && (
+            <button
+              type="button"
+              className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB]"
+              onClick={() => void goToDiagram(lastOpen)}
+              title={`回到「${lastOpenName ?? '上一张图'}」`}
+            >
+              返回画布
+            </button>
+          )}
         </div>
       </header>
 
@@ -266,15 +271,6 @@ export function Gallery() {
           )}
         </div>
       </div>
-
-      {error && (
-        <p className="border-b border-[#FECACA] bg-[#FEF2F2] px-4 py-2 text-[12px] text-[#B91C1C]">
-          {error}
-          <button type="button" className="ml-2 underline" onClick={() => setError(null)}>
-            知道了
-          </button>
-        </p>
-      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {rows === null ? (

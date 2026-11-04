@@ -19,7 +19,8 @@ export type ToolIconName =
   | 'export'
   | 'lock'
   | 'unlock'
-  | 'close';
+  | 'close'
+  | 'chevronLeft';
 
 const PATHS: Record<ToolIconName, string> = {
   undo: 'M9 14 5 10l4-4M5 10h11a4 4 0 0 1 0 8h-2',
@@ -36,6 +37,7 @@ const PATHS: Record<ToolIconName, string> = {
   lock: 'M6 11h12v9H6zM8.5 11V7.5a3.5 3.5 0 0 1 7 0V11',
   unlock: 'M6 11h12v9H6zM8.5 11V7.5A3.5 3.5 0 0 1 15 5.4',
   close: 'M6 6l12 12M18 6 6 18',
+  chevronLeft: 'M15 5l-7 7 7 7',
 };
 
 export function ToolIcon({

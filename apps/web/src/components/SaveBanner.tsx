@@ -18,8 +18,6 @@ export function SaveBanner() {
   const diagramId = useDiagramStore((s) => s.diagram.diagramId);
   const setSaveError = useDiagramStore((s) => s.setSaveError);
   const setConflict = useDiagramStore((s) => s.setConflict);
-  const notice = useDiagramStore((s) => s.notice);
-  const setNotice = useDiagramStore((s) => s.setNotice);
 
   if (saveDisabled) {
     return (
@@ -100,23 +98,6 @@ export function SaveBanner() {
           }}
         >
           重新载入
-        </button>
-      </div>
-    );
-  }
-
-  // 中性提示：导入时被自动修复的地方。用信息色，不吓人，也不被保存成功清掉。
-  if (notice) {
-    return (
-      <div className="flex items-center gap-3 border-b border-[#BAE6FD] bg-[#F0F9FF] px-4 py-2 text-xs text-[#075985]">
-        <span className="font-medium">提示</span>
-        <span className="truncate">{notice}</span>
-        <button
-          type="button"
-          className="ml-auto rounded border border-[#BAE6FD] bg-white px-2 py-1 hover:bg-[#E0F2FE]"
-          onClick={() => setNotice(null)}
-        >
-          知道了
         </button>
       </div>
     );

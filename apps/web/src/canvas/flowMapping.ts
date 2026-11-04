@@ -88,6 +88,9 @@ function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>): S
         id: g.groupId,
         type: 'swimlane',
         position: { x: g.x, y: g.y },
+        // width/height 必须给：MiniMap 用 nodeHasDimensions() 判断，只给 style 会整块空白
+        width: g.width,
+        height,
         style: { width: g.width, height },
         data: { group: g },
         selected,
@@ -121,6 +124,9 @@ export function toFlowNodes(
         id: n.nodeId,
         type: 'archNode',
         position: { x: n.x, y: n.y },
+        // 同上：MiniMap 不认 style 里的尺寸
+        width: n.width,
+        height: n.height,
         style: { width: n.width, height: n.height },
         data: { node: n },
         selected: selectedNow,
