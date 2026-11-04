@@ -47,6 +47,7 @@ function OrthoEdgeImpl({
     anchorOf(sourceHandleId),
     targetRect,
     anchorOf(targetHandleId),
+    data?.obstacles,
   );
 
   const stroke = edge?.strokeColor ?? '#8B5CF6';

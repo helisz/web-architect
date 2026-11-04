@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  RectIndex,
+  buildOrthoPath,
   exitPoint,
   labelAnchorPoint,
   orthoPoints,
+  segmentHitsRect,
   simplifyPoints,
   toRoundedPath,
 } from '../src/ortho.js';
@@ -134,3 +137,95 @@ describe('labelAnchorPoint', () => {
     expect(p).toEqual({ x: 0, y: 50 });
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* 阶段 2：冲突绕行                                                    */
+/* ------------------------------------------------------------------ */
+
+const left: Rect = { x: 0, y: 0, width: 160, height: 80 }; // right 出线 → (168,40)
+const right: Rect = { x: 400, y: 0, width: 160, height: 80 }; // left 进线 → (392,40)
+const blocker: Rect = { x: 250, y: 0, width: 100, height: 80 }; // 正好压在两节点之间
+
+const segments = (pts: { x: number; y: number }[]) =>
+  pts.slice(1).map((b, i) => [pts[i]!, b] as const);
+
+describe('冲突绕行（ortho step 5）', () => {
+  it('无障碍时就是一条直线，与基础路由一致', () => {
+    const pts = orthoPoints(left, 'right', right, 'left');
+    expect(pts).toEqual(orthoPoints(left, 'right', right, 'left', []));
+    expect(pts).toHaveLength(2);
+    expect(pts[0]!.y).toBeCloseTo(pts[1]!.y, 5);
+  });
+
+  it('中间节点挡住去路时自动绕行，且没有线段压住它', () => {
+    const pts = orthoPoints(left, 'right', right, 'left', [blocker]);
+    expect(pts.length).toBeGreaterThan(2);
+    for (const [a, b] of segments(pts)) {
+      expect(segmentHitsRect(a, b, blocker, 6)).toBe(false);
+      // 仍然保持正交
+      expect(Math.abs(a.x - b.x) < 0.01 || Math.abs(a.y - b.y) < 0.01).toBe(true);
+    }
+    // 绕行通道贴着障碍外侧 12px，而不是绕到很远
+    const ys = pts.map((p) => p.y);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(-12.01);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(92.01);
+  });
+
+  it('两端节点自身不算障碍（线段从边框出发不算压住）', () => {
+    const pts = orthoPoints(left, 'right', right, 'left', [left, right]);
+    expect(pts).toHaveLength(2);
+  });
+
+  it('远离路径的节点不影响结果', () => {
+    const far: Rect = { x: 0, y: 2000, width: 160, height: 80 };
+    expect(orthoPoints(left, 'right', right, 'left', [far])).toEqual(orthoPoints(left, 'right', right, 'left'));
+  });
+
+  it('buildOrthoPath 透传障碍：path 不含压线', () => {
+    const { points, d } = buildOrthoPath(left, 'right', right, 'left', [blocker]);
+    expect(d.startsWith('M ')).toBe(true);
+    for (const [a, b] of segments(points)) expect(segmentHitsRect(a, b, blocker, 6)).toBe(false);
+  });
+});
+
+describe('RectIndex 空间网格', () => {
+  const rects: Rect[] = [
+    { x: 0, y: 0, width: 100, height: 100 },
+    { x: 500, y: 500, width: 100, height: 100 },
+    { x: -300, y: 200, width: 50, height: 50 },
+    { x: 1000, y: -400, width: 200, height: 60 },
+  ];
+
+  it('按包围盒取到相交矩形，顺序稳定', () => {
+    const index = new RectIndex(rects);
+    expect(index.query({ x: -50, y: -50, width: 200, height: 200 })).toEqual([rects[0]]);
+    expect(index.query({ x: 400, y: 400, width: 300, height: 300 })).toEqual([rects[1]]);
+    expect(index.query({ x: 0, y: 0, width: 1200, height: 600 })).toEqual([rects[0], rects[1]]);
+    expect(index.query({ x: 5000, y: 5000, width: 10, height: 10 })).toEqual([]);
+  });
+
+  it('跨单元格的矩形不会漏（负坐标也覆盖）', () => {
+    const index = new RectIndex(rects, 64);
+    expect(index.query(rects[2]!)).toEqual([rects[2]]);
+    expect(index.query({ x: -320, y: 180, width: 90, height: 90 })).toEqual([rects[2]]);
+  });
+
+  it('2000 个矩形 × 200 次查询仍在预算内（走索引）', () => {
+    const many: Rect[] = Array.from({ length: 2000 }, (_, i) => ({
+      x: (i % 50) * 240,
+      y: Math.floor(i / 50) * 160,
+      width: 160,
+      height: 80,
+    }));
+    const started = performance.now();
+    let hit = 0;
+    for (let i = 0; i < 200; i += 1) {
+      const pts = orthoPoints(left, 'right', right, 'left', many);
+      hit += pts.length;
+    }
+    const elapsed = performance.now() - started;
+    expect(hit).toBeGreaterThan(0);
+    expect(elapsed).toBeLessThan(2000);
+  });
+});
+

@@ -1,12 +1,14 @@
-import { MarkerType, type Edge, type Node } from '@xyflow/react';
+﻿import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import {
   GROUP_HEADER_HEIGHT,
   isHiddenByCollapse,
+  nodeAbsoluteRect,
   type Anchor,
   type ArchitectureDiagram,
   type DiagramEdge,
   type DiagramGroup,
   type DiagramNode,
+  type Rect,
 } from '@arch/schema';
 
 /**
@@ -35,6 +37,11 @@ export type SwimlaneFlowNode = Node<SwimlaneData, 'swimlane'>;
 
 export interface OrthoEdgeData extends Record<string, unknown> {
   edge: DiagramEdge;
+  /**
+   * 全图节点的绝对矩形（不含自己两端），供正交路由做冲突绕行。
+   * 同一次 toFlowEdges 里所有边共享同一个数组引用 —— 路由内部按引用缓存空间网格。
+   */
+  obstacles?: Rect[];
 }
 
 export type OrthoFlowEdge = Edge<OrthoEdgeData, 'orthoEdge'>;
@@ -110,6 +117,11 @@ export function toFlowEdges(diagram: ArchitectureDiagram, selectedIds: readonly 
       .map((n) => n.nodeId),
   );
 
+  // 绕行用的障碍矩形：所有可见节点（含被折叠组的隐藏判定），一次算好所有边共用
+  const obstacles: Rect[] = diagram.nodes
+    .filter((n) => !n.isDeleted && n.visible && !isHiddenByCollapse(diagram.groups, n.groupId))
+    .map((n) => nodeAbsoluteRect(diagram.groups, n));
+
   return diagram.edges
     .filter((e) => !e.isDeleted)
     // 端点被折叠藏起来时，线也一起隐藏（否则会连到不存在的节点）
@@ -138,7 +150,7 @@ export function toFlowEdges(diagram: ArchitectureDiagram, selectedIds: readonly 
         // 箭头方向：forward = 指向目标端；backward = 指向源端；both = 两端都有
         markerEnd: e.arrow === 'forward' || e.arrow === 'both' ? marker : undefined,
         markerStart: e.arrow === 'backward' || e.arrow === 'both' ? marker : undefined,
-        data: { edge: e },
+        data: { edge: e, obstacles },
       } as Edge;
     });
 }
