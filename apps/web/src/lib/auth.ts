@@ -50,6 +50,18 @@ export async function signInWithPassword(email: string, password: string): Promi
   if (error) throw new Error(explainAuthError(error.message));
 }
 
+/**
+ * 能不能开始拉数据 —— 只有登录后才行。
+ *
+ * 这不是"省一次请求"的优化：useRouteDiagram 是在 App 顶层调用的（hooks 不能放在
+ * 条件分支里），所以它在登录页渲染时也会跑。没有这道开关，未登录时那几次请求会拿
+ * 到 401，从而把 bootError / 空图状态写进 store；等用户登录后路由没变，
+ * 加载不会重跑 —— 表现就是"图打开是空的，提示一直挂着"。
+ */
+export function canLoadData(status: AuthStatus): boolean {
+  return status === 'signed-in';
+}
+
 export async function signOutCurrentSession(): Promise<void> {
   if (!supabase) return;
   await supabase.auth.signOut();

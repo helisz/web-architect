@@ -28,10 +28,13 @@ export function lastOpenDiagramId(): string | null {
  * 为什么不"打开最近编辑的一张"了：主页是图库，点哪张开哪张，
  * URL 里带着图的 id，刷新 / 分享链接 / 前进后退都对得上。
  */
-export function useRouteDiagram(route: Route): void {
+export function useRouteDiagram(route: Route, enabled = true): void {
   const routeKey = route.kind === 'diagram' ? route.diagramId : 'gallery';
 
   useEffect(() => {
+    // 未登录时一个请求都不发（见 canLoadData 的注释）：登录页渲染期间这个 hook 也会跑，
+    // 让它空转，登录成功后 enabled 翻转，effect 依赖变化，自然会重新载入。
+    if (!enabled) return;
     let cancelled = false;
 
     if (route.kind === 'gallery') {
@@ -132,7 +135,7 @@ export function useRouteDiagram(route: Route): void {
     return () => {
       cancelled = true;
     };
-  }, [routeKey]);
+  }, [routeKey, enabled]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -474,7 +477,6 @@ export async function flushPendingSave(): Promise<void> {
     console.error('[arch] 离开前保存失败：', error);
   }
 }
-
 
 
 

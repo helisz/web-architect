@@ -11,7 +11,7 @@ import { AuthSplash, LoginPage } from './components/LoginPage.js';
 import { VersionPanel } from './components/VersionPanel.js';
 import { PropertyPanel } from './components/PropertyPanel.js';
 import { supabaseConfig } from './lib/env.js';
-import { useAuth } from './lib/auth.js';
+import { canLoadData, useAuth } from './lib/auth.js';
 import { useRoute } from './lib/route.js';
 import { useAutosave, useRouteDiagram } from './data/usePersistence.js';
 import { useWriterLock } from './data/tabLock.js';
@@ -42,7 +42,8 @@ export default function App() {
   // 图库页不跑画布快捷键：那边按 d / Delete 不该动任何图
   useShortcuts(onCanvas);
   useAutosave();
-  useRouteDiagram(route);
+  // 只有登录后才拉数据（否则未登录那几次 401 会把 bootError 写进 store，登录后不再重试）
+  useRouteDiagram(route, canLoadData(auth.status));
   // 同一张图只让一个标签页在写：这是版本冲突最主要的来源
   useWriterLock(onCanvas ? diagramId : '', booted && onCanvas);
 
