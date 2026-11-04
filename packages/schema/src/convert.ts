@@ -29,6 +29,8 @@ export interface DiagramGroupRow {
   diagram_id: string;
   parent_group_id: string | null;
   label: string;
+  /** 老库（patch 没跑）里没有这一列，读出来是 undefined —— 用 `?? ''` 兜住 */
+  sub_label?: string | null;
   x: number;
   y: number;
   width: number;
@@ -93,6 +95,7 @@ export function rowToGroup(row: DiagramGroupRow): DiagramGroup {
     diagramId: row.diagram_id,
     parentGroupId: row.parent_group_id ?? null,
     label: row.label,
+    subLabel: row.sub_label ?? '',
     x: Number(row.x),
     y: Number(row.y),
     width: Number(row.width),
@@ -188,6 +191,7 @@ export function groupToRow(g: DiagramGroup, diagramId: string): DiagramGroupRow 
     diagram_id: diagramId,
     parent_group_id: g.parentGroupId ?? null,
     label: g.label,
+    sub_label: g.subLabel,
     x: g.x,
     y: g.y,
     width: g.width,
@@ -244,3 +248,4 @@ export function edgeToRow(e: DiagramEdge, diagramId: string): DiagramEdgeRow {
     is_deleted: false,
   };
 }
+

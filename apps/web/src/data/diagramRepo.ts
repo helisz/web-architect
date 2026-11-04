@@ -378,6 +378,7 @@ export function toSavePayload(diagram: ArchitectureDiagram) {
         groupId: g.groupId,
         parentGroupId: g.parentGroupId ?? null,
         label: g.label,
+        subLabel: g.subLabel,
         x: g.x,
         y: g.y,
         width: g.width,

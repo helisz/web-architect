@@ -6,6 +6,7 @@ import { diffPayload, isEmpty, type SavePayload } from './payloadDiff.js';
 import { clearDraft, readDraft, saveDraft } from './draft.js';
 import { nextDelay, structuralKey } from './saveScheduler.js';
 import { isWriterTab, takeOverWriter } from './tabLock.js';
+import { shouldWarnOnUnload } from './unloadGuard.js';
 import { readLocalViewport } from './viewportPrefs.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
@@ -373,6 +374,27 @@ export function useAutosave(): void {
     window.addEventListener('pagehide', flush);
     return () => window.removeEventListener('pagehide', flush);
   }, []);
+
+  /**
+   * 关窗口/刷新前的未保存提示（用户 2026-11-04 选择方案 b）。
+   *
+   * 浏览器只允许 `beforeunload` 弹**原生**确认框，文案改不了，也不等待异步保存；
+   * 所以策略是：只有"脏" **且** 距上次成功写库超过 3 秒时才拦一下 ——
+   * 刚改完随手按 Ctrl+S 或刚好赶上自动保存的话，不会每次都弹。
+   * 判定条件本身在 unloadGuard.ts 里，有单测兜着。
+   */
+  useEffect(() => {
+    if (!booted || !persisted) return;
+    const guard = (event: BeforeUnloadEvent): void => {
+      const state = useDiagramStore.getState();
+      if (!shouldWarnOnUnload(state, Date.now(), lastWriteAt)) return;
+      event.preventDefault();
+      // 老浏览器（以及部分内嵌 WebView）只认 returnValue
+      event.returnValue = '有未保存的改动';
+    };
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, [booted, persisted]);
 }
 
 /** 冲突时"重新载入"：丢掉本地改动，以库内为准 */

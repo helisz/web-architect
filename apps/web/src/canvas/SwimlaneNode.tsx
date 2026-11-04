@@ -1,4 +1,4 @@
-﻿import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { NodeResizer } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { GROUP_HEADER_HEIGHT, resolveIconKey } from '@arch/schema';
@@ -69,15 +69,16 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
         handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--primary)] !bg-white"
       />
 
-      {/* 标题栏：拖动组、改名、折叠都在这里；折叠三角固定在标题栏最右边 */}
+      {/* 标题栏：拖动组、改名、折叠都在这里；折叠三角固定在标题栏最右边。
+          两行（名称 + 副文本），图标与**第一行**顶部对齐（items-start）。 */}
       <div
-        className="flex items-center gap-1 rounded-t-lg px-2 text-xs font-medium"
+        className="flex items-start gap-1.5 rounded-t-lg px-2"
         style={{ height: GROUP_HEADER_HEIGHT, color: group.titleColor, borderBottom: `1px solid ${group.borderColor}` }}
       >
         {editing ? (
           <input
             ref={inputRef}
-            className="nodrag nopan w-40 rounded border border-[var(--primary)] bg-white px-1 text-xs outline-none"
+            className="nodrag nopan mt-1.5 w-40 rounded border border-[var(--primary)] bg-white px-1 text-xs outline-none"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
@@ -94,24 +95,29 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           <>
             <NodeIcon
               iconKey={resolveIconKey({ nodeType: 'group', extJson: group.extJson })}
-              size={13}
-              className="shrink-0 opacity-60"
+              size={14}
+              className="mt-[5px] shrink-0 opacity-70"
             />
-            <span
-              className="truncate"
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                setEditing(true);
-              }}
-            >
-              {group.label}
-            </span>
+            <div className="min-w-0 flex-1 pt-[4px]">
+              <div
+                className="truncate text-xs font-medium leading-[16px]"
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setEditing(true);
+                }}
+              >
+                {group.label}
+              </div>
+              {group.subLabel && (
+                <div className="truncate text-[10px] leading-[14px] opacity-60">{group.subLabel}</div>
+              )}
+            </div>
           </>
         )}
 
         <button
           type="button"
-          className="nodrag ml-auto grid h-4 w-4 shrink-0 place-items-center rounded hover:bg-black/5"
+          className="nodrag mt-[3px] ml-auto grid h-4 w-4 shrink-0 place-items-center rounded hover:bg-black/5"
           title={group.collapsed ? '展开分组' : '折叠分组'}
           onClick={(e) => {
             e.stopPropagation();

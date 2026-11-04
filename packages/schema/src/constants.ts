@@ -135,12 +135,88 @@ export const GROUP_DEFAULTS = {
   collapsedHeight: 40,
 };
 
+/**
+ * 左侧「结构」区里的分组预设：拖进画布直接得到一个带图标、带副文本的框。
+ *
+ * 都是**普通分组**，只是三件默认值不同（名称 / 副文本 / 图标），拖进去之后
+ * 和手动建的分组完全等价 —— 可改名、可换图标、可嵌套、可放节点。
+ */
+export interface GroupPreset {
+  key: string;
+  /** 卡片上的名字 */
+  label: string;
+  /** 建出来的分组名 */
+  groupLabel: string;
+  subLabel: string;
+  iconKey: string;
+  width: number;
+  height: number;
+  bgColor: string;
+  borderColor: string;
+  titleColor: string;
+}
+
+export const GROUP_PRESETS: GroupPreset[] = [
+  {
+    key: 'server',
+    label: '服务器',
+    groupLabel: '服务器',
+    subLabel: '物理机 / 虚拟机',
+    iconKey: 'tabler:server',
+    width: 420,
+    height: 300,
+    bgColor: ZONE_PALETTES[0]!.bgColor,
+    borderColor: ZONE_PALETTES[0]!.borderColor,
+    titleColor: ZONE_PALETTES[0]!.titleColor,
+  },
+  {
+    key: 'cluster',
+    label: '集群',
+    groupLabel: '集群',
+    subLabel: '多副本 / 高可用',
+    iconKey: 'tabler:stack-2',
+    width: 460,
+    height: 320,
+    bgColor: ZONE_PALETTES[1]!.bgColor,
+    borderColor: ZONE_PALETTES[1]!.borderColor,
+    titleColor: ZONE_PALETTES[1]!.titleColor,
+  },
+  {
+    key: 'nginx',
+    label: 'nginx',
+    groupLabel: 'nginx',
+    subLabel: '反向代理 / 负载均衡',
+    iconKey: 'arch:nginx',
+    width: 420,
+    height: 300,
+    bgColor: '#F7FBF8',
+    borderColor: '#B7DCC4',
+    titleColor: '#1F7A44',
+  },
+];
+
 export const NODE_DEFAULTS = {
   bgColor: TOKENS.nodeBg,
   borderColor: TOKENS.nodeBorder,
   textColor: TOKENS.textPrimary,
   width: 160,
   height: 80,
+};
+
+/**
+ * 文本类节点的默认样式（2026-11-04）。
+ *
+ * 标题/文本默认「无边框无底色」，便利贴默认米黄，注释默认白底灰边 ——
+ * 都只是建节点时的初始值，之后照样能用取色板改。
+ * 用 '#00000000' 而不是 'transparent'：颜色字段只认 #RRGGBB(AA)。
+ */
+export const TEXT_NODE_STYLE: Partial<
+  Record<NodeType, { bgColor?: string; borderColor?: string; textColor?: string }>
+> = {
+  title: { bgColor: '#00000000', borderColor: '#00000000', textColor: '#111827' },
+  text: { bgColor: '#00000000', borderColor: '#00000000', textColor: '#374151' },
+  sticky: { bgColor: '#FFF7C2', borderColor: '#EFD98A', textColor: '#4A3A00' },
+  annotation: { bgColor: '#FFFFFF', borderColor: '#9CA3AF', textColor: '#374151' },
 };
 
 /* ------------------------------------------------------------------ */
@@ -240,8 +316,19 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
     items: [
       spec('group', '分组泳道', 420, 300),
       spec('zone', '区域框', 420, 300),
-      spec('text', '注释文本', 200, 60),
       spec('legend', '图例', 220, 160),
+    ],
+  },
+  {
+    // 文本类：标题 / 文本 / 便利贴 / 注释。
+    // 这几个都是**真正的节点**（可连线、可进分组、可多选对齐），只是默认样式不同。
+    key: 'text',
+    label: '文本',
+    items: [
+      spec('title', '标题', 320, 48),
+      spec('text', '文本', 240, 72),
+      spec('sticky', '便利贴', 180, 160),
+      spec('annotation', '注释', 200, 90),
     ],
   },
   {

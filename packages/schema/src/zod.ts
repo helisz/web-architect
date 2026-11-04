@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 import { LIMITS } from './constants.js';
 import { ANCHORS, ARROW_TYPES, EDGE_TYPES, NODE_TYPES } from './types.js';
 import type { Anchor, ArrowType, EdgeType, NodeType, ValidationIssue } from './types.js';
@@ -51,6 +51,8 @@ export const groupSchema = z.object({
   diagramId: uuidSchema,
   parentGroupId: uuidSchema.nullable().optional(),
   label: z.string().max(LIMITS.labelMax),
+  // 2026-11-04 新增字段：老数据/手写 JSON 里没有这一项时补空串，不算格式错误
+  subLabel: z.string().max(LIMITS.subLabelMax).default(''),
   x: coordNumber(),
   y: coordNumber(),
   width: finiteNumber(LIMITS.groupMinWidth),

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { newId } from '../src/factory.js';
 import type { ArchitectureDiagram } from '../src/types.js';
 import { validateDiagram } from '../src/validate.js';
@@ -234,5 +234,23 @@ describe('V10 重复连线', () => {
     const repaired = validateDiagram(d, { repair: true });
     expect(repaired.diagram!.edges).toHaveLength(originalCount);
     expect(warnCodes(repaired)).toContain('EDGE_MERGED');
+  });
+});
+
+describe('分组副文本（2026-11-04 新增字段）', () => {
+  it('老数据没有 subLabel 也能通过严格校验（走 zod 默认值）', () => {
+    const d = clone();
+    delete (d.groups[0] as unknown as Record<string, unknown>).subLabel;
+    const r = validateDiagram(d);
+    expect(r.ok).toBe(true);
+    expect(r.diagram!.groups[0]!.subLabel).toBe('');
+  });
+
+  it('副文本超长时 repair 截断并记录', () => {
+    const d = clone();
+    d.groups[0]!.subLabel = 'x'.repeat(600);
+    const r = validateDiagram(d, { repair: true });
+    expect(r.ok).toBe(true);
+    expect(r.diagram!.groups[0]!.subLabel.length).toBeLessThanOrEqual(500);
   });
 });

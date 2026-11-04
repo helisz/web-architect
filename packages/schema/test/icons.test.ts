@@ -17,7 +17,8 @@ import {
 const USER_DECIDED: Record<string, string> = {
   waf: 'tabler:shield-lock',
   vip: 'tabler:router',
-  nginx: 'devicon:nginx',
+  // 2026-11-04 用户要求：nginx 换成「N」方块标记，不用 NGINX 全称 wordmark
+  nginx: 'arch:nginx',
   'k8s-cluster': 'devicon:kubernetes',
   pod: 'k8s:pod',
   db: 'tabler:database',
@@ -76,8 +77,8 @@ describe('图标规则：nodeType → iconKey', () => {
     }
   });
 
-  it('允许集合 = 用户 10 个 + 方案 (a) 补充 6 个', () => {
-    expect(ALLOWED_ICON_KEYS).toHaveLength(16);
+  it('允许集合 = 用户 10 个 + 方案 (a) 6 个 + nginx/集群/文本 4 个', () => {
+    expect(ALLOWED_ICON_KEYS).toHaveLength(20);
     for (const key of Object.values(USER_DECIDED)) expect(ALLOWED_ICON_KEYS).toContain(key);
     for (const extra of [
       'tabler:server',
@@ -86,6 +87,11 @@ describe('图标规则：nodeType → iconKey', () => {
       'tabler:network',
       'tabler:route',
       'tabler:plug-connected',
+      // 2026-11-04 追加：nginx 标记（官方 logo 的 N 方块）+ 纯字母 N + 集群堆叠
+      'arch:nginx',
+      'arch:nginx-mono',
+      'tabler:letter-n',
+      'tabler:stack-2',
     ]) {
       expect(ALLOWED_ICON_KEYS).toContain(extra);
     }

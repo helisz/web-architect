@@ -18,6 +18,7 @@ import {
 import type { NodeType } from '@arch/schema';
 import {
   COMPONENT_INDEX,
+  GROUP_PRESETS,
   NODE_DEFAULTS,
   groupOffset,
   hitGroup,
@@ -332,14 +333,39 @@ const cursorFrame = useRef<number | null>(null);
       const point = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
       // 1) 拖进来的是"分组"：建框，落点即框的左上角附近（居中更像"框住这里"）
-      const isGroup = event.dataTransfer.getData(GROUP_MIME) === 'group';
-      if (isGroup) {
-        const size = { width: 360, height: 240 };
+      const groupPayload = event.dataTransfer.getData(GROUP_MIME);
+      if (groupPayload) {
+        // 载荷是 JSON 预设（服务器 / 集群 / nginx），通用分组传的是 'group'
+        const preset =
+          groupPayload === 'group'
+            ? null
+            : (GROUP_PRESETS.find((p) => p.key === groupPayload) ??
+              (() => {
+                try {
+                  return JSON.parse(groupPayload) as (typeof GROUP_PRESETS)[number];
+                } catch {
+                  return null;
+                }
+              })());
+        const size = preset
+          ? { width: preset.width, height: preset.height }
+          : { width: 360, height: 240 };
         const target = hitGroup(diagram.groups, point);
         const offset = target ? groupOffset(diagram.groups, target.groupId) : { x: 0, y: 0 };
         const created = addGroup(
           { x: point.x - offset.x - size.width / 2, y: point.y - offset.y - size.height / 2 },
-          { width: size.width, height: size.height },
+          preset
+            ? {
+                width: size.width,
+                height: size.height,
+                label: preset.groupLabel,
+                subLabel: preset.subLabel,
+                bgColor: preset.bgColor,
+                borderColor: preset.borderColor,
+                titleColor: preset.titleColor,
+                extJson: { iconKey: preset.iconKey },
+              }
+            : { width: size.width, height: size.height },
         );
         // 拖进另一个分组里 = 嵌套（上限 3 层，超出会被 store 拒绝）
         if (target) reparentGroup(created.groupId, target.groupId);

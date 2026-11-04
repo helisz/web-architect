@@ -17,6 +17,7 @@ const PREFIX_LABELS: { value: string; label: string }[] = [
   { value: 'tabler', label: '通用' },
   { value: 'devicon', label: '品牌' },
   { value: 'k8s', label: 'K8s' },
+  { value: 'arch', label: '自绘' },
 ];
 
 export interface IconPickerProps {

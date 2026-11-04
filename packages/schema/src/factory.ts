@@ -3,6 +3,7 @@ import {
   EDGE_DEFAULTS,
   GROUP_DEFAULTS,
   NODE_DEFAULTS,
+  TEXT_NODE_STYLE,
   ZONE_PALETTES,
 } from './constants.js';
 import { iconKeyFor } from './icons.js';
@@ -62,6 +63,7 @@ export function createNode(
   overrides: Partial<DiagramNode> = {},
 ): DiagramNode {
   const component = COMPONENT_INDEX[nodeType];
+  const style = TEXT_NODE_STYLE[nodeType] ?? {};
   return {
     nodeId: newId(),
     diagramId,
@@ -73,9 +75,9 @@ export function createNode(
     y: position.y,
     width: component?.width ?? NODE_DEFAULTS.width,
     height: component?.height ?? NODE_DEFAULTS.height,
-    bgColor: NODE_DEFAULTS.bgColor,
-    borderColor: NODE_DEFAULTS.borderColor,
-    textColor: NODE_DEFAULTS.textColor,
+    bgColor: style.bgColor ?? NODE_DEFAULTS.bgColor,
+    borderColor: style.borderColor ?? NODE_DEFAULTS.borderColor,
+    textColor: style.textColor ?? NODE_DEFAULTS.textColor,
     locked: false,
     visible: true,
     sort: 0,
@@ -96,6 +98,7 @@ export function createGroup(
     diagramId,
     parentGroupId: null,
     label: '新分组',
+    subLabel: '',
     x: position.x,
     y: position.y,
     width: GROUP_DEFAULTS.width,

@@ -1,4 +1,4 @@
--- ===========================================================================
+﻿-- ===========================================================================
 -- 阶段 2 · PATCH 增量保存
 --
 -- 用法：在 Supabase SQL Editor 里整段执行一次即可（幂等，可重复执行）。
@@ -12,6 +12,17 @@
 -- ===========================================================================
 
 begin;
+
+-- ---------------------------------------------------------------------------
+-- 0. 结构升级：分组副文本列（2026-11-04）
+--
+--    老库跑这一句就补上；新库由 schema.sql 建表时直接带上。可重复执行。
+--    前端读写都做了兜底（读不到当空串），所以先跑 SQL 还是先刷前端都不会报错。
+-- ---------------------------------------------------------------------------
+alter table public.arch_group
+  add column if not exists sub_label varchar(255) not null default '';
+
+comment on column public.arch_group.sub_label is '分组副文本：标题下面那行小字';
 
 -- ---------------------------------------------------------------------------
 -- 1. 把库里的图导出成与前端 toSavePayload 同构的 payload
@@ -37,6 +48,7 @@ as $fn$
                'groupId',       g.group_id,
                'parentGroupId', g.parent_group_id,
                'label',         g.label,
+               'subLabel',      g.sub_label,
                'x', g.x, 'y', g.y, 'width', g.width, 'height', g.height,
                'bgColor',       g.bg_color,
                'borderColor',   g.border_color,
@@ -170,13 +182,14 @@ begin
 
   -- c) 分组 upsert
   insert into public.arch_group
-    (group_id, diagram_id, parent_group_id, label, x, y, width, height,
+    (group_id, diagram_id, parent_group_id, label, sub_label, x, y, width, height,
      bg_color, border_color, title_color, collapsed, sort, ext_json, is_deleted)
   select
     (e->>'groupId')::uuid,
     p_diagram_id,
     nullif(e->>'parentGroupId', '')::uuid,
     coalesce(e->>'label', ''),
+    coalesce(e->>'subLabel', ''),
     coalesce((e->>'x')::float, 0),
     coalesce((e->>'y')::float, 0),
     greatest(coalesce((e->>'width')::float, 420), 120),
@@ -192,6 +205,7 @@ begin
   on conflict (group_id) do update set
     parent_group_id = excluded.parent_group_id,
     label           = excluded.label,
+    sub_label       = excluded.sub_label,
     x               = excluded.x,
     y               = excluded.y,
     width           = excluded.width,

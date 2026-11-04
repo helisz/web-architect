@@ -1,4 +1,4 @@
-﻿import { LIMITS, NODE_DEFAULTS, EDGE_DEFAULTS, GROUP_DEFAULTS, TOKENS, CLEAR_COLOR, CLEAR_COLORS } from './constants.js';
+import { LIMITS, NODE_DEFAULTS, EDGE_DEFAULTS, GROUP_DEFAULTS, TOKENS, CLEAR_COLOR, CLEAR_COLORS } from './constants.js';
 import { NODE_TYPES } from './types.js';
 import { rectContainsRect, rectsIntersect } from './geometry.js';
 import { iconKeyFor, isIconKey, looksLikeEmbeddedImage } from './icons.js';
@@ -137,6 +137,8 @@ function repairStructure(input: ArchitectureDiagram, ctx: Ctx): ArchitectureDiag
   clone.groups = (clone.groups ?? []).map((g, i) => ({
     ...g,
     label: truncate(g.label, LIMITS.labelMax, `groups[${i}].label`),
+    // 老数据/手写 JSON 没有 subLabel：补空串，不算修复错误
+    subLabel: truncate(g.subLabel ?? '', LIMITS.subLabelMax, `groups[${i}].subLabel`),
     x: finite(g.x, `groups[${i}].x`),
     y: finite(g.y, `groups[${i}].y`),
     width: Math.max(LIMITS.groupMinWidth, finite(g.width, `groups[${i}].width`)),

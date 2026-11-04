@@ -57,6 +57,8 @@ create table if not exists public.arch_group (
     diagram_id      uuid not null references public.arch_diagram(diagram_id) on delete cascade,
     parent_group_id uuid references public.arch_group(group_id) on delete set null,
     label           varchar(255) not null default '',
+    -- 副文本：标题下面那行小字（2026-11-04 新增；老库见 patch-diagram.sql 顶部的 alter）
+    sub_label       varchar(255) not null default '',
     x               float not null,
     y               float not null,
     width           float not null,
@@ -320,13 +322,14 @@ begin
     from jsonb_array_elements(coalesce(p_payload->'groups', '[]'::jsonb)) e;
 
   insert into public.arch_group
-    (group_id, diagram_id, parent_group_id, label, x, y, width, height,
+    (group_id, diagram_id, parent_group_id, label, sub_label, x, y, width, height,
      bg_color, border_color, title_color, collapsed, sort, ext_json, is_deleted)
   select
     (e->>'groupId')::uuid,
     v_diagram_id,
     nullif(e->>'parentGroupId', '')::uuid,
     coalesce(e->>'label', ''),
+    coalesce(e->>'subLabel', ''),
     coalesce((e->>'x')::float, 0),
     coalesce((e->>'y')::float, 0),
     greatest(coalesce((e->>'width')::float, 420), 120),
@@ -349,6 +352,7 @@ begin
     bg_color        = excluded.bg_color,
     border_color    = excluded.border_color,
     title_color     = excluded.title_color,
+    sub_label       = excluded.sub_label,
     collapsed       = excluded.collapsed,
     sort            = excluded.sort,
     ext_json        = excluded.ext_json,
@@ -491,3 +495,4 @@ grant execute on function public.arch_save_diagram(jsonb, integer) to anon, auth
 -- 10. PostgREST 立刻感知新表（Supabase 通常自动重载，这里显式喊一声）
 -- ---------------------------------------------------------------------------
 notify pgrst, 'reload schema';
+

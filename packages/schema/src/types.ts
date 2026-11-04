@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 统一数据模型 —— 前端 / API / DB 共用同一套结构（规格 §6.2）。
  *
  * 铁律：任何环节不得做字段改名或结构嵌套转换。
@@ -29,12 +29,14 @@ export interface Viewport {
   zoom: number; // 0.1 ~ 4
 }
 
-/** 分组 / 泳道 */
+/** 分组 */
 export interface DiagramGroup {
   groupId: string; // UUID v4
   diagramId: string;
   parentGroupId?: string | null; // 嵌套父组，顶级为 null
   label: string; // "DMZ ZONE"
+  /** 副文本：分组标题下面那行小字（"3 台机器" / "10.0.0.0/24"），可为空 */
+  subLabel: string;
   /** 相对画布（顶级）或相对父组（嵌套）的局部坐标 */
   x: number;
   y: number;
@@ -101,6 +103,10 @@ export const NODE_TYPES = [
   'zone',
   'text',
   'legend',
+  // 文本类（2026-11-04 新增）：标题 / 便利贴 / 气泡注释
+  'title',
+  'sticky',
+  'annotation',
   'custom',
 ] as const;
 

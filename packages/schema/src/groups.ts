@@ -1,4 +1,4 @@
-import type { ArchitectureDiagram, DiagramGroup, DiagramNode, Point } from './types.js';
+﻿import type { ArchitectureDiagram, DiagramGroup, DiagramNode, Point } from './types.js';
 
 /**
  * 分组（泳道）几何与挂载规则。
@@ -10,7 +10,7 @@ import type { ArchitectureDiagram, DiagramGroup, DiagramNode, Point } from './ty
  */
 
 /** 折叠后只留标题栏的高度（px） */
-export const GROUP_HEADER_HEIGHT = 32;
+export const GROUP_HEADER_HEIGHT = 42;
 /** 最多 3 层（顶层组算第 1 层） */
 export const MAX_GROUP_DEPTH = 3;
 
@@ -201,5 +201,6 @@ export function removeGroupLifting(diagram: ArchitectureDiagram, groupId: string
 
   return { ...diagram, nodes, groups: diagram.groups.filter((g) => !doomed.has(g.groupId)) };
 }
+
 
 

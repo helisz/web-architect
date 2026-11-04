@@ -30,6 +30,17 @@ export const ALLOWED_ICON_KEYS = [
   'tabler:network',
   'tabler:route',
   'tabler:plug-connected',
+  /**
+   * 2026-11-04 追加 4 个：
+   * - `arch:nginx` / `arch:nginx-mono`：nginx 的「N」方块标记（自绘内联 path，
+   *   不是原来的 NGINX 全称 wordmark）；
+   * - `tabler:letter-n`：纯字母 N，作备选；
+   * - `tabler:stack-2`：集群/堆叠，给「集群」分组预设用。
+   */
+  'arch:nginx',
+  'arch:nginx-mono',
+  'tabler:letter-n',
+  'tabler:stack-2',
 ] as const;
 
 export type IconKey = (typeof ALLOWED_ICON_KEYS)[number];
@@ -58,7 +69,8 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   server: 'tabler:server',
   vm: 'tabler:server-2',
   container: 'tabler:box',
-  nginx: 'devicon:nginx',
+  // nginx 用「N」方块标记（原来指向 devicon 的全称 wordmark，字太小认不出）
+  nginx: 'arch:nginx',
   proxy: 'tabler:arrow-right-square',
 
   // 容器编排
@@ -89,6 +101,10 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   // 其他
   text: 'tabler:typography',
   legend: 'tabler:typography',
+  // 文本类（2026-11-04）：标题 / 便利贴 / 气泡注释
+  title: 'tabler:typography',
+  sticky: 'tabler:typography',
+  annotation: 'tabler:typography',
   custom: 'tabler:cube',
 };
 
