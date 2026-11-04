@@ -1,0 +1,88 @@
+﻿@import 'tailwindcss';
+
+/*
+ * 视觉 Token —— 规格 §3.4 / §3.5。
+ * 只允许在这里定义色值与字体，业务组件一律引用变量，禁止出现裸色值。
+ */
+:root {
+  --canvas-bg: #fafafa;
+  --grid-line: #f4f5f7;
+  --panel-bg: #ffffff;
+  --panel-border: #e5e7eb;
+  --primary: #2563eb;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --node-bg: #ffffff;
+  --node-border: #d1d5db;
+  --radius-node: 8px;
+
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  /* 语义色（连线） */
+  --edge-external: #f59e0b;
+  --edge-internal: #8b5cf6;
+  --edge-cluster: #10b981;
+  --edge-mgmt: #64748b;
+
+  /* 分区底色 */
+  --zone-dmz: #f1f3f5;
+  --zone-intranet: #eff6ff;
+  --zone-external: #fff7ed;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  background: var(--canvas-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 画布 20px 网格（规格 §3.4 / §4.4），缩放联动在 M1 接入 ReactFlow 后由视图层控制 */
+.canvas-grid {
+  background-color: var(--canvas-bg);
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* 滚动条：只做减法，避免默认样式破坏三联栏的干净观感 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+
+/* 连线手柄：24px 透明命中区 + 8px 视觉圆点（拖出/接收都更好点中） */
+.arch-handle {
+  width: 24px !important;
+  height: 24px !important;
+  background: transparent !important;
+  border: none !important;
+  display: grid !important;
+  place-items: center;
+}
+.arch-handle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--primary);
+  border: 1.5px solid #fff;
+  pointer-events: none;
+}
+/* 未选中时圆点若隐若现：看得见位置，又不干扰读图 */
+.arch-handle:hover .arch-handle-dot {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}

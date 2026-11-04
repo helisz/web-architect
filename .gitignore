@@ -1,0 +1,25 @@
+node_modules/
+dist/
+dist-ssr/
+coverage/
+.cache/
+.vite/
+*.tsbuildinfo
+
+# 本机环境变量：.env.local 里放 Supabase URL 与 anon key（不是机密，但不入库）
+*.local
+.env
+.env.*
+!.env.example
+
+# 本机依赖缓存与临时目录（沙箱环境要求缓存落在工作区内）
+.npm-cache
+.tmp
+
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea
