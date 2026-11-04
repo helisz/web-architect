@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
@@ -10,6 +10,7 @@ import {
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import { NodeIcon } from '../icons/index.js';
 import { IconPicker } from './IconPicker.js';
+import { ColorField } from './ColorField.js';
 
 /**
  * 右侧属性面板（规格 §3.4 / §5.4）。
@@ -137,19 +138,11 @@ function GroupForm({ group }: { group: DiagramGroup }) {
       />
 
       <ColorField
-        label="背景色"
-        value={group.bgColor}
-        onChange={(value) => patchGroup(group.groupId, { bgColor: value })}
-      />
-      <ColorField
-        label="边框色"
-        value={group.borderColor}
-        onChange={(value) => patchGroup(group.groupId, { borderColor: value })}
-      />
-      <ColorField
-        label="标题色"
-        value={group.titleColor}
-        onChange={(value) => patchGroup(group.groupId, { titleColor: value })}
+        targets={[
+          { scope: 'font', value: group.titleColor, onChange: (value) => patchGroup(group.groupId, { titleColor: value }) },
+          { scope: 'bg', value: group.bgColor, onChange: (value) => patchGroup(group.groupId, { bgColor: value }) },
+          { scope: 'line', value: group.borderColor, onChange: (value) => patchGroup(group.groupId, { borderColor: value }) },
+        ]}
       />
 
       <label className="mb-3 flex items-center gap-2 text-[13px]">
@@ -195,34 +188,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputClass =
   'w-full rounded border border-[#D1D5DB] bg-white px-2 py-1 text-[13px] outline-none focus:border-[var(--primary)]';
-
-function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <Field label={label}>
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-9 cursor-pointer rounded border border-[#D1D5DB] bg-white p-0.5"
-        />
-        <input
-          className={`${inputClass} mono flex-1`}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    </Field>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* 节点表单                                                            */
@@ -275,19 +240,11 @@ function NodeForm({ node }: { node: DiagramNode }) {
       </div>
 
       <ColorField
-        label="背景色"
-        value={node.bgColor}
-        onChange={(bgColor) => patch(node.nodeId, { bgColor })}
-      />
-      <ColorField
-        label="边框色"
-        value={node.borderColor}
-        onChange={(borderColor) => patch(node.nodeId, { borderColor })}
-      />
-      <ColorField
-        label="文字色"
-        value={node.textColor}
-        onChange={(textColor) => patch(node.nodeId, { textColor })}
+        targets={[
+          { scope: 'font', value: node.textColor, onChange: (textColor) => patch(node.nodeId, { textColor }) },
+          { scope: 'bg', value: node.bgColor, onChange: (bgColor) => patch(node.nodeId, { bgColor }) },
+          { scope: 'line', value: node.borderColor, onChange: (borderColor) => patch(node.nodeId, { borderColor }) },
+        ]}
       />
 
       <Field label={`图标（${iconKey}）`}>
@@ -391,9 +348,9 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
       </Field>
 
       <ColorField
-        label="颜色"
-        value={edge.strokeColor}
-        onChange={(strokeColor) => patch(edge.edgeId, { strokeColor })}
+        targets={[
+          { scope: 'edge', value: edge.strokeColor, onChange: (strokeColor) => patch(edge.edgeId, { strokeColor }) },
+        ]}
       />
 
       <div className="mb-3 flex gap-2">
