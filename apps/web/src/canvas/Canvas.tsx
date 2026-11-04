@@ -42,7 +42,7 @@ import {
   type MenuEnv,
 } from './contextMenus.js';
 import { GROUP_MIME, NODE_TYPE_MIME } from '../components/ComponentPanel.js';
-import { toFlowEdges, toFlowNodes, visibleObstacles, type ArchFlowNode, type SwimlaneFlowNode } from './flowMapping.js';
+import { toFlowEdges, toFlowNodes, type ArchFlowNode, type SwimlaneFlowNode } from './flowMapping.js';
 import { ArchNode } from './ArchNode.js';
 import { SwimlaneNode } from './SwimlaneNode.js';
 import { AlignToolbar } from '../components/AlignToolbar.js';
@@ -122,11 +122,7 @@ const cursorFrame = useRef<number | null>(null);
   // Schema → ReactFlow：每次 diagram 变化重建，ReactFlow 内部按 id diff
   // 多选高亮交给 ReactFlow 的 selected 标记（框选/Ctrl 点选都由它维护）
   const nodes = useMemo(() => toFlowNodes(diagram, selectedIds), [diagram, selectedIds]);
-  // 拖动期间冻结障碍数组：未被拖动的节点位置没变，边就不用整批重算绕行
   const [dragging, setDragging] = useState(false);
-  const frozenObstacles = useRef<ReturnType<typeof visibleObstacles> | null>(null);
-  const liveObstacles = useMemo(() => visibleObstacles(diagram), [diagram]);
-  const edgeObstacles = dragging && frozenObstacles.current ? frozenObstacles.current : liveObstacles;
 
   /**
    * 非拖拽式的"节点在动"（键盘微调、属性面板改坐标、批量对齐）也要冻结 edges。
@@ -166,8 +162,8 @@ const cursorFrame = useRef<number | null>(null);
    */
   const edgesRef = useRef<ReturnType<typeof toFlowEdges> | null>(null);
   const computedEdges = useMemo(
-    () => (frozen && edgesRef.current ? edgesRef.current : toFlowEdges(diagram, selectedIds, edgeObstacles)),
-    [frozen, diagram, selectedIds, edgeObstacles],
+    () => (frozen && edgesRef.current ? edgesRef.current : toFlowEdges(diagram, selectedIds)),
+    [frozen, diagram, selectedIds],
   );
   if (!frozen) edgesRef.current = computedEdges;
   const edges = frozen && edgesRef.current ? edgesRef.current : computedEdges;
@@ -453,19 +449,16 @@ const cursorFrame = useRef<number | null>(null);
    * 换组后由 setNodeGroup 把坐标换回新父级的局部坐标，屏幕上位置不变（C1）。
    */
   /**
-   * 拖拽开始：冻结当前障碍数组。
-   * 拖动期间节点位置每帧都变，但"障碍"只对被拖的那一个节点有影响 ——
-   * 冻结后其余边入参不变，`OrthoEdge` 里的路径缓存直接命中，节点多了也不掉帧。
+   * 拖拽开始/结束：拖动期间冻结 edges 的整批重建（边长什么样由 ArchEdge 自己按
+   * 节点内部位置算，不需要每帧重算一遍），松手后再补一次以恢复选中态等。
    */
   const onNodeDragStart = useCallback(() => {
-    frozenObstacles.current = liveObstacles;
     setDragging(true);
-  }, [liveObstacles]);
+  }, []);
 
   const onNodeDragStop = useCallback<OnNodeDrag<ArchFlowNode | SwimlaneFlowNode>>(
     (_event, node) => {
-      // 先解冻：松手后要按最新位置重算一次绕行
-      frozenObstacles.current = null;
+      // 先解冻：松手后按最新位置重算一遍
       setDragging(false);
 
       const local = { x: node.position.x, y: node.position.y };

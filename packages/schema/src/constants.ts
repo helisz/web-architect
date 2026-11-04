@@ -131,6 +131,32 @@ export const EDGE_DEFAULTS = {
   arrow: 'forward' as const,
 };
 
+/**
+ * 线型虚线档位（用户 2026-11-04：只要实线 / 短虚线 / 长虚线，默认实线）。
+ *
+ * 存的是 SVG `stroke-dasharray` 字符串（null = 实线），属性面板只给这三档。
+ * 老数据里可能有 `4,4` / `2 3` / `12 4 2 4` 之类的自定义值，
+ * `dashPresetOf` 会把它们归到 `custom`，面板只提示不覆盖。
+ */
+export const EDGE_DASH_PRESETS = [
+  { key: 'solid', label: '实线', value: null },
+  { key: 'short', label: '短虚线', value: '6 4' },
+  { key: 'long', label: '长虚线', value: '12 8' },
+] as const;
+
+export type DashPresetKey = (typeof EDGE_DASH_PRESETS)[number]['key'] | 'custom';
+
+const DASH_KEY_BY_VALUE = new Map<string, DashPresetKey>(
+  EDGE_DASH_PRESETS.filter((p) => p.value !== null).map((p) => [p.value as string, p.key]),
+);
+
+/** 当前 dasharray 属于哪一档（空 = 实线，认不出的老值 = custom） */
+export function dashPresetOf(value: string | null | undefined): DashPresetKey {
+  const normalized = (value ?? '').replace(/\s+/g, ' ').trim();
+  if (normalized === '') return 'solid';
+  return DASH_KEY_BY_VALUE.get(normalized) ?? 'custom';
+}
+
 export const GROUP_DEFAULTS = {
   bgColor: ZONE_PALETTES[0]!.bgColor,
   borderColor: ZONE_PALETTES[0]!.borderColor,

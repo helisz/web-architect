@@ -7,6 +7,5 @@ export * from './factory.js';
 export * from './convert.js';
 export * from './geometry.js';
 export * from './groups.js';
-export * from './ortho.js';
 export * from './textStyle.js';
 

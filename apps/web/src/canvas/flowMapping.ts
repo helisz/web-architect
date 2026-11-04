@@ -3,7 +3,6 @@ import {
   groupHeaderHeight,
   isGroupLocked,
   isHiddenByCollapse,
-  nodeAbsoluteRect,
   type Anchor,
   type ArchitectureDiagram,
   type DiagramEdge,
@@ -147,26 +146,19 @@ export function toFlowNodes(
   return [...groups, ...nodes];
 }
 
-/** 绕行障碍：所有可见节点（折叠组里的算隐藏）。拖动期间由 Canvas 冻结复用来省重算 */
-export function visibleObstacles(diagram: ArchitectureDiagram): Rect[] {
-  return diagram.nodes
-    .filter((n) => !n.isDeleted && n.visible && !isHiddenByCollapse(diagram.groups, n.groupId))
-    .map((n) => nodeAbsoluteRect(diagram.groups, n));
-}
-
-export function toFlowEdges(
-  diagram: ArchitectureDiagram,
-  selectedIds: readonly string[] = [],
-  obstaclesOverride?: Rect[],
-): Edge[] {
+/**
+ * Schema → ReactFlow 连线。
+ *
+ * 路由由 React Flow 的标准 `getSmoothStepPath` / `getBezierPath` / `getStraightPath`
+ * 负责（见 ArchEdge），**不再需要障碍数组**：自研的绕行逻辑会掰出多余折角，
+ * 已被用户否掉。原来每帧扫一遍节点算 obstacles 的开销也一起省了。
+ */
+export function toFlowEdges(diagram: ArchitectureDiagram, selectedIds: readonly string[] = []): Edge[] {
   const visible = new Set(
     diagram.nodes
       .filter((n) => !n.isDeleted && n.visible && !isHiddenByCollapse(diagram.groups, n.groupId))
       .map((n) => n.nodeId),
   );
-
-  // 绕行用的障碍矩形：所有可见节点（含被折叠组的隐藏判定），一次算好所有边共用
-  const obstacles = obstaclesOverride ?? visibleObstacles(diagram);
 
   return diagram.edges
     .filter((e) => !e.isDeleted)
@@ -189,7 +181,7 @@ export function toFlowEdges(
           ...(e.strokeDasharray ? { strokeDasharray: e.strokeDasharray } : {}),
         },
         // 箭头由 ArchEdge 按 data.edge.arrow 画（marker 需要跟线颜色走，见 ArchEdge）
-        data: { edge: e, obstacles },
+        data: { edge: e },
       } as Edge;
     });
 }

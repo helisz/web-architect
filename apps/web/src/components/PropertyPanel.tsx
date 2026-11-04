@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
+  EDGE_DASH_PRESETS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   FONT_SIZE_PRESETS,
+  dashPresetOf,
   iconKeyFor,
   isGroupLocked,
   isIconHidden,
@@ -767,18 +769,32 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
           />
         </Field>
         <Field label="虚线">
-          <select
-            className={inputClass}
-            value={edge.strokeDasharray ?? ''}
-            onChange={(e) =>
-              patch(edge.edgeId, { strokeDasharray: e.target.value === '' ? null : e.target.value })
-            }
-          >
-            <option value="">实线</option>
-            <option value="6 4">虚线 6 4</option>
-            <option value="2 3">点线 2 3</option>
-            <option value="12 4 2 4">点划线</option>
-          </select>
+          {/* 用户 2026-11-04：只给实线 / 短虚线 / 长虚线三档，默认实线 */}
+          <div className="flex gap-1">
+            {EDGE_DASH_PRESETS.map((preset) => {
+              const active = dashPresetOf(edge.strokeDasharray) === preset.key;
+              return (
+                <button
+                  key={preset.key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => patch(edge.edgeId, { strokeDasharray: preset.value })}
+                  className={`flex-1 rounded border px-1 py-1 text-[11px] ${
+                    active
+                      ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                      : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+          {dashPresetOf(edge.strokeDasharray) === 'custom' && (
+            <span className="mt-1 block text-[10px] text-[var(--text-secondary)]">
+              当前是自定义虚线（{edge.strokeDasharray}），点上面任一档可覆盖
+            </span>
+          )}
         </Field>
       </div>
 
