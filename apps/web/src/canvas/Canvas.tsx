@@ -27,7 +27,7 @@ import {
   nodeAbsoluteRect,
   rectContainsPoint,
 } from '@arch/schema';
-import { useDiagramStore } from '../store/useDiagramStore.js';
+import { useDiagramStats, useDiagramStore } from '../store/useDiagramStore.js';
 import { saveLocalViewport } from '../data/viewportPrefs.js';
 import { useTransfer } from '../hooks/useTransfer.js';
 import { ContextMenu, type MenuNode } from '../components/ContextMenu.js';
@@ -596,8 +596,8 @@ const cursorFrame = useRef<number | null>(null);
       proOptions={{ hideAttribution: false }}
       className="bg-transparent"
     >
-      {/* 规格 §5.1：网格，1px 细线，无渐变（吸附密度翻倍 → 10px，颜色调淡） */}
-      {showGrid && <Background variant={BackgroundVariant.Lines} gap={SNAP_GRID[0]} size={1} color="#F1F2F4" />}
+      {/* 规格 §5.1：网格。用户 2026-11-04 定稿：网点，间距与吸附一致（10px），点略深一点才看得清 */}
+      {showGrid && <Background variant={BackgroundVariant.Dots} gap={SNAP_GRID[0]} size={1.4} color="#D9DCE1" />}
       <Controls showInteractive={false} />
       <MiniMap
         pannable
@@ -613,11 +613,9 @@ const cursorFrame = useRef<number | null>(null);
   );
 }
 
-/** 画布外壳：网格与空状态提示都挂在这里 */
+/** 画布外壳：网格、空状态提示与左下角状态条都挂在这里 */
 export function Canvas() {
   const nodeCount = useDiagramStore((s) => s.diagram.nodes.length);
-  const showGrid = useDiagramStore((s) => s.showGrid);
-  const toggleGrid = useDiagramStore((s) => s.toggleGrid);
 
   return (
     <main className="relative min-w-0 flex-1 bg-[var(--canvas-bg)]">
@@ -626,31 +624,7 @@ export function Canvas() {
       </ReactFlowProvider>
       <AlignToolbar />
       <LayerPanel />
-
-      {/* 右上角：网格开关（本地记忆） */}
-      <button
-        type="button"
-        onClick={toggleGrid}
-        title={showGrid ? '隐藏网格' : '显示网格'}
-        className={`absolute right-3 top-3 z-20 flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] shadow-sm ${
-          showGrid
-            ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
-            : 'border-[var(--panel-border)] bg-[var(--panel-bg)] text-[var(--text-secondary)]'
-        }`}
-      >
-        <span className="grid h-3 w-3 place-items-center">
-          <span
-            className="h-3 w-3 rounded-[2px] border"
-            style={{
-              borderColor: showGrid ? 'var(--primary)' : 'var(--text-secondary)',
-              backgroundImage: showGrid
-                ? 'repeating-linear-gradient(0deg, var(--primary) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, var(--primary) 0 1px, transparent 1px 3px)'
-                : 'none',
-            }}
-          />
-        </span>
-        网格
-      </button>
+      <CanvasStatus />
       {nodeCount === 0 && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <div className="rounded-lg border border-dashed border-[#D1D5DB] bg-white/80 px-6 py-5 text-center">
@@ -661,8 +635,43 @@ export function Canvas() {
           </div>
         </div>
       )}
-
     </main>
+  );
+}
+
+/**
+ * 左下角状态条（用户 2026-11-04：去掉底部整条，内容塞到 Fit view 右边，
+ * 无背景、小灰字、全部左对齐，不再左右分栏）。
+ *
+ * ReactFlow 的 Controls 贴左下角，宽约 32px，所以这里从 46px 处开始排。
+ */
+function CanvasStatus() {
+  const zoom = useDiagramStore((s) => s.diagram.viewport.zoom);
+  const viewport = useDiagramStore((s) => s.diagram.viewport);
+  const setViewport = useDiagramStore((s) => s.setViewport);
+  const schemaVersion = useDiagramStore((s) => s.diagram.schemaVersion);
+  const cursor = useDiagramStore((s) => s.cursor);
+  const stats = useDiagramStats();
+
+  return (
+    <div className="pointer-events-none absolute bottom-3 left-[46px] z-10 flex items-center gap-3 text-[11px] leading-4 text-[var(--text-secondary)]">
+      <button
+        type="button"
+        onClick={() => setViewport({ ...viewport, zoom: 1 })}
+        className="mono pointer-events-auto rounded px-0.5 hover:text-[var(--text-primary)]"
+        title="点击恢复 100%"
+      >
+        {Math.round(zoom * 100)}%
+      </button>
+      <span className="mono" title="鼠标在画布上的坐标（10px 吸附）">
+        x: {cursor ? Math.round(cursor.x) : '—'} / y: {cursor ? Math.round(cursor.y) : '—'}
+      </span>
+      <span>
+        节点 {stats.nodeCount} · 连线 {stats.edgeCount} · 分组 {stats.groupCount}
+      </span>
+      <span className="mono">schema v{schemaVersion}</span>
+      <span className="hidden xl:inline">空格拖动平移 · Ctrl+滚轮缩放 · Ctrl+F 搜索 · Delete 删除</span>
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EDGE_DEFAULTS, EDGE_TYPES } from '@arch/schema';
 import { useDiagramStore } from '../store/useDiagramStore.js';
+import { ToolIcon } from './ToolIcons.js';
 
 /**
  * 连线全局配置（线型 + 线宽）。
@@ -38,17 +39,18 @@ export function EdgeSettings() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="连线全局配置（只影响新建的线）"
-        className={`rounded border px-2.5 py-1 text-xs ${
+        aria-label="连线全局配置"
+        className={`grid h-8 w-8 place-items-center rounded ${
           open
-            ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
-            : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[#F9FAFB]'
+            ? 'bg-[#EFF6FF] text-[var(--primary)]'
+            : 'text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)]'
         }`}
       >
-        连线设置
+        <ToolIcon name="sliders" size={17} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-9 z-40 w-56 rounded-lg border border-[var(--panel-border)] bg-white p-3 shadow-lg">
+        <div className="absolute right-0 top-10 z-40 w-56 rounded-lg border border-[var(--panel-border)] bg-white p-3 shadow-lg">
           <p className="mb-2 text-[11px] font-semibold text-[var(--text-secondary)]">新建连线的默认样式</p>
 
           <label className="mb-1 block text-[11px] text-[var(--text-secondary)]">线型</label>

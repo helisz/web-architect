@@ -1,12 +1,12 @@
+import { useEffect } from 'react';
 import { Canvas } from './canvas/Canvas.js';
 import { ComponentPanel } from './components/ComponentPanel.js';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog.js';
 import { SaveBanner } from './components/SaveBanner.js';
 import { StartupError } from './components/StartupError.js';
-import { StatusBar } from './components/StatusBar.js';
 import { TopBar } from './components/TopBar.js';
 import { Gallery } from './components/Gallery.js';
-import { VersionDialog } from './components/VersionDialog.js';
+import { VersionPanel } from './components/VersionPanel.js';
 import { PropertyPanel } from './components/PropertyPanel.js';
 import { supabaseConfig } from './lib/env.js';
 import { useAutosave, useBootstrap } from './data/usePersistence.js';
@@ -16,7 +16,10 @@ import { useDiagramStore } from './store/useDiagramStore.js';
 
 /**
  * 三栏骨架（规格 §3.1）：
- * 顶部 56px / 左 240px / 中 自适应 / 右 300px（仅选中时出现）/ 底 28px。
+ * 顶部 48px / 左 240px / 中 自适应 / 右 300px / 底部状态条已并入画布左下角。
+ *
+ * 右侧一列是复用的：选中元素 → 属性面板；点「版本」→ 版本历史。
+ * 两者互斥（用户 2026-11-04 选 A），所以选中时直接收起版本栏。
  *
  * 架构：无自建后端，浏览器用 anon key 直连 Supabase（ADR-0004）。
  */
@@ -34,6 +37,11 @@ export default function App() {
   useAutosave();
   // 同一张图只让一个标签页在写：这是版本冲突最主要的来源
   useWriterLock(diagramId, booted);
+
+  // 右侧只有一列：选中元素时属性面板优先，版本栏让位
+  useEffect(() => {
+    if (versionOpen && selectedIds.length > 0) setVersionOpen(false);
+  }, [versionOpen, selectedIds.length, setVersionOpen]);
 
   // 缺环境变量时不白屏，直接给可操作的修复指引
   if (!supabaseConfig) return <StartupError />;
@@ -68,15 +76,9 @@ export default function App() {
       <div className="flex min-h-0 flex-1">
         <ComponentPanel />
         <Canvas />
-        {selectedIds.length > 0 && <PropertyPanel />}
+        {selectedIds.length > 0 ? <PropertyPanel /> : versionOpen && <VersionPanel onClose={() => setVersionOpen(false)} />}
       </div>
-      <StatusBar />
       <DeleteConfirmDialog />
-      {versionOpen && <VersionDialog onClose={() => setVersionOpen(false)} />}
     </div>
   );
 }
-
-
-
-

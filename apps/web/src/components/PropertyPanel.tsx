@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
@@ -11,6 +11,7 @@ import { useDiagramStore } from '../store/useDiagramStore.js';
 import { NodeIcon } from '../icons/index.js';
 import { IconPicker } from './IconPicker.js';
 import { ColorField } from './ColorField.js';
+import { ToolIcon } from './ToolIcons.js';
 import { FIELD_LABEL, commonFields, pickSelection, type MultiField } from './multiEdit.js';
 
 /** 多选批量改写：按对象类型把字段落到正确的属性上（分组没有独立的文字色，用标题色） */
@@ -165,14 +166,14 @@ function MultiForm() {
 
         {find('iconKey') && (
           <Field label={`${FIELD_LABEL.iconKey}（点一个批量换）`}>
-            <div className="grid grid-cols-8 gap-1">
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
               {ALLOWED_ICON_KEYS.map((key) => (
                 <button
                   key={key}
                   type="button"
                   title={key}
                   onClick={() => apply('iconKey', key)}
-                  className={`grid h-7 place-items-center rounded border ${
+                  className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
                     find('iconKey')!.value === key
                       ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
                       : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
@@ -342,14 +343,14 @@ function GroupForm({ group }: { group: DiagramGroup }) {
             搜索图标库…
           </button>
         </div>
-        <div className="mt-1 grid grid-cols-8 gap-1">
+        <div className="mt-1 flex items-center gap-1 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
           {ALLOWED_ICON_KEYS.map((key) => (
             <button
               key={key}
               type="button"
               title={key}
               onClick={() => setIcon(key)}
-              className={`grid h-7 place-items-center rounded border ${
+              className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
                 key === iconKey
                   ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
                   : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
@@ -462,27 +463,7 @@ function NodeForm({ node }: { node: DiagramNode }) {
         />
       </Field>
 
-      <div className="mb-3 flex gap-2">
-        <Field label="宽">
-          <input
-            type="number"
-            min={64}
-            className={inputClass}
-            value={Math.round(node.width)}
-            onChange={(e) => patch(node.nodeId, { width: Math.max(64, Number(e.target.value) || 64) })}
-          />
-        </Field>
-        <Field label="高">
-          <input
-            type="number"
-            min={40}
-            className={inputClass}
-            value={Math.round(node.height)}
-            onChange={(e) => patch(node.nodeId, { height: Math.max(40, Number(e.target.value) || 40) })}
-          />
-        </Field>
-      </div>
-
+      {/* 宽高按用户要求隐藏：调尺寸走画布手柄，属性面板不再重复一套数字 */}
       <ColorField
         targets={[
           { scope: 'font', value: node.textColor, onChange: (textColor) => patch(node.nodeId, { textColor }) },
@@ -504,14 +485,14 @@ function NodeForm({ node }: { node: DiagramNode }) {
             搜索图标库…
           </button>
         </div>
-        <div className="mt-1 grid grid-cols-8 gap-1">
+        <div className="mt-1 flex items-center gap-1 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
           {ALLOWED_ICON_KEYS.map((key) => (
             <button
               key={key}
               type="button"
               title={key}
               onClick={() => patch(node.nodeId, { extJson: { ...(node.extJson ?? {}), iconKey: key } })}
-              className={`grid h-7 place-items-center rounded border ${
+              className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
                 key === iconKey
                   ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
                   : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
@@ -534,23 +515,23 @@ function NodeForm({ node }: { node: DiagramNode }) {
         />
       )}
 
-      <div className="mt-3 flex gap-4 text-[13px]">
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={node.locked}
-            onChange={(e) => patch(node.nodeId, { locked: e.target.checked })}
-          />
-          锁定
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={node.visible}
-            onChange={(e) => patch(node.nodeId, { visible: e.target.checked })}
-          />
-          显示
-        </label>
+      {/* 锁定做成图标按钮（用户 2026-11-04）；「显示」开关撤掉，节点一律可见 */}
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => patch(node.nodeId, { locked: !node.locked })}
+          title={node.locked ? '已锁定：点击解锁' : '锁定后不能拖动、改名、改尺寸'}
+          aria-pressed={node.locked}
+          aria-label={node.locked ? '解锁' : '锁定'}
+          className={`grid h-8 w-8 place-items-center rounded border ${
+            node.locked
+              ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+              : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
+          }`}
+        >
+          <ToolIcon name={node.locked ? 'lock' : 'unlock'} size={16} />
+        </button>
+        <span className="text-[12px] text-[var(--text-secondary)]">{node.locked ? '已锁定' : '未锁定'}</span>
       </div>
 
       <p className="mono mt-4 text-[11px] text-[var(--text-secondary)]">
