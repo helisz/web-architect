@@ -1,10 +1,12 @@
-﻿import { forceSave, reloadFromServer } from '../data/usePersistence.js';
+import { takeOverWriter } from '../data/tabLock.js';
+import { forceSave, reloadFromServer } from '../data/usePersistence.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
 /**
  * 保存异常提示条。
  *
- * 两种情况必须让人看见、且能一键处理：
+ * 几种情况必须让人看见、且能一键处理：
+ * - 另一个标签页正在写这张图（本页不自动保存）
  * - 版本冲突（另一个标签页/另一台机器改过同一张图）
  * - 保存失败（网络、约束、函数缺失…）
  */
@@ -12,6 +14,8 @@ export function SaveBanner() {
   const conflict = useDiagramStore((s) => s.conflict);
   const saveError = useDiagramStore((s) => s.saveError);
   const saveDisabled = useDiagramStore((s) => s.saveDisabled);
+  const writerRole = useDiagramStore((s) => s.writerRole);
+  const diagramId = useDiagramStore((s) => s.diagram.diagramId);
   const setSaveError = useDiagramStore((s) => s.setSaveError);
   const setConflict = useDiagramStore((s) => s.setConflict);
   const notice = useDiagramStore((s) => s.notice);
@@ -26,6 +30,28 @@ export function SaveBanner() {
           <span className="mono">supabase/schema.sql</span> 全文重新粘进 Supabase SQL Editor 跑一遍，
           然后刷新页面。当前改动只存在浏览器里，刷新会丢。
         </span>
+      </div>
+    );
+  }
+
+  /**
+   * 跟随者：另一个标签页在写这张图。
+   *
+   * 不写库是为了不抢版本号（冲突的最大来源）。注意这里不是只读：
+   * 用户真在本页动手改时，useAutosave 会自动把写权抢过来。
+   */
+  if (writerRole === 'follower') {
+    return (
+      <div className="flex items-center gap-3 border-b border-[#BAE6FD] bg-[#F0F9FF] px-4 py-2 text-xs text-[#075985]">
+        <span className="font-medium">另一个标签页正在编辑</span>
+        <span>为避免互相覆盖，本页暂时不自动保存；在本页改动会自动接手编辑。</span>
+        <button
+          type="button"
+          className="ml-auto rounded border border-[#BAE6FD] bg-white px-2 py-1 hover:bg-[#E0F2FE]"
+          onClick={() => takeOverWriter(diagramId)}
+        >
+          在此页继续编辑
+        </button>
       </div>
     );
   }

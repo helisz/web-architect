@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { create } from 'zustand';
 import {
   EDGE_DEFAULTS,
@@ -54,6 +54,12 @@ function writePref(key: string, value: unknown): void {
 
 export type SaveState = 'saved' | 'saving' | 'dirty';
 
+/**
+ * 写者角色：同一张图只让一个标签页发保存请求。
+ * `follower` 不自动保存，界面上会提示"另一个标签页正在编辑"。
+ */
+export type WriterRole = 'owner' | 'follower';
+
 export interface SaveConflict {
   currentVersion?: number;
   message: string;
@@ -77,6 +83,13 @@ interface DiagramStore {
   saveError: string | null;
   /** 保存函数缺失（schema.sql 没跑全）：允许编辑，但停止自动保存重试 */
   saveDisabled: boolean;
+  /**
+   * 本标签页对这张图是"写者"还是"跟随者"。
+   *
+   * 同一张图同时只让一个标签页发保存请求 —— 这是版本冲突最大的来源。
+   * `follower` 不自动保存；一旦在本页真的动手改，会自动抢占（见 useAutosave）。
+   */
+  writerRole: WriterRole;
   /** 这张图在服务端是否已有行：false 时首次保存必须不带 baseVersion，否则会插出一条重复的图 */
   persisted: boolean;
   lastSavedAt: string | null;
@@ -137,6 +150,7 @@ interface DiagramStore {
   setConflict: (conflict: SaveConflict | null) => void;
   setSaveError: (message: string | null) => void;
   setSaveDisabled: (disabled: boolean) => void;
+  setWriterRole: (role: WriterRole) => void;
   /** 中性提示（例如导入时被自动修复了几处），不会被保存成功清掉 */
   notice: string | null;
   setNotice: (notice: string | null) => void;
@@ -414,6 +428,7 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
   conflict: null,
   saveError: null,
   saveDisabled: false,
+  writerRole: 'owner',
   notice: null,
   persisted: false,
   lastSavedAt: null,
@@ -923,6 +938,7 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
   setConflict: (conflict) => set({ conflict }),
   setSaveError: (saveError) => set({ saveError }),
   setSaveDisabled: (saveDisabled) => set({ saveDisabled }),
+  setWriterRole: (writerRole) => set({ writerRole }),
   setNotice: (notice) => set({ notice }),
 
   showGrid: readPref('showGrid', true),
@@ -968,6 +984,7 @@ export function useDiagramStats() {
   const diagram = useDiagramStore((s) => s.diagram);
   return useMemo(() => diagramStats(diagram), [diagram]);
 }
+
 
 
 

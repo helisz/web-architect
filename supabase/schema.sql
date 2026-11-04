@@ -50,7 +50,7 @@ create index if not exists arch_idx_diagram_updated on public.arch_diagram(updat
 comment on table public.arch_diagram is '架构图主表（规格 architecture_diagram）';
 
 -- ---------------------------------------------------------------------------
--- 2. 分组 / 泳道
+-- 2. 分组
 -- ---------------------------------------------------------------------------
 create table if not exists public.arch_group (
     group_id        uuid primary key,
@@ -73,7 +73,7 @@ create table if not exists public.arch_group (
 
 create index if not exists arch_idx_group_diagram on public.arch_group(diagram_id) where is_deleted = false;
 
-comment on table public.arch_group is '分组 / 泳道（规格 diagram_group）';
+comment on table public.arch_group is '分组（规格 diagram_group）';
 
 -- ---------------------------------------------------------------------------
 -- 3. 节点
@@ -452,9 +452,11 @@ begin
   update public.arch_edge set is_deleted = true
    where diagram_id = v_diagram_id and is_deleted = false and not (edge_id = any (v_edge_ids));
 
-  -- d) 快照（C8：首次 + 每 5 版 + 距上次 ≥30 分钟）
+  -- d) 快照（首次 + 每 50 版 + 距上次 ≥30 分钟）
+  --    原来是"每 5 版"，一次会话能写几十条整图 JSONB；保存频率降下来后
+  --    5 版一次太密，放宽到 50 版 / 30 分钟，手动快照不受影响。
   if v_current is null
-     or v_new % 5 = 0
+     or v_new % 50 = 0
      or not exists (
           select 1 from public.arch_snapshot
            where diagram_id = v_diagram_id and created_at > now() - interval '30 minutes'

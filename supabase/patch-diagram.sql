@@ -288,8 +288,8 @@ begin
     ext_json         = excluded.ext_json,
     is_deleted       = false;
 
-  -- f) 快照（与整图保存同一套策略：首次 / 每 5 版 / 距上次 ≥30 分钟）
-  if v_new % 5 = 0
+  -- f) 快照（与整图保存同一套策略：首次 / 每 50 版 / 距上次 ≥30 分钟）
+  if v_new % 50 = 0
      or not exists (
           select 1 from public.arch_snapshot
            where diagram_id = p_diagram_id and created_at > now() - interval '30 minutes'

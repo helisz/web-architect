@@ -27,6 +27,7 @@ import {
   rectContainsPoint,
 } from '@arch/schema';
 import { useDiagramStore } from '../store/useDiagramStore.js';
+import { saveLocalViewport } from '../data/viewportPrefs.js';
 import { useTransfer } from '../hooks/useTransfer.js';
 import { ContextMenu, type MenuNode } from '../components/ContextMenu.js';
 import {
@@ -429,7 +430,11 @@ const cursorFrame = useRef<number | null>(null);
   );
 
   const onMoveEnd = useCallback(
-    (_: unknown, viewport: FlowViewport) => setViewport(viewport),
+    (_: unknown, viewport: FlowViewport) => {
+      setViewport(viewport);
+      // 视口只存本地：平移/缩放不该占版本号，也不该单独触发一次写库
+      saveLocalViewport(useDiagramStore.getState().diagram.diagramId, viewport);
+    },
     [setViewport],
   );
 

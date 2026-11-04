@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { flushNow } from '../data/usePersistence.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
 /**
@@ -82,6 +83,12 @@ export function useShortcuts(): void {
         if (key === 'f') {
           event.preventDefault();
           state.setSearchOpen(true);
+          return;
+        }
+        if (key === 's') {
+          // 显式保存：不等节流，立刻写一次（"我知道我在干什么，现在就存"）
+          event.preventDefault();
+          flushNow();
           return;
         }
         return;

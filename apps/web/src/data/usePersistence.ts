@@ -3,6 +3,10 @@ import { createEmptyDiagram } from '@arch/schema';
 import type { ArchitectureDiagram } from '@arch/schema';
 import { listDiagrams, loadDiagram, patchDiagram, saveDiagram, toSavePayload, type SaveResult } from './diagramRepo.js';
 import { diffPayload, isEmpty, type SavePayload } from './payloadDiff.js';
+import { clearDraft, readDraft, saveDraft } from './draft.js';
+import { nextDelay, structuralKey } from './saveScheduler.js';
+import { isWriterTab, takeOverWriter } from './tabLock.js';
+import { readLocalViewport } from './viewportPrefs.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
 /**
@@ -32,8 +36,39 @@ export function useBootstrap(): void {
           if (loaded.issues.length > 0) {
             console.warn('[arch] 载入时修复了若干问题：', loaded.issues.slice(0, 10));
           }
-          setDiagram(loaded.diagram, { persisted: true });
+
+          // 视口优先用本地的：平移/缩放不进库，就不该被库里的旧位置拽回去
+          const localViewport = readLocalViewport(loaded.diagram.diagramId);
+          let nextDiagram = localViewport ? { ...loaded.diagram, viewport: localViewport } : loaded.diagram;
+
+          /**
+           * 本地草稿恢复：上次崩了 / 误关页面，草稿里会多出最后那几秒的编辑。
+           * 只在版本号一致（说明没在别处存过）且内容确实不同的时候恢复，
+           * 否则宁可相信库里的。
+           */
+          let restoredDraft: { at: number } | null = null;
+          const draft = readDraft(loaded.diagram.diagramId);
+          if (draft && draft.version === loaded.diagram.version) {
+            const differences = diffPayload(toSavePayload(loaded.diagram), toSavePayload(draft.diagram));
+            if (!isEmpty(differences)) {
+              restoredDraft = { at: draft.at };
+              nextDiagram = { ...draft.diagram, version: loaded.diagram.version, viewport: nextDiagram.viewport };
+            } else {
+              clearDraft(loaded.diagram.diagramId);
+            }
+          }
+
+          setDiagram(nextDiagram, { persisted: true });
+          // 基线永远是"库里的内容"：草稿差异才会被算成待保存的改动
           rememberSavedPayload(loaded.diagram);
+
+          if (restoredDraft) {
+            const store = useDiagramStore.getState();
+            store.markDirty();
+            store.setNotice(
+              `已恢复上次未保存的改动（本地草稿 ${new Date(restoredDraft.at).toLocaleString('zh-CN')}）。不需要就按 Ctrl+Z 撤销，或点重载。`,
+            );
+          }
         } else {
           const fresh = createEmptyDiagram({ name: '未命名架构图' });
           if (cancelled) return;
@@ -71,8 +106,8 @@ export function useBootstrap(): void {
 /* 自动保存                                                            */
 /* ------------------------------------------------------------------ */
 
-/** 编辑停顿多久后存盘 */
-const DEBOUNCE_MS = 800;
+/** 编辑停顿多久后存盘（详细规则见 saveScheduler.ts） */
+const DRAFT_MS = 1500;
 
 /**
  * 上次成功落库的整图 payload —— 增量保存的"基线"。
@@ -82,6 +117,16 @@ const DEBOUNCE_MS = 800;
 let lastPayload: SavePayload | null = null;
 /** 库里没有 arch_patch_diagram 时置位，本会话内直接走整图保存 */
 let patchUnavailable = false;
+
+/* —— 节流用的三个时间戳（模块级，跨渲染保持） —— */
+/** 本轮"第一次变脏"的时间：用来兜住"连续编辑 30 秒也没停手" */
+let dirtySince: number | null = null;
+/** 上次真正发起写库的时间：两次写库之间至少隔 MIN_INTERVAL_MS */
+let lastWriteAt = 0;
+/** 上一次的结构指纹：只增删节点/连线/分组才算"结构性改动" */
+let lastStructural: string | null = null;
+/** 一次保存过程中只允许重定基一次，避免冲突时来回打转 */
+let rebaseTried = false;
 
 /** 载入完成后记住基线，这样第一次编辑就能走增量 */
 export function rememberSavedPayload(diagram: ArchitectureDiagram): void {
@@ -127,6 +172,10 @@ function enqueue(diagram: ArchitectureDiagram): void {
 async function runSave(diagram: ArchitectureDiagram): Promise<void> {
   const store = useDiagramStore.getState();
   store.markSaving();
+  // 记下这次写库的时刻：后面 10 秒内的小改动会被合并，不再单独写
+  lastWriteAt = Date.now();
+  dirtySince = null;
+  lastStructural = structuralKey(diagram);
 
   const payload = toSavePayload(diagram);
   // 首次保存（服务端还没有这张图）必须不带基线，否则会插出一条重复的图；
@@ -167,13 +216,43 @@ async function runSave(diagram: ArchitectureDiagram): Promise<void> {
     const dirtyAgain = after.saveState === 'dirty';
     // 基线只在"这次提交真的落库了"之后前移，否则下次会拿错误基线算差异
     lastPayload = payload;
+    rebaseTried = false;
     after.applySaved(result.version, result.savedAt);
-    // applySaved 会把状态置为 saved；若在途期间又脏了，恢复成 dirty 让队列继续
+    // 落库成功 → 本地草稿没用了
+    clearDraft(diagram.diagramId);
+    // 保存期间用户又改了 → 不要把状态改成"已保存"，让队列继续
     if (dirtyAgain) after.markDirty();
     return;
   }
 
   if (result.reason === 'version_conflict') {
+    /**
+     * 先别急着报冲突：如果库里的内容跟我们上次成功保存的基线**一模一样**，
+     * 说明只是版本号被推高了（另一个标签页存了同样的内容、或者本页重复提交），
+     * 不是真的内容冲突。把基线换成服务端那份、版本号跟着走，重试一次即可。
+     *
+     * 这才是"减少冲突"最实用的一步：绝大多数 409 都不是真的打架。
+     */
+    if (!rebaseTried && lastPayload !== null) {
+      rebaseTried = true;
+      try {
+        const server = await loadDiagram(diagram.diagramId);
+        const serverPayload = toSavePayload(server.diagram);
+        if (isEmpty(diffPayload(lastPayload, serverPayload))) {
+          lastPayload = serverPayload;
+          const fresh = useDiagramStore.getState().diagram;
+          const rebased = { ...fresh, version: server.diagram.version };
+          useDiagramStore.getState().setDiagram(rebased, { persisted: true });
+          // setDiagram 会把状态置成"已保存"，这里要改回脏，让队列继续把改动写进去
+          useDiagramStore.getState().markDirty();
+          enqueue(rebased);
+          return;
+        }
+      } catch (error) {
+        console.warn('[arch] 冲突后重定基失败，退回人工处理：', error);
+      }
+    }
+    rebaseTried = false;
     after.setConflict({ currentVersion: result.currentVersion, message: result.message });
     after.markDirty();
     return;
@@ -198,7 +277,25 @@ async function runSave(diagram: ArchitectureDiagram): Promise<void> {
 }
 
 /**
- * 脏了就在 800ms 后存；冲突未解决时暂停自动保存，避免把冲突刷成错误风暴。
+ * 立刻写一次（绕过节流）：结构性操作、Ctrl+S、"用我的版本覆盖"这类
+ * 不能等、也不该被合并的场合用。
+ */
+export function flushNow(): void {
+  const state = useDiagramStore.getState();
+  if (!state.persisted || state.conflict || state.saveDisabled) return;
+  if (!isWriterTab()) return;
+  dirtySince = null;
+  enqueue(state.diagram);
+}
+
+/**
+ * 自动保存：空闲 3 秒就存，连续改最多攒 30 秒，两次写库至少隔 10 秒
+ * （规则本体在 saveScheduler.ts，纯函数好单测）。
+ *
+ * 三条额外的刹车：
+ * - 冲突未解决 / 保存被禁用 / 图还没落过库 → 不存（原逻辑）；
+ * - 本标签页是"跟随者"（另一个标签页在写）→ 不存，避免两边抢版本号；
+ * - 视口变化不算内容变化，不单独写库（viewportPrefs 存本地）。
  */
 export function useAutosave(): void {
   const diagram = useDiagramStore((s) => s.diagram);
@@ -207,6 +304,7 @@ export function useAutosave(): void {
   const persisted = useDiagramStore((s) => s.persisted);
   const conflict = useDiagramStore((s) => s.conflict);
   const saveDisabled = useDiagramStore((s) => s.saveDisabled);
+  const writerRole = useDiagramStore((s) => s.writerRole);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -215,24 +313,51 @@ export function useAutosave(): void {
     /**
      * 还没落过库的图不自动保存。
      *
-     * 否则 store 初始那张空图（或任何"换图"中间态）被标脏后，800ms 一到就会
-     * 作为一张**新图**插进 art_diagram —— 用户下次打开看到的是空白画布。
+     * 否则 store 初始那张空图（或任何"换图"中间态）被标脏后就会作为一张
+     * **新图**插进 arch_diagram —— 用户下次打开看到的是空白画布。
      * 新建图有两条显式路径（bootstrap 的 else 分支、图库的"新建架构图"），
      * 它们自己调 saveDiagram，不需要自动保存兜底。
      */
     if (!persisted) return;
 
+    /**
+     * 跟随者不自动保存 —— 但如果用户在**本页**真的动手改了，就说明他在这边编辑，
+     * 直接把写权抢过来（另一边下一个心跳就会知道自己该退位），
+     * 否则用户会以为改动存上了，其实一直被"另一个标签页在写"挡着。
+     */
+    if (writerRole === 'follower') {
+      takeOverWriter(diagram.diagramId);
+      return;
+    }
+
+    const now = Date.now();
+    if (dirtySince === null) dirtySince = now;
+    // 只增删了节点/连线/分组 → 结构性改动，1 秒就存；改颜色/文字/位置等到空闲 3 秒
+    const key = structuralKey(diagram);
+    const structural = lastStructural !== null && lastStructural !== key;
+    const delay = nextDelay({ now, dirtySince, lastWriteAt, structural });
+
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       timer.current = null;
       enqueue(useDiagramStore.getState().diagram);
-    }, DEBOUNCE_MS);
+    }, delay);
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
     };
-  }, [diagram, saveState, booted, persisted, conflict, saveDisabled]);
+  }, [diagram, saveState, booted, persisted, conflict, saveDisabled, writerRole]);
+
+  /**
+   * 本地草稿：写库间隔变长之后，断电最坏会丢 30 秒的编辑。
+   * 每 1.5 秒把当前图覆盖进 localStorage（同步、不联网），下次打开自动比对恢复。
+   */
+  useEffect(() => {
+    if (!booted || !persisted) return;
+    const handle = setTimeout(() => saveDraft(diagram), DRAFT_MS);
+    return () => clearTimeout(handle);
+  }, [diagram, booted, persisted]);
 
   // 关页面前尽量把未存的改动刷出去
   useEffect(() => {
@@ -240,9 +365,10 @@ export function useAutosave(): void {
       const state = useDiagramStore.getState();
       // 没落过库的图不刷 —— 否则关页面/刷新时会把临时图当新图插进 arch_diagram，
       // 下次打开就落在一张空白或压测图上。
-      if (state.persisted && state.saveState === 'dirty' && !state.conflict && !state.saveDisabled) {
-        enqueue(state.diagram);
-      }
+      if (!state.persisted || state.saveState !== 'dirty' || state.conflict || state.saveDisabled) return;
+      // 跟随者不刷：另一个标签页才是写者，刷了就是一次冲突
+      if (state.writerRole === 'follower') return;
+      enqueue(state.diagram);
     };
     window.addEventListener('pagehide', flush);
     return () => window.removeEventListener('pagehide', flush);
@@ -275,6 +401,7 @@ export function forceSave(): void {
     }
   });
 }
+
 
 
 

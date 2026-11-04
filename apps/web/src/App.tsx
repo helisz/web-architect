@@ -1,4 +1,4 @@
-﻿import { Canvas } from './canvas/Canvas.js';
+import { Canvas } from './canvas/Canvas.js';
 import { ComponentPanel } from './components/ComponentPanel.js';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog.js';
 import { SaveBanner } from './components/SaveBanner.js';
@@ -10,6 +10,7 @@ import { VersionDialog } from './components/VersionDialog.js';
 import { PropertyPanel } from './components/PropertyPanel.js';
 import { supabaseConfig } from './lib/env.js';
 import { useAutosave, useBootstrap } from './data/usePersistence.js';
+import { useWriterLock } from './data/tabLock.js';
 import { useShortcuts } from './hooks/useShortcuts.js';
 import { useDiagramStore } from './store/useDiagramStore.js';
 
@@ -26,10 +27,13 @@ export default function App() {
   const view = useDiagramStore((s) => s.view);
   const versionOpen = useDiagramStore((s) => s.versionOpen);
   const setVersionOpen = useDiagramStore((s) => s.setVersionOpen);
+  const diagramId = useDiagramStore((s) => s.diagram.diagramId);
 
   useBootstrap();
   useShortcuts();
   useAutosave();
+  // 同一张图只让一个标签页在写：这是版本冲突最主要的来源
+  useWriterLock(diagramId, booted);
 
   // 缺环境变量时不白屏，直接给可操作的修复指引
   if (!supabaseConfig) return <StartupError />;
