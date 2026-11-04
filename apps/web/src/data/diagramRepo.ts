@@ -160,7 +160,9 @@ export async function loadDiagram(diagramId: string): Promise<LoadedDiagram> {
   ]);
 
   if (master.error) fail(`读取图 ${diagramId} 失败`, master.error);
-  if (!master.data) throw new Error(`图不存在或已删除：${diagramId}`);
+  // 每人只看自己的图（RLS 按 creator_id = auth.uid()）：别人的图在这里和"不存在"一模一样，
+  // 因为数据库根本不会返回那一行 —— 所以提示里要把"可能不是你的"说清楚，别让人以为数据没了。
+  if (!master.data) throw new Error(`这张图不存在，或者不是你创建的（每人只能看到自己的图）：${diagramId}`);
   if (groups.error) fail('读取分组失败', groups.error);
   if (nodes.error) fail('读取节点失败', nodes.error);
   if (edges.error) fail('读取连线失败', edges.error);

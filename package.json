@@ -18,6 +18,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build:icons": "node scripts/build-icons.mjs",
     "check:db": "node scripts/check-db.mjs",
+    "check:rls": "node scripts/check-rls.mjs",
+    "check:rls:write": "node scripts/check-rls.mjs --write",
     "smoke": "node scripts/smoke.mjs"
 
   },

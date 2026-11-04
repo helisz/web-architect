@@ -1,4 +1,4 @@
-﻿-- ===========================================================================
+-- ===========================================================================
 -- 阶段 2 · PATCH 增量保存
 --
 -- 用法：在 Supabase SQL Editor 里整段执行一次即可（幂等，可重复执行）。
@@ -331,8 +331,8 @@ $fn$;
 comment on function public.arch_patch_diagram(uuid, integer, jsonb)
   is '增量保存：版本校验 + 按差异 upsert/软删 + 条件快照（行数 ≈ 本次改动量）';
 
-grant execute on function public.arch_diagram_payload(uuid) to anon, authenticated;
-grant execute on function public.arch_patch_diagram(uuid, integer, jsonb) to anon, authenticated;
+grant execute on function public.arch_diagram_payload(uuid) to authenticated;
+grant execute on function public.arch_patch_diagram(uuid, integer, jsonb) to authenticated;
 
 commit;
 
@@ -349,11 +349,12 @@ create or replace function public.arch_restore_snapshot(p_snapshot_id uuid)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $fn$
 declare
   v_diagram_id uuid;
   v_payload    jsonb;
+  v_owner      varchar(64);
 begin
   select s.diagram_id, s.payload
     into v_diagram_id, v_payload
@@ -361,6 +362,16 @@ begin
    where s.snapshot_id = p_snapshot_id;
 
   if v_diagram_id is null then
+    raise exception 'SNAPSHOT_NOT_FOUND: %', p_snapshot_id using errcode = 'P0002';
+  end if;
+
+  -- 每人只看自己的图（ADR-0015）：definer 会绕过 RLS，所以这里必须自己校验归属；
+  -- 不是自己的就按"不存在"处理，不泄漏"存在但无权"。
+  select d.creator_id into v_owner
+    from public.arch_diagram d
+   where d.diagram_id = v_diagram_id;
+
+  if auth.uid() is not null and v_owner is distinct from auth.uid()::text then
     raise exception 'SNAPSHOT_NOT_FOUND: %', p_snapshot_id using errcode = 'P0002';
   end if;
 
@@ -372,7 +383,7 @@ $fn$;
 comment on function public.arch_restore_snapshot(uuid)
   is '快照回滚：以快照 payload 发起一次新保存，version = max + 1（D7）';
 
-grant execute on function public.arch_restore_snapshot(uuid) to anon, authenticated;
+grant execute on function public.arch_restore_snapshot(uuid) to authenticated;
 
 commit;
 

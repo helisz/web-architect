@@ -212,8 +212,10 @@ end $$;
 
 -- ---------------------------------------------------------------------------
 -- 8. 权限与 RLS
---    无自建后端 → 前端 anon key 直连，故对 anon 放行 arch_* 的读写。
+--    无自建后端 → 前端用 anon key 直连，但权限收到 authenticated（必须登录），
+--    并且**每人只看自己的图**（creator_id = auth.uid()）。
 --    只对本项目的 5 张表授权，不影响库里其它项目的表。
+--    存量库不要重跑本文件，跑 supabase/patch-auth-rls.sql + patch-per-user-rls.sql。
 -- ---------------------------------------------------------------------------
 alter table public.arch_diagram  enable row level security;
 alter table public.arch_group    enable row level security;
@@ -221,34 +223,116 @@ alter table public.arch_node     enable row level security;
 alter table public.arch_edge     enable row level security;
 alter table public.arch_snapshot enable row level security;
 
-grant select, insert, update, delete on public.arch_diagram  to anon, authenticated;
-grant select, insert, update, delete on public.arch_group    to anon, authenticated;
-grant select, insert, update, delete on public.arch_node     to anon, authenticated;
-grant select, insert, update, delete on public.arch_edge     to anon, authenticated;
-grant select, insert, update, delete on public.arch_snapshot to anon, authenticated;
-grant execute on function public.arch_touch_updated_at() to anon, authenticated;
-
-drop policy if exists arch_diagram_all on public.arch_diagram;
-create policy arch_diagram_all on public.arch_diagram
-  for all to anon, authenticated using (true) with check (true);
-
-drop policy if exists arch_group_all on public.arch_group;
-create policy arch_group_all on public.arch_group
-  for all to anon, authenticated using (true) with check (true);
-
-drop policy if exists arch_node_all on public.arch_node;
-create policy arch_node_all on public.arch_node
-  for all to anon, authenticated using (true) with check (true);
-
-drop policy if exists arch_edge_all on public.arch_edge;
-create policy arch_edge_all on public.arch_edge
-  for all to anon, authenticated using (true) with check (true);
-
-drop policy if exists arch_snapshot_all on public.arch_snapshot;
-create policy arch_snapshot_all on public.arch_snapshot
-  for all to anon, authenticated using (true) with check (true);
+grant select, insert, update, delete on public.arch_diagram  to authenticated;
+grant select, insert, update, delete on public.arch_group    to authenticated;
+grant select, insert, update, delete on public.arch_node     to authenticated;
+grant select, insert, update, delete on public.arch_edge     to authenticated;
+grant select, insert, update, delete on public.arch_snapshot to authenticated;
+grant execute on function public.arch_touch_updated_at() to authenticated;
 
 -- ---------------------------------------------------------------------------
+-- 8.1 归属由服务端决定（BEFORE INSERT/UPDATE 强制写 auth.uid()）
+-- ---------------------------------------------------------------------------
+create or replace function public.arch_force_owner()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op = 'INSERT' then
+    -- 有 JWT 就用 JWT 的用户；本地/无会话（比如 SQL Editor 里的 service_role）保持原值
+    if auth.uid() is not null then
+      new.creator_id := auth.uid()::text;
+    end if;
+  else
+    -- 归属不可改：既防"转移"，也防"覆盖成别人"。
+    -- 只在**有 JWT 的请求**里锁死 —— SQL Editor（无 auth.uid()）要能跑下面的迁移。
+    if auth.uid() is not null then
+      new.creator_id := old.creator_id;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists arch_diagram_force_owner on public.arch_diagram;
+create trigger arch_diagram_force_owner
+  before insert or update on public.arch_diagram
+  for each row execute function public.arch_force_owner();
+
+-- ---------------------------------------------------------------------------
+-- 8.2 策略：只看自己的（子表用 EXISTS 看父表，避免侧门）
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  r record;
+begin
+  for r in
+    select policyname, tablename
+    from pg_policies
+    where schemaname = 'public' and tablename like 'arch\_%'
+  loop
+    execute format('drop policy %I on public.%I', r.policyname, r.tablename);
+  end loop;
+end $$;
+
+create policy arch_diagram_own on public.arch_diagram
+  for all to authenticated
+  using (creator_id = auth.uid()::text)
+  with check (creator_id = auth.uid()::text);
+
+create policy arch_group_own on public.arch_group
+  for all to authenticated
+  using (exists (
+    select 1 from public.arch_diagram d
+    where d.diagram_id = arch_group.diagram_id and d.creator_id = auth.uid()::text
+  ))
+  with check (exists (
+    select 1 from public.arch_diagram d
+    where d.diagram_id = arch_group.diagram_id and d.creator_id = auth.uid()::text
+  ));
+
+create policy arch_node_own on public.arch_node
+  for all to authenticated
+  using (exists (
+    select 1 from public.arch_diagram d
+    where d.diagram_id = arch_node.diagram_id and d.creator_id = auth.uid()::text
+  ))
+  with check (exists (
+    select 1 from public.arch_diagram d
+    where d.diagram_id = arch_node.diagram_id and d.creator_id = auth.uid()::text
+  ));
+
+create policy arch_edge_own on public.arch_edge
+  for all to authenticated
+  using (exists (
+    select 1 from public.arch_diagram d
+    where d.diagram_id = arch_edge.diagram_id and d.creator_id = auth.uid()::text
+  ))
+  with check (exists (
+    select 1 from public.arch_diagram d
+    where d.diagram_id = arch_edge.diagram_id and d.creator_id = auth.uid()::text
+  ));
+
+create policy arch_snapshot_own on public.arch_snapshot
+  for all to authenticated
+  using (exists (
+    select 1 from public.arch_diagram d
+    where d.diagram_id = arch_snapshot.diagram_id and d.creator_id = auth.uid()::text
+  ))
+  with check (exists (
+    select 1 from public.arch_diagram d
+    where d.diagram_id = arch_snapshot.diagram_id and d.creator_id = auth.uid()::text
+  ));
+
+-- 权限维持"只给 authenticated"（幂等，重复跑无害）
+grant select, insert, update, delete on public.arch_diagram  to authenticated;
+grant select, insert, update, delete on public.arch_group    to authenticated;
+grant select, insert, update, delete on public.arch_node     to authenticated;
+grant select, insert, update, delete on public.arch_edge     to authenticated;
+grant select, insert, update, delete on public.arch_snapshot to authenticated;
+
 -- 9. 保存函数（一次 RPC = 一个事务，前端禁止逐表发请求）
 --
 --    做四件事：
@@ -493,7 +577,7 @@ $fn$;
 comment on function public.arch_save_diagram(jsonb, integer)
   is '整图保存：版本校验 + 三表 upsert + 差集软删 + 条件快照，一次调用一个事务';
 
-grant execute on function public.arch_save_diagram(jsonb, integer) to anon, authenticated;
+grant execute on function public.arch_save_diagram(jsonb, integer) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 10. PostgREST 立刻感知新表（Supabase 通常自动重载，这里显式喊一声）

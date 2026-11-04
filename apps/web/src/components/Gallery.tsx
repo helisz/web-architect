@@ -277,7 +277,7 @@ export function Gallery() {
           <p className="py-10 text-center text-[12px] text-[var(--text-secondary)]">正在读取图列表…</p>
         ) : rows.length === 0 ? (
           <p className="py-10 text-center text-[12px] text-[var(--text-secondary)]">
-            {activeFilter ? '没有符合条件的架构图，换个关键词或清掉标签筛选。' : '还没有架构图，点右上角「新建架构图」开始。'}
+            {activeFilter ? '没有符合条件的架构图，换个关键词或清掉标签筛选。' : '还没有架构图。图库只显示你自己创建的图，点右上角「新建架构图」开始。'}
           </p>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

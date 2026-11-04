@@ -17,6 +17,13 @@ import type {
 } from './types.js';
 
 export const SCHEMA_VERSION = '1.0';
+/**
+ * 新建图时的占位归属。
+ *
+ * 真正的归属由数据库决定：`arch_diagram` 上的 BEFORE INSERT 触发器把 creator_id
+ * 强制写成 `auth.uid()`（见 supabase/patch-per-user-rls.sql），所以这里写什么都无所谓，
+ * 前端也不需要知道自己的 uuid。这个常量只用于"还没保存过"的本地对象。
+ */
 export const DEFAULT_CREATOR_ID = 'local-user';
 
 /** 统一 id 生成：浏览器与 Node 都有 globalThis.crypto */
