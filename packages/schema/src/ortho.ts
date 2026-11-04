@@ -303,11 +303,19 @@ export function orthoPoints(
   const basic = basicOrthoPoints(sr, sa, tr, ta);
   if (obstacles.length === 0) return basic;
 
-  // 只有路径附近、且不是两端自己的矩形才可能挡路
-  const nearby = queryRect(obstacles, boundingBox(basic, CHANNEL_MARGIN * 8)).filter(
+  /**
+   * 大图（>200 个障碍）收窄搜索范围，并且候选太多时直接放弃绕行。
+   *
+   * 1000 节点档位每条边都要在大矩形里枚举候选通道，一帧下来是几百毫秒；
+   * 这个密度下"绕开某个节点"肉眼根本看不出来（边上还是 1px 细线），
+   * 拿规则路由换流畅度是划算的。小图（<200）行为完全不变。
+   */
+  const crowded = obstacles.length > 200;
+  const nearby = queryRect(obstacles, boundingBox(basic, CHANNEL_MARGIN * (crowded ? 2 : 8))).filter(
     (r) => !sameRect(r, sr) && !sameRect(r, tr),
   );
   if (nearby.length === 0) return basic;
+  if (crowded && nearby.length > 8) return basic;
 
   const solids = [sr, tr];
   const basicScore = scorePath(basic, solids, nearby);

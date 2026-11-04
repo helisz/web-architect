@@ -1,5 +1,5 @@
-﻿import { memo, useMemo } from 'react';
-import { BaseEdge, EdgeLabelRenderer, useInternalNode } from '@xyflow/react';
+import { memo, useMemo } from 'react';
+import { BaseEdge, EdgeLabelRenderer, useInternalNode, useStore } from '@xyflow/react';
 import type { EdgeProps, InternalNode } from '@xyflow/react';
 import { buildOrthoPath, type Rect } from '@arch/schema';
 import { anchorOf, type OrthoFlowEdge } from './flowMapping.js';
@@ -42,6 +42,9 @@ function OrthoEdgeImpl({
   if (!sourceRect || !targetRect) return null;
 
   const edge = data?.edge;
+  // 缩得很小时不渲染标签：字看不清还占一整个 DOM 节点（规格 §11.4 边标签延迟渲染）
+  const zoom = useStore((s) => s.transform[2]);
+  const showLabel = Boolean(edge?.label) && zoom >= 0.5;
   const obstacles = data?.obstacles;
   const sourceAnchor = anchorOf(sourceHandleId);
   const targetAnchor = anchorOf(targetHandleId);
@@ -70,7 +73,7 @@ function OrthoEdgeImpl({
         }}
         interactionWidth={12}
       />
-      {edge?.label && (
+      {showLabel && (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan pointer-events-none absolute rounded bg-white/90 px-1 py-0.5 text-[11px]"
@@ -79,7 +82,7 @@ function OrthoEdgeImpl({
               color: 'var(--text-secondary)',
             }}
           >
-            {edge.label}
+            {edge?.label}
           </div>
         </EdgeLabelRenderer>
       )}
@@ -88,3 +91,4 @@ function OrthoEdgeImpl({
 }
 
 export const OrthoEdge = memo(OrthoEdgeImpl);
+

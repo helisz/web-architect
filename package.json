@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "web-architect",
   "version": "0.1.0",
   "private": true,
@@ -17,7 +17,9 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build:icons": "node scripts/build-icons.mjs",
-    "check:db": "node scripts/check-db.mjs"
+    "check:db": "node scripts/check-db.mjs",
+    "smoke": "node scripts/smoke.mjs"
+
   },
   "devDependencies": {
     "@iconify-json/devicon": "^1.2.77",
@@ -25,4 +27,5 @@
     "@iconify-json/tabler": "^1.2.43"
   }
 }
+
 

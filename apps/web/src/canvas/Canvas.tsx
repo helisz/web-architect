@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -105,7 +105,10 @@ function CanvasInner() {
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuNode[] } | null>(null);
   const { exportJson, exportPng } = useTransfer();
   const setCursor = useDiagramStore((s) => s.setCursor);
-  const cursorFrame = useRef<number | null>(null);
+  // 节点移动结束后，边延迟这么久再补算（躲开连续移动的中间帧）
+const EDGE_CATCHUP_MS = 180;
+
+const cursorFrame = useRef<number | null>(null);
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
 
   // Schema → ReactFlow：每次 diagram 变化重建，ReactFlow 内部按 id diff
@@ -116,20 +119,50 @@ function CanvasInner() {
   const frozenObstacles = useRef<ReturnType<typeof visibleObstacles> | null>(null);
   const liveObstacles = useMemo(() => visibleObstacles(diagram), [diagram]);
   const edgeObstacles = dragging && frozenObstacles.current ? frozenObstacles.current : liveObstacles;
-  const computedEdges = useMemo(
-    () => toFlowEdges(diagram, selectedIds, edgeObstacles),
-    [diagram, selectedIds, edgeObstacles],
-  );
+
   /**
-   * 拖动期间直接复用拖动开始时的 edges 数组。
+   * 非拖拽式的"节点在动"（键盘微调、属性面板改坐标、批量对齐）也要冻结 edges。
+   *
+   * 判据很窄：节点数量/尺寸/顺序都没变，只是 x/y 变了 —— 这种情况下位置变化
+   * 一定来自一次移动操作，冻结 180ms 让边在动完后再补算。增删节点/改尺寸不会
+   * 走到这里，所以不会出现"新边要等 180ms 才出现"的怪现象。
+   */
+  const lastNodes = useRef(diagram.nodes);
+  const [movingNodes, setMovingNodes] = useState(false);
+  useEffect(() => {
+    const prev = lastNodes.current;
+    lastNodes.current = diagram.nodes;
+    if (prev === diagram.nodes || prev.length !== diagram.nodes.length) return;
+
+    let positionChanged = false;
+    for (let i = 0; i < prev.length; i += 1) {
+      const before = prev[i]!;
+      const after = diagram.nodes[i]!;
+      if (before.nodeId !== after.nodeId || before.width !== after.width || before.height !== after.height) return;
+      if (before.x !== after.x || before.y !== after.y) positionChanged = true;
+    }
+    if (!positionChanged) return;
+
+    setMovingNodes(true);
+    const timer = setTimeout(() => setMovingNodes(false), EDGE_CATCHUP_MS);
+    return () => clearTimeout(timer);
+  }, [diagram.nodes]);
+
+  const frozen = dragging || movingNodes;
+  /**
+   * 拖动/移动期间直接复用上一批 edges。
    *
    * 边长什么样不靠 props 推：`OrthoEdge` 用 `useInternalNode` 订阅节点内部位置，
-   * 被拖动的节点一动，相邻边自己就会重画。所以整批重建 edges（300 条 → 300 次
-   * 组件重渲染）纯属浪费，冻结后帧时间从 ~160ms 降到个位数。
+   * 被拖动的节点一动，相邻边自己就会重画。所以整批重建 edges（1000 条 → 1000 次
+   * 组件重渲染 + 路径计算）纯属浪费 —— 冻结后连算都不算，帧时间从 ~138ms 降到十几毫秒。
    */
-  const edgesRef = useRef(computedEdges);
-  if (!dragging) edgesRef.current = computedEdges;
-  const edges = dragging ? edgesRef.current : computedEdges;
+  const edgesRef = useRef<ReturnType<typeof toFlowEdges> | null>(null);
+  const computedEdges = useMemo(
+    () => (frozen && edgesRef.current ? edgesRef.current : toFlowEdges(diagram, selectedIds, edgeObstacles)),
+    [frozen, diagram, selectedIds, edgeObstacles],
+  );
+  if (!frozen) edgesRef.current = computedEdges;
+  const edges = frozen && edgesRef.current ? edgesRef.current : computedEdges;
 
   const groupIds = useMemo(() => new Set(diagram.groups.map((g) => g.groupId)), [diagram.groups]);
 
@@ -601,6 +634,9 @@ export function Canvas() {
     </main>
   );
 }
+
+
+
 
 
 

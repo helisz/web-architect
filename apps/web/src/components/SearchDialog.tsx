@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { groupAbsoluteRect, nodeAbsoluteRect, type ArchitectureDiagram } from '@arch/schema';
+import { COMPONENT_INDEX, type NodeType } from '@arch/schema';
+import { search, type Hit } from '../data/search.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
 /**
@@ -10,64 +11,6 @@ import { useDiagramStore } from '../store/useDiagramStore.js';
  * 选中结果后把视口飞过去，并给元素打 2 秒高亮。
  */
 
-interface Hit {
-  id: string;
-  kind: 'node' | 'group' | 'edge';
-  title: string;
-  detail: string;
-  center: { x: number; y: number };
-}
-
-function search(diagram: ArchitectureDiagram, query: string): Hit[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  const hits: Hit[] = [];
-
-  for (const node of diagram.nodes) {
-    const ip = typeof node.extJson?.ip === 'string' ? node.extJson.ip : '';
-    const haystack = `${node.label}\n${node.subLabel}\n${ip}\n${node.nodeType}`.toLowerCase();
-    if (!haystack.includes(q)) continue;
-    const rect = nodeAbsoluteRect(diagram.groups, node);
-    hits.push({
-      id: node.nodeId,
-      kind: 'node',
-      title: node.label || node.nodeType,
-      detail: ip ? `IP ${ip}` : node.subLabel || node.nodeType,
-      center: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
-    });
-  }
-
-  for (const group of diagram.groups) {
-    if (!group.label.toLowerCase().includes(q)) continue;
-    const rect = groupAbsoluteRect(diagram.groups, group);
-    hits.push({
-      id: group.groupId,
-      kind: 'group',
-      title: group.label || '未命名分组',
-      detail: '分组',
-      center: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
-    });
-  }
-
-  for (const edge of diagram.edges) {
-    if (!edge.label || !edge.label.toLowerCase().includes(q)) continue;
-    const source = diagram.nodes.find((n) => n.nodeId === edge.sourceNodeId);
-    const target = diagram.nodes.find((n) => n.nodeId === edge.targetNodeId);
-    if (!source || !target) continue;
-    const a = nodeAbsoluteRect(diagram.groups, source);
-    const b = nodeAbsoluteRect(diagram.groups, target);
-    hits.push({
-      id: edge.edgeId,
-      kind: 'edge',
-      title: edge.label,
-      detail: `${source.label} → ${target.label}`,
-      center: { x: (a.x + a.width / 2 + b.x + b.width / 2) / 2, y: (a.y + a.height / 2 + b.y + b.height / 2) / 2 },
-    });
-  }
-
-  return hits.slice(0, 30);
-}
-
 export function SearchDialog() {
   const open = useDiagramStore((s) => s.searchOpen);
   const setSearchOpen = useDiagramStore((s) => s.setSearchOpen);
@@ -76,14 +19,22 @@ export function SearchDialog() {
   const setHighlight = useDiagramStore((s) => s.setHighlight);
   const { setViewport, getViewport } = useReactFlow();
   const [query, setQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<NodeType | 'all'>('all');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const hits = useMemo(() => search(diagram, query), [diagram, query]);
+  const hits = useMemo(
+    () => search(diagram, query, { nodeType: typeFilter, groupId: groupFilter }),
+    [diagram, query, typeFilter, groupFilter],
+  );
+  const filtered = typeFilter !== 'all' || groupFilter !== 'all';
 
   useEffect(() => {
     if (!open) return;
     setQuery('');
+    setTypeFilter('all');
+    setGroupFilter('all');
     setActive(0);
     // 等面板挂上再聚焦
     const timer = window.setTimeout(() => inputRef.current?.focus(), 30);
@@ -150,10 +101,50 @@ export function SearchDialog() {
         />
         <span className="mono shrink-0 text-[11px] text-[var(--text-secondary)]">Esc 关闭</span>
       </div>
+
+      {/* D2：类型 / 分组筛选（选了任一项就只搜节点） */}
+      <div className="flex items-center gap-2 border-b border-[var(--panel-border)] bg-[#F9FAFB] px-3 py-1.5 text-[11px]">
+        <select
+          aria-label="按节点类型筛选"
+          className="rounded border border-[var(--panel-border)] bg-white px-1 py-0.5"
+          value={typeFilter}
+          onChange={(event) => {
+            setTypeFilter(event.target.value as NodeType | 'all');
+            setActive(0);
+          }}
+        >
+          <option value="all">全部类型</option>
+          {(Object.keys(COMPONENT_INDEX) as NodeType[]).map((type) => (
+            <option key={type} value={type}>
+              {COMPONENT_INDEX[type].label}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="按分组筛选"
+          className="rounded border border-[var(--panel-border)] bg-white px-1 py-0.5"
+          value={groupFilter}
+          onChange={(event) => {
+            setGroupFilter(event.target.value);
+            setActive(0);
+          }}
+        >
+          <option value="all">全部分组</option>
+          <option value="none">不在分组里</option>
+          {diagram.groups
+            .filter((group) => !group.isDeleted)
+            .map((group) => (
+              <option key={group.groupId} value={group.groupId}>
+                {group.label || '未命名分组'}
+              </option>
+            ))}
+        </select>
+        {filtered && <span className="text-[var(--text-secondary)]">筛选中，仅列出节点</span>}
+      </div>
       <div className="max-h-[320px] overflow-y-auto">
-        {query.trim() === '' ? (
+        {query.trim() === '' && !filtered ? (
           <p className="px-3 py-4 text-center text-[12px] text-[var(--text-secondary)]">
-            输入关键字，按名称、副文本或 IP 定位
+            输入关键字，按名称、副文本或 IP 定位；也可以只用上面的类型 / 分组筛选
           </p>
         ) : hits.length === 0 ? (
           <p className="px-3 py-4 text-center text-[12px] text-[var(--text-secondary)]">没有匹配的元素</p>
@@ -183,3 +174,7 @@ export function SearchDialog() {
     </div>
   );
 }
+
+
+
+

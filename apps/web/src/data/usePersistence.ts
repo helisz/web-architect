@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { createEmptyDiagram } from '@arch/schema';
 import type { ArchitectureDiagram } from '@arch/schema';
 import { listDiagrams, loadDiagram, patchDiagram, saveDiagram, toSavePayload, type SaveResult } from './diagramRepo.js';
@@ -96,13 +96,31 @@ export function rememberSavedPayload(diagram: ArchitectureDiagram): void {
 let chain: Promise<void> = Promise.resolve();
 let pending: ArchitectureDiagram | null = null;
 
+/** 保存入口（内部）：连续改动只跑最后一次 */
 function enqueue(diagram: ArchitectureDiagram): void {
+  // 兜底守卫：没落过库的图一律不自动保存，避免把临时图/空图插成新文档
+  if (!useDiagramStore.getState().persisted) return;
   pending = diagram;
+  /**
+   * 链条必须自带 try/catch。
+   *
+   * `chain = chain.then(...)` 一旦某次 runSave 抛异常，chain 就变成 **永久 rejected**，
+   * 之后每次 enqueue 的 .then 都被跳过 —— 表现为"改动一直 dirty、永远存不进去"，
+   * 而且没有任何报错。这里把异常接住并显示到状态栏，链条继续往下走。
+   */
   chain = chain.then(async () => {
     const next = pending;
     pending = null;
     if (!next) return;
-    await runSave(next);
+    try {
+      await runSave(next);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[arch] 保存失败：', error);
+      const store = useDiagramStore.getState();
+      store.setSaveError(`保存失败：${message}`);
+      store.markDirty();
+    }
   });
 }
 
@@ -125,8 +143,14 @@ async function runSave(diagram: ArchitectureDiagram): Promise<void> {
       return;
     }
     result = await patchDiagram(diagram, diagram.version, patch);
-    if (!result.ok && result.reason === 'missing_patch') {
-      // 库里还没建 arch_patch_diagram → 本会话内不再尝试，直接整图保存
+    /**
+     * 增量保存失败就退回整图保存。
+     *
+     * 两种失败都要兜：函数还没建（missing_patch），以及函数本身报 SQL 错
+     * （例如 42804 CASE 类型不匹配 —— 库里的列类型和脚本不一致时就会这样）。
+     * 用户的改动绝不能因为"增量这条路坏了"就丢掉。
+     */
+    if (!result.ok && (result.reason === 'missing_patch' || result.reason === 'failed')) {
       patchUnavailable = true;
       result = await saveDiagram(diagram, diagram.version);
     }
@@ -214,7 +238,11 @@ export function useAutosave(): void {
   useEffect(() => {
     const flush = (): void => {
       const state = useDiagramStore.getState();
-      if (state.saveState === 'dirty' && !state.conflict && !state.saveDisabled) enqueue(state.diagram);
+      // 没落过库的图不刷 —— 否则关页面/刷新时会把临时图当新图插进 arch_diagram，
+      // 下次打开就落在一张空白或压测图上。
+      if (state.persisted && state.saveState === 'dirty' && !state.conflict && !state.saveDisabled) {
+        enqueue(state.diagram);
+      }
     };
     window.addEventListener('pagehide', flush);
     return () => window.removeEventListener('pagehide', flush);

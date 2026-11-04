@@ -139,11 +139,11 @@ begin
     name           = coalesce(p_patch->'diagram'->>'name', d.name),
     description    = coalesce(p_patch->'diagram'->>'description', d.description),
     schema_version = coalesce(p_patch->'diagram'->>'schemaVersion', d.schema_version),
-    project_id     = case
-                       when p_patch->'diagram' ? 'projectId'
-                         then nullif(p_patch->'diagram'->>'projectId', '')::uuid
-                       else d.project_id
-                     end,
+    project_id     = (case
+                        when p_patch->'diagram' ? 'projectId'
+                          then nullif(p_patch->'diagram'->>'projectId', '')
+                        else d.project_id::text
+                      end)::uuid,
     viewport_x     = coalesce((p_patch->'diagram'->'viewport'->>'x')::float, d.viewport_x),
     viewport_y     = coalesce((p_patch->'diagram'->'viewport'->>'y')::float, d.viewport_y),
     viewport_zoom  = least(greatest(

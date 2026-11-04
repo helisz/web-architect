@@ -136,6 +136,40 @@ describe('labelAnchorPoint', () => {
     ]);
     expect(p).toEqual({ x: 0, y: 50 });
   });
+
+  /* D3：规格 §11.3 "置于最长水平段中点"，用不等长段验一次，避免"总是取第一段"也能过 */
+  it('多水平段时取最长那段的中点（不等长）', () => {
+    const p = labelAnchorPoint([
+      { x: 0, y: 0 },
+      { x: 40, y: 0 },
+      { x: 40, y: 100 },
+      { x: 300, y: 100 },
+    ]);
+    expect(p.x).toBeCloseTo((40 + 300) / 2, 5);
+    expect(p.y).toBeCloseTo(100, 5);
+  });
+
+  it('真实路由的标签点落在线上，且不在两端节点内部', () => {
+    const a: Rect = { x: 0, y: 0, width: 160, height: 80 };
+    const b: Rect = { x: 520, y: 260, width: 160, height: 80 };
+    const { points, labelPoint } = buildOrthoPath(a, 'right', b, 'left', []);
+    const onSegment = points.some((p, i) => {
+      if (i === 0) return false;
+      const q = points[i - 1]!;
+      const horizontal = Math.abs(q.y - p.y) < 0.01 && Math.abs(labelPoint.y - q.y) < 0.01;
+      const vertical = Math.abs(q.x - p.x) < 0.01 && Math.abs(labelPoint.x - q.x) < 0.01;
+      if (!horizontal && !vertical) return false;
+      const lo = horizontal ? Math.min(q.x, p.x) : Math.min(q.y, p.y);
+      const hi = horizontal ? Math.max(q.x, p.x) : Math.max(q.y, p.y);
+      const v = horizontal ? labelPoint.x : labelPoint.y;
+      return v >= lo - 0.01 && v <= hi + 0.01;
+    });
+    expect(onSegment).toBe(true);
+
+    const inside = (r: Rect) =>
+      labelPoint.x > r.x && labelPoint.x < r.x + r.width && labelPoint.y > r.y && labelPoint.y < r.y + r.height;
+    expect(inside(a) || inside(b)).toBe(false);
+  });
 });
 
 /* ------------------------------------------------------------------ */
