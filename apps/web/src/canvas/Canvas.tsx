@@ -25,6 +25,7 @@ import {
   hitGroup,
   isAncestorOf,
   isHiddenByCollapse,
+  groupAbsoluteRect,
   nodeAbsoluteRect,
   rectContainsPoint,
 } from '@arch/schema';
@@ -351,11 +352,27 @@ const cursorFrame = useRef<number | null>(null);
       // 指针下最上层的节点（跳过自己），按最近的一边接上
       const target = [...diagram.nodes]
         .filter((n) => n.nodeId !== from.nodeId && !isHiddenByCollapse(diagram.groups, n.groupId))
-        .map((n) => ({ node: n, rect: nodeAbsoluteRect(diagram.groups, n) }))
+        .map((n) => ({ id: n.nodeId, rect: nodeAbsoluteRect(diagram.groups, n) }))
         .filter(({ rect }) => rectContainsPoint(rect, point))
         .pop();
 
-      if (!target) return;
+      /*
+       * 没落在节点上时再试分组（用户 2026-11-04：分组也能当连线终点）。
+       * 分组的手柄在边框上，容易被压在它上面的节点挡住，所以"松手落在分组身上"
+       * 这条路径很实用：从节点手柄拖出来，放进分组内部就接上了。
+       */
+      const groupTarget = target
+        ? null
+        : [...diagram.groups]
+            .filter(
+              (g) => g.groupId !== from.nodeId && !isHiddenByCollapse(diagram.groups, g.parentGroupId),
+            )
+            .map((g) => ({ id: g.groupId, rect: groupAbsoluteRect(diagram.groups, g) }))
+            .filter(({ rect }) => rectContainsPoint(rect, point))
+            .pop();
+
+      const endpoint = target ?? groupTarget;
+      if (!endpoint) return;
       // 源端用"你实际拖出的那个手柄"，不能拿目标端的一边顶替，
       // 否则从任意手柄拖出来都变成同一条线（曾经的 bug）。
       // 目标端按"朝向起点的那个边"接上：落在节点中间时不至于随机挑一边。
@@ -363,9 +380,9 @@ const cursorFrame = useRef<number | null>(null);
       const sourceNode = diagram.nodes.find((n) => n.nodeId === from.nodeId);
       const sourceRect = sourceNode ? nodeAbsoluteRect(diagram.groups, sourceNode) : null;
       const targetAnchor = sourceRect
-        ? nearestAnchor({ x: sourceRect.x + sourceRect.width / 2, y: sourceRect.y + sourceRect.height / 2 }, target.rect)
-        : nearestAnchor(point, target.rect);
-      addEdge(from.nodeId, target.node.nodeId, sourceAnchor, targetAnchor);
+        ? nearestAnchor({ x: sourceRect.x + sourceRect.width / 2, y: sourceRect.y + sourceRect.height / 2 }, endpoint.rect)
+        : nearestAnchor(point, endpoint.rect);
+      addEdge(from.nodeId, endpoint.id, sourceAnchor, targetAnchor);
     },
     [addEdge, diagram.groups, diagram.nodes, screenToFlowPosition],
   );
