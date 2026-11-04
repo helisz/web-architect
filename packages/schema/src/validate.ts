@@ -352,11 +352,12 @@ export function validateDiagram(
   enforceIconRule(d, ctx, opts.repair === true);
 
   // —— V2 连线引用 + V10 重复连线
+  // 端点可以是节点，也可以是分组（用户 2026-11-04：分组之间、分组与节点之间都能连线）
   const keptEdges: DiagramEdge[] = [];
   const seenEdgeKeys = new Set<string>();
   d.edges.forEach((e, i) => {
-    const sourceExists = nodeById.has(e.sourceNodeId);
-    const targetExists = nodeById.has(e.targetNodeId);
+    const sourceExists = nodeById.has(e.sourceNodeId) || groupById.has(e.sourceNodeId);
+    const targetExists = nodeById.has(e.targetNodeId) || groupById.has(e.targetNodeId);
     if (!sourceExists || !targetExists) {
       if (opts.repair) {
         warn(ctx, `edges[${i}]`, 'REF_DROPPED', '悬空连线已丢弃');

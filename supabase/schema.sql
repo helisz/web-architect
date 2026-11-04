@@ -115,8 +115,12 @@ comment on table public.arch_node is '节点 / 组件卡片（规格 diagram_nod
 create table if not exists public.arch_edge (
     edge_id          uuid primary key,
     diagram_id       uuid not null references public.arch_diagram(diagram_id) on delete cascade,
-    source_node_id   uuid not null references public.arch_node(node_id) on delete cascade,
-    target_node_id   uuid not null references public.arch_node(node_id) on delete cascade,
+    -- 端点可以是节点，也可以是分组（用户 2026-11-04）：两者共用一套 uuid 空间，
+    -- 一个列没法同时外键到 arch_node / arch_group，所以不加外键，由应用层维护一致性
+    -- （删节点/删分组/解组时同时删掉相关连线，载入时 V2 丢弃悬空连线）。
+    -- 老库请跑 supabase/patch-edge-group-endpoints.sql 去掉这两个外键。
+    source_node_id   uuid not null,
+    target_node_id   uuid not null,
     label            varchar(255),
     stroke_color     varchar(32) not null default '#8B5CF6',
     stroke_width     float not null default 1.5,

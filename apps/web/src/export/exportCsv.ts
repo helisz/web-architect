@@ -1,4 +1,4 @@
-﻿import { nodeAbsoluteRect, type ArchitectureDiagram, type DiagramNode } from '@arch/schema';
+import { nodeAbsoluteRect, type ArchitectureDiagram, type DiagramNode } from '@arch/schema';
 
 /**
  * CSV 导出（规格 §12 附加项）：节点清单 / 连线清单。
@@ -96,8 +96,14 @@ export function toEdgesCsv(diagram: ArchitectureDiagram): string {
     '终点锚点',
   ];
 
-  const nameOf = (nodeId: string): string =>
-    diagram.nodes.find((n) => n.nodeId === nodeId)?.label ?? '（已删除）';
+  // 端点可能是节点，也可能是分组（用户 2026-11-04），分组名后面标一下来源
+  const nameOf = (endpointId: string): string => {
+    const node = diagram.nodes.find((n) => n.nodeId === endpointId);
+    if (node) return node.label;
+    const group = diagram.groups.find((g) => g.groupId === endpointId);
+    if (group) return `${group.label}（分组）`;
+    return '（已删除）';
+  };
 
   const rows = diagram.edges
     .filter((e) => !e.isDeleted)

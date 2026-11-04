@@ -385,10 +385,17 @@ function applyDeletion(
   let diagram = state.diagram;
   const nodeSet = new Set(pending.nodeIds);
   const edgeSet = new Set(pending.edgeIds);
+  // 分组也是连线端点（用户 2026-11-04）：删掉分组时，挂在它身上的线一起走
+  const groupSet = new Set(pending.groupIds);
   diagram = {
     ...diagram,
     edges: diagram.edges.filter(
-      (e) => !edgeSet.has(e.edgeId) && !nodeSet.has(e.sourceNodeId) && !nodeSet.has(e.targetNodeId),
+      (e) =>
+        !edgeSet.has(e.edgeId) &&
+        !nodeSet.has(e.sourceNodeId) &&
+        !nodeSet.has(e.targetNodeId) &&
+        !groupSet.has(e.sourceNodeId) &&
+        !groupSet.has(e.targetNodeId),
     ),
     nodes: diagram.nodes.filter((n) => !nodeSet.has(n.nodeId)),
   };
@@ -658,8 +665,15 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
 
   removeGroup: (groupId) =>
     set((s) => {
-      const next = removeGroupLifting(s.diagram, groupId);
-      if (next === s.diagram) return s;
+      const lifted = removeGroupLifting(s.diagram, groupId);
+      if (lifted === s.diagram) return s;
+      // 分组被删掉后，挂在它身上的连线就没有端点了，一起清掉
+      const next = {
+        ...lifted,
+        edges: lifted.edges.filter(
+          (e) => e.sourceNodeId !== groupId && e.targetNodeId !== groupId,
+        ),
+      };
       return {
         ...withHistory(s, `removeGroup:${groupId}`),
         diagram: next,
@@ -947,7 +961,15 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
         });
       return {
         ...withHistory(s, `ungroup:${groupId}`),
-        diagram: { ...s.diagram, nodes, groups },
+        diagram: {
+          ...s.diagram,
+          nodes,
+          groups,
+          // 解组后这个分组不存在了，挂在它身上的连线一起清掉（否则就是悬空连线）
+          edges: s.diagram.edges.filter(
+            (e) => e.sourceNodeId !== groupId && e.targetNodeId !== groupId,
+          ),
+        },
         selectedId: s.selectedId === groupId ? null : s.selectedId,
         selectedIds: s.selectedIds.filter((id) => id !== groupId),
         saveState: 'dirty',

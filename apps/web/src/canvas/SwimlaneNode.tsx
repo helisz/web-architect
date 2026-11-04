@@ -1,10 +1,26 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { NodeResizer } from '@xyflow/react';
+import { Handle, NodeResizer, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { groupHeaderHeight, isGroupLocked, isIconHidden, isSingleLineGroup, resolveIconKey } from '@arch/schema';
+import {
+  ANCHOR_ORDER,
+  groupHeaderHeight,
+  isGroupLocked,
+  isIconHidden,
+  isSingleLineGroup,
+  resolveIconKey,
+  type Anchor,
+} from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { SwimlaneFlowNode } from './flowMapping.js';
+
+/** 锚点 → ReactFlow 位置（与 ArchNode 中的映射一致） */
+const POSITION: Record<Anchor, Position> = {
+  top: Position.Top,
+  right: Position.Right,
+  bottom: Position.Bottom,
+  left: Position.Left,
+};
 
 /**
  * 分组泳道（规格 §5.3 / C9）。
@@ -148,6 +164,22 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           </button>
         )}
       </div>
+
+      {/* 分组也能连线（用户 2026-11-04）：四边各一个 source Handle，配合 ConnectionMode.Loose
+          任意边起线/接收。视觉与节点手柄同一套 .arch-handle（8px 本体 + 24px 命中区，
+          平时透明，鼠标移到分组上才显形），锁定的分组不给手柄。 */}
+      {!locked &&
+        ANCHOR_ORDER.map((anchor) => (
+          <Handle
+            key={anchor}
+            id={anchor}
+            type="source"
+            position={POSITION[anchor]}
+            className={`arch-handle${selected ? ' is-visible' : ''}`}
+          >
+            <span className="arch-handle-dot" />
+          </Handle>
+        ))}
     </div>
   );
 }

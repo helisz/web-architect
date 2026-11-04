@@ -154,11 +154,15 @@ export function toFlowNodes(
  * 已被用户否掉。原来每帧扫一遍节点算 obstacles 的开销也一起省了。
  */
 export function toFlowEdges(diagram: ArchitectureDiagram, selectedIds: readonly string[] = []): Edge[] {
-  const visible = new Set(
+  const visible = new Set<string>(
     diagram.nodes
       .filter((n) => !n.isDeleted && n.visible && !isHiddenByCollapse(diagram.groups, n.groupId))
       .map((n) => n.nodeId),
   );
+  // 分组也是合法端点（用户 2026-11-04）：父组折叠后自己也跟着藏起来
+  for (const g of diagram.groups) {
+    if (!isHiddenByCollapse(diagram.groups, g.parentGroupId)) visible.add(g.groupId);
+  }
 
   return diagram.edges
     .filter((e) => !e.isDeleted)
