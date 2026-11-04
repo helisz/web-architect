@@ -1,8 +1,9 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
   iconKeyFor,
+  isIconHidden,
   type DiagramEdge,
   type DiagramGroup,
   type DiagramNode,
@@ -39,7 +40,10 @@ function applyMultiField(
     else if (field === 'textColor') actions.patchGroup(id, { titleColor: value });
     else if (field === 'iconKey') {
       const group = useDiagramStore.getState().diagram.groups.find((g) => g.groupId === id);
-      actions.patchGroup(id, { extJson: { ...(group?.extJson ?? {}), iconKey: value } });
+      actions.patchGroup(id, { extJson: { ...(group?.extJson ?? {}), iconKey: value, iconHidden: false } });
+    } else if (field === 'iconHidden') {
+      const group = useDiagramStore.getState().diagram.groups.find((g) => g.groupId === id);
+      actions.patchGroup(id, { extJson: { ...(group?.extJson ?? {}), iconHidden: value === 'hidden' } });
     }
     return;
   }
@@ -50,7 +54,10 @@ function applyMultiField(
   else if (field === 'textColor') actions.patchNode(id, { textColor: value });
   else if (field === 'iconKey') {
     const node = useDiagramStore.getState().diagram.nodes.find((n) => n.nodeId === id);
-    actions.patchNode(id, { extJson: { ...(node?.extJson ?? {}), iconKey: value } });
+    actions.patchNode(id, { extJson: { ...(node?.extJson ?? {}), iconKey: value, iconHidden: false } });
+  } else if (field === 'iconHidden') {
+    const node = useDiagramStore.getState().diagram.nodes.find((n) => n.nodeId === id);
+    actions.patchNode(id, { extJson: { ...(node?.extJson ?? {}), iconHidden: value === 'hidden' } });
   }
 }
 
@@ -166,7 +173,24 @@ function MultiForm() {
 
         {find('iconKey') && (
           <Field label={`${FIELD_LABEL.iconKey}（点一个批量换）`}>
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+            <div className="arch-hscroll flex items-center gap-1">
+              {find('iconHidden') && (
+                <button
+                  type="button"
+                  title="不显示图标"
+                  aria-pressed={find('iconHidden')!.value === 'hidden'}
+                  onClick={() =>
+                    apply('iconHidden', find('iconHidden')!.value === 'hidden' ? 'shown' : 'hidden')
+                  }
+                  className={`grid h-7 w-7 shrink-0 place-items-center rounded border text-[11px] ${
+                    find('iconHidden')!.value === 'hidden'
+                      ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                      : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                  }`}
+                >
+                  无
+                </button>
+              )}
               {ALLOWED_ICON_KEYS.map((key) => (
                 <button
                   key={key}
@@ -309,7 +333,9 @@ function GroupForm({ group }: { group: DiagramGroup }) {
   const iconKey = (group.extJson?.iconKey as string | undefined) ?? iconKeyFor('group');
   const [pickerOpen, setPickerOpen] = useState(false);
   const setIcon = (key: string): void =>
-    patchGroup(group.groupId, { extJson: { ...(group.extJson ?? {}), iconKey: key } });
+    patchGroup(group.groupId, { extJson: { ...(group.extJson ?? {}), iconKey: key, iconHidden: false } });
+  const patchGroupIcon = (patch: { iconHidden: boolean }): void =>
+    patchGroup(group.groupId, { extJson: { ...(group.extJson ?? {}), ...patch } });
 
   return (
     <div>
@@ -330,9 +356,9 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         />
       </Field>
 
-      <Field label={`图标（${iconKey}）`}>
+      <Field label={`图标（${isIconHidden(group) ? '不显示' : iconKey}）`}>
         <div className="flex items-center gap-2">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded border border-[var(--panel-border)]">
+          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded border border-[var(--panel-border)] ${isIconHidden(group) ? 'opacity-30' : ''}`}>
             <NodeIcon iconKey={iconKey} size={20} />
           </span>
           <button
@@ -343,7 +369,20 @@ function GroupForm({ group }: { group: DiagramGroup }) {
             搜索图标库…
           </button>
         </div>
-        <div className="mt-1 flex items-center gap-1 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+        <div className="arch-hscroll mt-1 flex items-center gap-1">
+          <button
+            type="button"
+            title="不显示图标"
+            aria-pressed={isIconHidden(group)}
+            onClick={() => patchGroupIcon({ iconHidden: !isIconHidden(group) })}
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded border text-[11px] ${
+              isIconHidden(group)
+                ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+            }`}
+          >
+            无
+          </button>
           {ALLOWED_ICON_KEYS.map((key) => (
             <button
               key={key}
@@ -472,9 +511,9 @@ function NodeForm({ node }: { node: DiagramNode }) {
         ]}
       />
 
-      <Field label={`图标（${iconKey}）`}>
+      <Field label={`图标（${isIconHidden(node) ? '不显示' : iconKey}）`}>
         <div className="flex items-center gap-2">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded border border-[var(--panel-border)]">
+          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded border border-[var(--panel-border)] ${isIconHidden(node) ? 'opacity-30' : ''}`}>
             <NodeIcon iconKey={iconKey} size={20} />
           </span>
           <button
@@ -485,13 +524,32 @@ function NodeForm({ node }: { node: DiagramNode }) {
             搜索图标库…
           </button>
         </div>
-        <div className="mt-1 flex items-center gap-1 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+        <div className="arch-hscroll mt-1 flex items-center gap-1">
+          <button
+            type="button"
+            title="不显示图标"
+            aria-pressed={isIconHidden(node)}
+            onClick={() =>
+              patch(node.nodeId, {
+                extJson: { ...(node.extJson ?? {}), iconHidden: !isIconHidden(node) },
+              })
+            }
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded border text-[11px] ${
+              isIconHidden(node)
+                ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+            }`}
+          >
+            无
+          </button>
           {ALLOWED_ICON_KEYS.map((key) => (
             <button
               key={key}
               type="button"
               title={key}
-              onClick={() => patch(node.nodeId, { extJson: { ...(node.extJson ?? {}), iconKey: key } })}
+              onClick={() =>
+                patch(node.nodeId, { extJson: { ...(node.extJson ?? {}), iconKey: key, iconHidden: false } })
+              }
               className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
                 key === iconKey
                   ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'

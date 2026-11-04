@@ -17,12 +17,13 @@ export type MultiField =
   | 'borderColor'
   | 'textColor'
   | 'iconKey'
+  | 'iconHidden'
   | 'strokeColor';
 
 /** 每类对象支持哪些可批量编辑的字段 */
 const SUPPORT: Record<MultiKind, readonly MultiField[]> = {
-  node: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey'],
-  group: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey'],
+  node: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden'],
+  group: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden'],
   edge: ['label', 'strokeColor'],
 };
 
@@ -34,10 +35,20 @@ export const FIELD_LABEL: Record<MultiField, string> = {
   borderColor: '边框色',
   textColor: '文字颜色',
   iconKey: '图标',
+  iconHidden: '图标开关',
   strokeColor: '线条颜色',
 };
 
-const ORDER: MultiField[] = ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'strokeColor', 'iconKey'];
+const ORDER: MultiField[] = [
+  'label',
+  'subLabel',
+  'bgColor',
+  'borderColor',
+  'textColor',
+  'strokeColor',
+  'iconKey',
+  'iconHidden',
+];
 
 export interface MultiSelection {
   nodes: DiagramNode[];
@@ -87,6 +98,7 @@ export function readField(
     // 分组没有独立的"文字色"，标题色就是它
     if (field === 'textColor') return group.titleColor;
     if (field === 'iconKey') return typeof group.extJson?.iconKey === 'string' ? group.extJson.iconKey : '';
+    if (field === 'iconHidden') return group.extJson?.iconHidden === true ? 'hidden' : 'shown';
     return undefined;
   }
   const node = item as DiagramNode;
@@ -96,6 +108,7 @@ export function readField(
   if (field === 'borderColor') return node.borderColor;
   if (field === 'textColor') return node.textColor;
   if (field === 'iconKey') return typeof node.extJson?.iconKey === 'string' ? node.extJson.iconKey : '';
+  if (field === 'iconHidden') return node.extJson?.iconHidden === true ? 'hidden' : 'shown';
   return undefined;
 }
 

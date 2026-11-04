@@ -150,6 +150,17 @@ export function resolveIconKey(node: {
   return isIconKey(stored) ? stored : iconKeyFor(node.nodeType);
 }
 
+/**
+ * 该对象是否**关掉了图标**（用户 2026-11-04）。
+ *
+ * 做成 extJson 上的开关而不是删掉 iconKey：
+ * 1. 校验器 V11 要求每个节点都必须有合法 iconKey，删了会被自动补回类型默认；
+ * 2. 关掉再打开能原样恢复之前的图标。
+ */
+export function isIconHidden(item: { extJson?: Record<string, unknown> }): boolean {
+  return item.extJson?.iconHidden === true;
+}
+
 /** 判断一个值是否是"内联图片"（base64 / data URI / http(s) URL）——本规则明确禁止 */
 export function looksLikeEmbeddedImage(value: unknown): boolean {
   if (typeof value !== 'string') return false;

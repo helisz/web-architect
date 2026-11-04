@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { NodeResizer } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { GROUP_HEADER_HEIGHT, resolveIconKey } from '@arch/schema';
+import { GROUP_HEADER_HEIGHT, isIconHidden, resolveIconKey } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { SwimlaneFlowNode } from './flowMapping.js';
@@ -93,11 +93,13 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           />
         ) : (
           <>
-            <NodeIcon
-              iconKey={resolveIconKey({ nodeType: 'group', extJson: group.extJson })}
-              size={14}
-              className="mt-[5px] shrink-0 opacity-70"
-            />
+            {!isIconHidden(group) && (
+              <NodeIcon
+                iconKey={resolveIconKey({ nodeType: 'group', extJson: group.extJson })}
+                size={14}
+                className="mt-[5px] shrink-0 opacity-70"
+              />
+            )}
             <div className="min-w-0 flex-1 pt-[4px]">
               <div
                 className="truncate text-xs font-medium leading-[16px]"

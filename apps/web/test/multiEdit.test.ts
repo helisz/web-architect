@@ -51,6 +51,7 @@ describe('多选字段交集', () => {
       'borderColor',
       'textColor',
       'iconKey',
+      'iconHidden',
     ]);
   });
 
@@ -74,7 +75,15 @@ describe('多选字段交集', () => {
   it('节点 + 分组：两边都有背景色/边框色/文字色/图标/副文本', () => {
     const { diagram, a, group } = makeDiagram();
     const fields = commonFields([a.nodeId, group.groupId], diagram).map((f) => f.field);
-    expect(fields).toEqual(['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey']);
+    expect(fields).toEqual([
+      'label',
+      'subLabel',
+      'bgColor',
+      'borderColor',
+      'textColor',
+      'iconKey',
+      'iconHidden',
+    ]);
   });
 
   it('两个连线：名称 + 线条颜色', () => {

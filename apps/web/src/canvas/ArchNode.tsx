@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { ANCHOR_ORDER, resolveIconKey, type Anchor } from '@arch/schema';
+import { ANCHOR_ORDER, isIconHidden, resolveIconKey, type Anchor } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { ArchFlowNode } from './flowMapping.js';
@@ -32,8 +32,9 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
   const isPlainText = kind === 'text';
   const isTextLike = isTitle || isSticky || isAnnotation || isPlainText;
 
-  // 小节点里图标要让位给文字，按高度自适应；太矮就干脆不画，免得挤压标签
-  const showIcon = node.height >= 52 && !isTextLike;
+  // 小节点里图标要让位给文字，按高度自适应；太矮就干脆不画，免得挤压标签。
+  // 另外节点可以主动关图标（extJson.iconHidden，属性面板里的「无」）。
+  const showIcon = node.height >= 52 && !isTextLike && !isIconHidden(node);
   const iconSize = Math.max(14, Math.min(22, Math.round(node.height * 0.28)));
   const patchNode = useDiagramStore((s) => s.patchNode);
   // 右键菜单「编辑名称」通过 store 请求进入行内编辑
