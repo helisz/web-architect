@@ -5,6 +5,8 @@ import { SaveBanner } from './components/SaveBanner.js';
 import { StartupError } from './components/StartupError.js';
 import { StatusBar } from './components/StatusBar.js';
 import { TopBar } from './components/TopBar.js';
+import { Gallery } from './components/Gallery.js';
+import { VersionDialog } from './components/VersionDialog.js';
 import { PropertyPanel } from './components/PropertyPanel.js';
 import { supabaseConfig } from './lib/env.js';
 import { useAutosave, useBootstrap } from './data/usePersistence.js';
@@ -21,6 +23,9 @@ export default function App() {
   const selectedIds = useDiagramStore((s) => s.selectedIds);
   const booted = useDiagramStore((s) => s.booted);
   const bootError = useDiagramStore((s) => s.bootError);
+  const view = useDiagramStore((s) => s.view);
+  const versionOpen = useDiagramStore((s) => s.versionOpen);
+  const setVersionOpen = useDiagramStore((s) => s.setVersionOpen);
 
   useBootstrap();
   useShortcuts();
@@ -50,6 +55,8 @@ export default function App() {
     );
   }
 
+  if (view === 'gallery') return <Gallery />;
+
   return (
     <div className="flex h-full flex-col bg-[var(--canvas-bg)] text-[var(--text-primary)]">
       <TopBar />
@@ -61,6 +68,7 @@ export default function App() {
       </div>
       <StatusBar />
       <DeleteConfirmDialog />
+      {versionOpen && <VersionDialog onClose={() => setVersionOpen(false)} />}
     </div>
   );
 }

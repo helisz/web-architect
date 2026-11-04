@@ -1,13 +1,16 @@
 ﻿import { useCallback } from 'react';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import { exportFileName, parseImport, serializeDiagram } from '../data/transfer.js';
-import { downloadDataUrl, downloadText, renderPng } from '../export/exportPng.js';
+import { decodeSvgDataUrl, downloadBlob, downloadDataUrl, downloadText, renderPng, renderSvg } from '../export/exportPng.js';
+import { buildPdfFromPng, type PdfPageSize } from '../export/exportPdf.js';
+import { toEdgesCsv, toNodesCsv } from '../export/exportCsv.js';
 
 /**
  * 导出 / 导入（M3）。
  *
  * 导出 PNG 前会临时取消选中并把 DOM 刷两帧：选中态的加粗描边和 resize 手柄
- * 是画在节点里的，不先清掉就会被栅格化进图里。
+ * 是画在节点里的，不先清掉就会被栅格化进图里。SVG / PDF 走同一条渲染路径，
+ * 所以三种图片输出长得完全一样。
  */
 export function useTransfer() {
   const diagram = useDiagramStore((s) => s.diagram);
@@ -17,32 +20,92 @@ export function useTransfer() {
   const setSaveError = useDiagramStore((s) => s.setSaveError);
   const setNotice = useDiagramStore((s) => s.setNotice);
 
+  /** 文件名：带倍率时插在扩展名前面（图名@2x.png），别拼成 图名.png@2x */
+  const fileName = useCallback(
+    (ext: string, suffix = '') => {
+      const base = exportFileName(diagram, ext);
+      if (!suffix) return base;
+      const dot = base.lastIndexOf('.');
+      return `${base.slice(0, dot)}${suffix}${base.slice(dot)}`;
+    },
+    [diagram],
+  );
+
+  /** 导出前清掉选中态；返回"恢复选中"的收尾函数 */
+  const prepare = useCallback(async (): Promise<() => void> => {
+    const viewport = document.querySelector<HTMLElement>('.react-flow__viewport');
+    if (!viewport) throw new Error('找不到画布');
+    select(null);
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    return () => {
+      if (selectedId) select(selectedId);
+    };
+  }, [select, selectedId]);
+
   const exportJson = useCallback(() => {
     downloadText(serializeDiagram(diagram), exportFileName(diagram, 'json'));
   }, [diagram]);
 
-  const exportPng = useCallback(async () => {
-    const viewport = document.querySelector<HTMLElement>('.react-flow__viewport');
-    if (!viewport) {
-      setSaveError('找不到画布，无法导出 PNG');
-      return;
-    }
+  /** PNG：scale 为 1 / 2 / 3 倍像素密度 */
+  const exportPng = useCallback(
+    async (scale: 1 | 2 | 3 = 2) => {
+      let restore: (() => void) | null = null;
+      try {
+        restore = await prepare();
+        const viewport = document.querySelector<HTMLElement>('.react-flow__viewport')!;
+        const dataUrl = await renderPng(viewport, { margin: 40, pixelRatio: scale });
+        downloadDataUrl(dataUrl, fileName('png', scale === 1 ? '' : `@${scale}x`));
+      } catch (error) {
+        setSaveError(`导出 PNG 失败：${(error as Error).message}`);
+      } finally {
+        restore?.();
+      }
+    },
+    [diagram, fileName, prepare, setSaveError],
+  );
 
-    select(null);
-    // 等两帧：一帧让 React 提交"取消选中"，一帧让浏览器完成重绘
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-
+  const exportSvg = useCallback(async () => {
+    let restore: (() => void) | null = null;
     try {
-      const dataUrl = await renderPng(viewport, { margin: 40, pixelRatio: 2 });
-      downloadDataUrl(dataUrl, exportFileName(diagram, 'png'));
+      restore = await prepare();
+      const viewport = document.querySelector<HTMLElement>('.react-flow__viewport')!;
+      const dataUrl = await renderSvg(viewport, { margin: 40 });
+      // html-to-image 给的是 data URL，这里解回真正的 SVG 文本再落盘
+      const svg = decodeSvgDataUrl(dataUrl);
+      downloadBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), fileName('svg'));
     } catch (error) {
-      setSaveError(`导出 PNG 失败：${(error as Error).message}`);
+      setSaveError(`导出 SVG 失败：${(error as Error).message}`);
     } finally {
-      if (selectedId) select(selectedId);
+      restore?.();
     }
-  }, [diagram, select, selectedId, setSaveError]);
+  }, [diagram, prepare, setSaveError]);
+
+  const exportPdf = useCallback(
+    async (size: PdfPageSize = 'a4') => {
+      let restore: (() => void) | null = null;
+      try {
+        restore = await prepare();
+        const viewport = document.querySelector<HTMLElement>('.react-flow__viewport')!;
+        const png = await renderPng(viewport, { margin: 24, pixelRatio: 2 });
+        downloadBlob(await buildPdfFromPng(png, { size }), fileName('pdf'));
+      } catch (error) {
+        setSaveError(`导出 PDF 失败：${(error as Error).message}`);
+      } finally {
+        restore?.();
+      }
+    },
+    [diagram, prepare, setSaveError],
+  );
+
+  const exportCsv = useCallback(
+    (kind: 'nodes' | 'edges') => {
+      const csv = kind === 'nodes' ? toNodesCsv(diagram) : toEdgesCsv(diagram);
+      downloadText(csv, fileName('csv', kind === 'nodes' ? '-nodes' : '-edges'), 'text/csv');
+    },
+    [diagram, fileName],
+  );
 
   const importJson = useCallback(
     async (file: File) => {
@@ -63,7 +126,5 @@ export function useTransfer() {
     [setDiagram, setNotice],
   );
 
-  return { exportJson, exportPng, importJson };
+  return { exportJson, exportPng, exportSvg, exportPdf, exportCsv, importJson };
 }
-
-

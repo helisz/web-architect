@@ -58,7 +58,7 @@ export function TopBar() {
   const futureCount = useDiagramStore((s) => s.future.length);
   // 删除确认框弹着的时候不允许动历史
   const historyLocked = useDiagramStore((s) => s.pendingDelete !== null);
-  const { exportJson, exportPng, importJson } = useTransfer();
+  const { exportJson, exportPng, exportSvg, exportPdf, exportCsv, importJson } = useTransfer();
   const fileRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const layerOpen = useDiagramStore((s) => s.layerPanelOpen);
@@ -108,6 +108,22 @@ export function TopBar() {
           className="rounded border border-[var(--panel-border)] px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-40"
         >
           重做
+        </button>
+        <button
+          type="button"
+          onClick={() => useDiagramStore.getState().setVersionOpen(true)}
+          title="版本历史（快照与回滚）"
+          className="rounded border border-[var(--panel-border)] px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB]"
+        >
+          版本
+        </button>
+        <button
+          type="button"
+          onClick={() => useDiagramStore.getState().setView('gallery')}
+          title="图库（所有架构图）"
+          className="rounded border border-[var(--panel-border)] px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB]"
+        >
+          图库
         </button>
         <EdgeSettings />
         <button
@@ -161,29 +177,86 @@ export function TopBar() {
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 z-30 mt-1 w-40 overflow-hidden rounded-md border border-[var(--panel-border)] bg-white shadow-md"
+              className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-md border border-[var(--panel-border)] bg-white py-1 shadow-md"
               onMouseLeave={() => setMenuOpen(false)}
             >
-              <button
-                type="button"
-                className="block w-full px-3 py-2 text-left text-xs hover:bg-[#F3F4F6]"
+              <MenuLabel>工程文件</MenuLabel>
+              <MenuItem
                 onClick={() => {
                   setMenuOpen(false);
                   exportJson();
                 }}
               >
                 导出 JSON
-              </button>
-              <button
-                type="button"
-                className="block w-full px-3 py-2 text-left text-xs hover:bg-[#F3F4F6]"
-                onClick={async () => {
+              </MenuItem>
+
+              <MenuLabel>图片</MenuLabel>
+              <MenuItem
+                onClick={() => {
                   setMenuOpen(false);
-                  await exportPng();
+                  void exportPng(1);
                 }}
               >
-                导出 PNG（2×）
-              </button>
+                导出 PNG（1×）
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  void exportPng(2);
+                }}
+              >
+                导出 PNG（2×，推荐）
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  void exportPng(3);
+                }}
+              >
+                导出 PNG（3×）
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  void exportSvg();
+                }}
+              >
+                导出 SVG
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  void exportPdf('a4');
+                }}
+              >
+                导出 PDF（A4 横向）
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  void exportPdf('a3');
+                }}
+              >
+                导出 PDF（A3 横向）
+              </MenuItem>
+
+              <MenuLabel>清单</MenuLabel>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  exportCsv('nodes');
+                }}
+              >
+                导出节点 CSV
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  exportCsv('edges');
+                }}
+              >
+                导出连线 CSV
+              </MenuItem>
             </div>
           )}
         </div>
@@ -193,3 +266,25 @@ export function TopBar() {
 }
 
 
+
+/** 导出菜单的分组标题 */
+function MenuLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-3 pb-0.5 pt-1.5 text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">
+      {children}
+    </p>
+  );
+}
+
+/** 导出菜单项 */
+function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="block w-full px-3 py-1.5 text-left text-xs hover:bg-[#F3F4F6]"
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}

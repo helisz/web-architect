@@ -1,4 +1,4 @@
-import {
+﻿import {
   TABLES,
   assembleDiagram,
   parseDiagram,
@@ -12,6 +12,7 @@ import {
 } from '@arch/schema';
 import { supabase } from '../lib/supabase.js';
 import type { PayloadPatch } from './payloadDiff.js';
+import { reissueIds } from './transfer.js';
 
 /**
  * 数据访问层：浏览器 → Supabase PostgREST。
@@ -110,6 +111,54 @@ export async function loadDiagram(diagramId: string): Promise<LoadedDiagram> {
 /** 新建一张空图的数据库记录 —— 现在统一走 saveDiagram（baseVersion = null 即插入） */
 export async function createDiagram(diagram: ArchitectureDiagram): Promise<SaveResult> {
   return saveDiagram(diagram, null);
+}
+
+/* ------------------------------------------------------------------ */
+/* 图库（阶段 3）：改名 / 复制 / 删除                                    */
+/* ------------------------------------------------------------------ */
+
+/** 改名只动主表一行，不碰三张子表 */
+export async function renameDiagram(diagramId: string, name: string): Promise<void> {
+  const { error } = await client()
+    .from(TABLES.diagram)
+    .update({ name: name.trim() || '未命名架构图' })
+    .eq('diagram_id', diagramId);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * 复制一张图：读出整图 → 换一套 id → 存成新图。
+ *
+ * 换 id 是必须的：主键冲突会被当作 update，把原图覆盖掉。
+ */
+export async function duplicateDiagram(diagramId: string): Promise<{ diagramId: string; name: string }> {
+  const loaded = await loadDiagram(diagramId);
+  const withNewIds = reissueIds({
+    ...loaded.diagram,
+    diagramId: '', // 由 createEmptyDiagram 的规则重编，见下
+  } as ArchitectureDiagram);
+
+  const copy = {
+    ...withNewIds,
+    diagramId: crypto.randomUUID(),
+    name: `${loaded.diagram.name || '架构图'} 副本`,
+    version: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as ArchitectureDiagram;
+
+  const saved = await saveDiagram(copy, null);
+  if (!saved.ok) throw new Error(saved.message);
+  return { diagramId: copy.diagramId, name: copy.name };
+}
+
+/** 删除 = 软删主表（子表留着，便于以后做恢复）；误删也能从快照回滚 */
+export async function deleteDiagram(diagramId: string): Promise<void> {
+  const { error } = await client()
+    .from(TABLES.diagram)
+    .update({ is_deleted: true })
+    .eq('diagram_id', diagramId);
+  if (error) throw new Error(error.message);
 }
 
 /* ------------------------------------------------------------------ */

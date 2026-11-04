@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { create } from 'zustand';
 import {
   EDGE_DEFAULTS,
@@ -182,6 +182,12 @@ interface DiagramStore {
 
   /** 解组：只拆这一层，子分组与节点提升到上一层（内容全留） */
   ungroup: (groupId: string) => void;
+
+  /** 版本历史抽屉 / 图库视图 */
+  versionOpen: boolean;
+  setVersionOpen: (open: boolean) => void;
+  view: 'canvas' | 'gallery';
+  setView: (view: 'canvas' | 'gallery') => void;
 
   /** Ctrl+F 搜索面板 / 图层面板开关 */
   searchOpen: boolean;
@@ -817,6 +823,11 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
 
   editRequestId: null,
   requestEdit: (editRequestId) => set({ editRequestId }),
+
+  versionOpen: false,
+  setVersionOpen: (versionOpen) => set({ versionOpen }),
+  view: 'canvas',
+  setView: (view) => set({ view }),
 
   searchOpen: false,
   setSearchOpen: (searchOpen) => set({ searchOpen }),

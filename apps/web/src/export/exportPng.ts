@@ -1,4 +1,4 @@
-import { toPng } from 'html-to-image';
+import { toPng, toSvg } from 'html-to-image';
 
 /**
  * PNG 导出（规格 §6.2）。
@@ -98,6 +98,55 @@ export async function renderPng(viewport: HTMLElement, options: PngOptions = {})
   });
 }
 
+/**
+ * SVG 导出（矢量）。
+ *
+ * 用 html-to-image 的 `toSvg` 序列化画布 DOM：节点是 HTML（含 foreignObject），
+ * 这样"导出的 SVG 与画布长得一样"，浏览器 / Figma / Illustrator 都能打开。
+ */
+export async function renderSvg(viewport: HTMLElement, options: PngOptions = {}): Promise<string> {
+  const { margin = 40, transparent = false } = options;
+
+  const bounds = measureContentBounds(viewport);
+  if (!bounds) throw new Error(EMPTY_EXPORT_ERROR);
+
+  const frame = frameFromBounds(bounds, margin);
+
+  return toSvg(viewport, {
+    width: frame.width,
+    height: frame.height,
+    backgroundColor: transparent ? undefined : '#FFFFFF',
+    style: {
+      width: `${frame.width}px`,
+      height: `${frame.height}px`,
+      transform: frame.transform,
+      transformOrigin: 'top left',
+    },
+    filter: (domNode) => {
+      const className = (domNode as HTMLElement).className;
+      if (typeof className !== 'string') return true;
+      return !/react-flow__(background|panel|attribution)/.test(className);
+    },
+  });
+}
+
+/**
+ * html-to-image 的 SVG 输出是 data URL，落盘前要还原成真正的 SVG 文本：
+ * 直接把 data URL 写进 .svg 文件，打开会是空白。
+ */
+export function decodeSvgDataUrl(dataUrl: string): string {
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) return dataUrl;
+  const body = dataUrl.slice(comma + 1);
+  // 未编码的明文（含 <svg）直接用；否则 decodeURIComponent
+  if (body.trimStart().startsWith('<svg')) return body;
+  try {
+    return decodeURIComponent(body);
+  } catch {
+    return body;
+  }
+}
+
 /** 触发浏览器下载（dataURL 版本，PNG 用这个） */
 export function downloadDataUrl(dataUrl: string, fileName: string): void {
   const link = document.createElement('a');
@@ -106,6 +155,13 @@ export function downloadDataUrl(dataUrl: string, fileName: string): void {
   document.body.appendChild(link);
   link.click();
   link.remove();
+}
+
+/** 触发浏览器下载（Blob 版本，SVG / PDF / CSV 用这个） */
+export function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  downloadDataUrl(url, fileName);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 /** 触发浏览器下载（文本版本，JSON 用这个） */
