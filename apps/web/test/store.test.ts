@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createEmptyDiagram, createGroup, createNode } from '@arch/schema';
 import { useDiagramStore } from '../src/store/useDiagramStore.js';
 
@@ -105,6 +105,34 @@ describe('多选与删除', () => {
     store().undo();
     expect(store().diagram.nodes).toHaveLength(1);
     expect(store().diagram.nodes[0]?.nodeId).toBe(a.nodeId);
+  });
+});
+
+describe('撤销栈与服务端版本', () => {
+  it('保存成功后再撤销，版本号不倒退（否则下次保存会被判成假冲突）', () => {
+    const a = store().addNode('waf', { x: 0, y: 0 });
+    // 模拟服务端回到 v42
+    store().applySaved(42, new Date().toISOString());
+    expect(store().diagram.version).toBe(42);
+
+    store().patchNode(a.nodeId, { label: '改个名' });
+    store().applySaved(43, new Date().toISOString());
+    store().undo();
+
+    expect(store().diagram.nodes[0]?.label).toBe('WAF');
+    // 内容回放了，但版本号必须还是服务端最新的 43
+    expect(store().diagram.version).toBe(43);
+  });
+
+  it('重做同样不带历史版本号', () => {
+    const a = store().addNode('waf', { x: 0, y: 0 });
+    store().applySaved(7, new Date().toISOString());
+    store().patchNode(a.nodeId, { label: '甲' });
+    store().applySaved(8, new Date().toISOString());
+    store().undo();
+    store().redo();
+    expect(store().diagram.nodes[0]?.label).toBe('甲');
+    expect(store().diagram.version).toBe(8);
   });
 });
 

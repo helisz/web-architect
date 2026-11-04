@@ -1,4 +1,4 @@
-﻿import { LIMITS, NODE_DEFAULTS, EDGE_DEFAULTS, GROUP_DEFAULTS, TOKENS } from './constants.js';
+﻿import { LIMITS, NODE_DEFAULTS, EDGE_DEFAULTS, GROUP_DEFAULTS, TOKENS, CLEAR_COLOR, CLEAR_COLORS } from './constants.js';
 import { NODE_TYPES } from './types.js';
 import { rectContainsRect, rectsIntersect } from './geometry.js';
 import { iconKeyFor, isIconKey, looksLikeEmbeddedImage } from './icons.js';
@@ -110,6 +110,14 @@ const DEFAULTS_BY_KIND = {
 function repairStructure(input: ArchitectureDiagram, ctx: Ctx): ArchitectureDiagram {
   const clone = structuredClone(input);
   const fixColor = (value: unknown, fallback: string, path: string): string => {
+    /**
+     * "清除背景 / 清除边框"在 UI 上是一个「透明」格，但 Schema 只收 #RRGGBB(AA)，
+     * 所以这一格落到数据里必须是全透明的 #00000000。旧数据里写成 `transparent`
+     * （或 CSS 的 `none`）的，在这里一次性换成合法值，避免保存被校验器拒掉。
+     */
+    if (typeof value === 'string' && CLEAR_COLORS.includes(value.trim().toLowerCase())) {
+      return CLEAR_COLOR;
+    }
     if (typeof value === 'string' && COLOR_RE.test(value)) return value;
     warn(ctx, path, 'COLOR_REPAIRED', `非法颜色已回填默认值 ${fallback}`);
     return fallback;
@@ -411,5 +419,6 @@ export function groupContainsNode(group: DiagramGroup, node: DiagramNode): boole
     height: node.height,
   });
 }
+
 
 

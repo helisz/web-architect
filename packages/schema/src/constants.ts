@@ -1,4 +1,4 @@
-﻿import type { Anchor, NodeType } from './types.js';
+import type { Anchor, NodeType } from './types.js';
 
 /* ------------------------------------------------------------------ */
 /* 规模与字段约束（规格 §6.3 / §6.4）                                   */
@@ -103,6 +103,16 @@ export const ZONE_PALETTES: ZonePalette[] = [
   { key: 'intranet', label: 'INTRANET', bgColor: '#EFF6FF', borderColor: '#BFDBFE', titleColor: '#1E3A8A' },
   { key: 'external', label: 'EXTERNAL', bgColor: '#FFF7ED', borderColor: '#FED7AA', titleColor: '#9A3412' },
 ];
+
+/**
+ * 色板里「清除背景 / 清除边框」那一格在数据里的值。
+ *
+ * Schema 只收 `#RRGGBB` / `#RRGGBBAA`（规格 §6.4 V5），所以透明不能写成 CSS 的
+ * `transparent`，统一用全透明黑 `#00000000`：渲染上是透明，落库和导出都是合法十六进制。
+ */
+export const CLEAR_COLOR = '#00000000';
+/** 旧数据 / 手写 JSON 里可能出现的"透明"写法，读入时统一换成 {@link CLEAR_COLOR} */
+export const CLEAR_COLORS = ['transparent', 'none', 'clear'];
 
 /** 新建连线 / 新建分组的默认样式 */
 export const EDGE_DEFAULTS = {

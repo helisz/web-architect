@@ -130,6 +130,29 @@ describe('V5 颜色', () => {
     expect(r.diagram!.nodes[0]!.bgColor).toMatch(/^#[0-9a-fA-F]{6}$/);
     expect(warnCodes(r)).toContain('COLOR_REPAIRED');
   });
+
+  /* 色板上的「清除背景 / 清除边框」不能把 CSS 的 transparent 写进数据 */
+  it('repair 时把 transparent / none 归一成 #00000000（不算非法色）', () => {
+    const d = clone();
+    d.nodes[0]!.bgColor = 'transparent';
+    d.nodes[0]!.borderColor = 'none';
+    d.groups[0]!.bgColor = 'TRANSPARENT';
+    const r = validateDiagram(d, { repair: true });
+    expect(r.ok).toBe(true);
+    expect(r.diagram!.nodes[0]!.bgColor).toBe('#00000000');
+    expect(r.diagram!.nodes[0]!.borderColor).toBe('#00000000');
+    expect(r.diagram!.groups[0]!.bgColor).toBe('#00000000');
+    // 归一不算"回填默认值"，不该冒 COLOR_REPAIRED 噪音
+    expect(warnCodes(r)).not.toContain('COLOR_REPAIRED');
+  });
+
+  it('不 repair 时 transparent 仍然被拒（提醒调用方先归一）', () => {
+    const d = clone();
+    d.nodes[0]!.bgColor = 'transparent';
+    const r = validateDiagram(d);
+    expect(r.ok).toBe(false);
+    expect(r.errors.some((e) => e.path === 'nodes[0].bgColor')).toBe(true);
+  });
 });
 
 describe('V6 数值有限性', () => {

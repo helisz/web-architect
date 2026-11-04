@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import {
   EDGE_DEFAULTS,
@@ -866,12 +866,19 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
     }),
 
   /* —— 命令栈 —— */
+  /**
+   * 撤销 / 重做只回放"用户改的东西"。
+   *
+   * `version` 是服务端账本字段：历史快照里存的是当时的值，如果跟着回放，
+   * "保存成功 → 撤销"会拿着旧版本号去提交，服务端按版本冲突（409）拒掉 —— 假冲突。
+   * 所以这里一律沿用当前版本号。
+   */
   undo: () =>
     set((s) => {
       const previous = s.past[s.past.length - 1];
       if (!previous) return s;
       return {
-        diagram: previous,
+        diagram: { ...previous, version: s.diagram.version },
         past: s.past.slice(0, -1),
         future: [s.diagram, ...s.future].slice(0, HISTORY_LIMIT),
         selectedId: keepValidSelection(previous, s.selectedId),
@@ -886,7 +893,7 @@ export const useDiagramStore = create<DiagramStore>()((set, get) => ({
       const next = s.future[0];
       if (!next) return s;
       return {
-        diagram: next,
+        diagram: { ...next, version: s.diagram.version },
         past: [...s.past, s.diagram].slice(-HISTORY_LIMIT),
         future: s.future.slice(1),
         selectedId: keepValidSelection(next, s.selectedId),

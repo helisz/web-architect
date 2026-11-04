@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
@@ -143,6 +143,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
           { scope: 'bg', value: group.bgColor, onChange: (value) => patchGroup(group.groupId, { bgColor: value }) },
           { scope: 'line', value: group.borderColor, onChange: (value) => patchGroup(group.groupId, { borderColor: value }) },
         ]}
+        kind="group"
       />
 
       <label className="mb-3 flex items-center gap-2 text-[13px]">
@@ -351,6 +352,7 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
         targets={[
           { scope: 'edge', value: edge.strokeColor, onChange: (strokeColor) => patch(edge.edgeId, { strokeColor }) },
         ]}
+        kind="edge"
       />
 
       <div className="mb-3 flex gap-2">
@@ -417,6 +419,8 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
     </div>
   );
 }
+
+
 
 
 

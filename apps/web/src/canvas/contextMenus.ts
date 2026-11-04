@@ -1,4 +1,5 @@
 ﻿import {
+  CLEAR_COLOR,
   COMPONENT_CATEGORIES,
   EDGE_DEFAULTS,
   NODE_DEFAULTS,
@@ -43,7 +44,8 @@ const GROUP_TINTS: { label: string; bg: string; border: string }[] = [
   { label: '浅蓝', bg: '#C5D2EC', border: '#64A5FF' },
   { label: '浅绿', bg: '#B7EDB1', border: '#39B54A' },
   { label: '浅紫', bg: '#E0D9F2', border: '#9D65E0' },
-  { label: '透明', bg: 'transparent', border: '#E5E6EB' },
+  // 透明也必须写成 #RRGGBBAA：Schema 只认十六进制，CSS 的 `transparent` 会被校验器拒掉
+  { label: '透明', bg: CLEAR_COLOR, border: '#E5E6EB' },
 ];
 
 /** 新节点落在右键位置（居中） */
@@ -352,3 +354,4 @@ export function buildGroupMenu(group: DiagramGroup): MenuNode[] {
     { kind: 'item', label: '置底', onSelect: () => useDiagramStore.getState().sendToBack([group.groupId]) },
   ];
 }
+
