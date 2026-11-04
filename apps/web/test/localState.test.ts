@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createEmptyDiagram, createNode, parseDiagram } from '@arch/schema';
 
 /**
  * localStorage 桩：项目测试跑在 node 环境，没有 localStorage。
@@ -90,5 +91,28 @@ describe('视口本地记忆', () => {
   it('没有记录时返回 null，调用方回落到库里的视口', () => {
     expect(readLocalViewport('dg-3')).toBeNull();
     clearLocalViewport('dg-3');
+  });
+});
+describe('脏草稿不能污染当前图（用户 2026-11-05：节点莫名消失）', () => {
+  it('历史 bug 的草稿（节点 id 是 undefined）会被 schema 拦下', () => {
+    const diagram = createEmptyDiagram({ name: '脏草稿' });
+    const poisoned = {
+      ...diagram,
+      nodes: [
+        // 故意造一个 id 丢失的节点 —— 就是粘贴 bug 当年写进草稿的样子
+        { ...createNode('waf', diagram.diagramId, { x: 0, y: 0 }), nodeId: undefined as unknown as string },
+      ],
+    };
+    const result = parseDiagram(poisoned);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.some((e) => /nodeId/.test(e.path))).toBe(true);
+    }
+  });
+
+  it('干净草稿仍然能通过（别把正常草稿一起丢掉）', () => {
+    const diagram = createEmptyDiagram({ name: '干净草稿' });
+    diagram.nodes.push(createNode('waf', diagram.diagramId, { x: 0, y: 0 }));
+    expect(parseDiagram(diagram).success).toBe(true);
   });
 });

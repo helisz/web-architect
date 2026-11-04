@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ArchitectureDiagram } from '@arch/schema';
+import { parseDiagram } from '@arch/schema';
 import { loadDiagram, patchDiagram, saveDiagram, toSavePayload, type SaveResult } from './diagramRepo.js';
 import { diffPayload, isEmpty, type SavePayload } from './payloadDiff.js';
 import { clearDraft, readDraft, saveDraft } from './draft.js';
@@ -84,7 +85,15 @@ export function useRouteDiagram(route: Route, enabled = true): void {
          */
         let restoredDraft: { at: number } | null = null;
         const draft = readDraft(loaded.diagram.diagramId);
-        if (draft && draft.version === loaded.diagram.version) {
+        // 草稿必须先过 schema：脏草稿（比如历史 bug 留下的 undefined id）一旦恢复，
+        // 就会让之后每次保存都被 Zod 拦下 —— 表现成"节点白改了、刷新就没了"。
+        // 宁可丢掉这份草稿，也不能让它污染当前这张图。
+        const draftValid = draft ? parseDiagram(draft.diagram) : null;
+        if (draft && draftValid && !draftValid.success) {
+          console.warn('[arch] 本地草稿不合法，已丢弃：', draftValid.errors.slice(0, 3));
+          clearDraft(loaded.diagram.diagramId);
+        }
+        if (draft && draftValid?.success && draft.version === loaded.diagram.version) {
           const differences = diffPayload(toSavePayload(loaded.diagram), toSavePayload(draft.diagram));
           if (!isEmpty(differences)) {
             restoredDraft = { at: draft.at };

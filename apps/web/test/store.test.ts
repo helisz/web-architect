@@ -265,3 +265,52 @@ describe('分组锁定（extJson.locked，用户 2026-11-04）', () => {
     expect(isGroupLocked(next)).toBe(true);
   });
 });
+describe('粘贴出来的 id 必须全是新字符串（用户 2026-11-05：nodes[n].nodeId undefined）', () => {
+  it('复制普通节点（没有任何分组）后，新节点拿到全新的 nodeId', () => {
+    useDiagramStore.getState().setEditLocked(false);
+    const fresh = createEmptyDiagram({ name: '粘贴测试' });
+    useDiagramStore.setState({ diagram: fresh, booted: true, bootError: null, persisted: true });
+    store().addNode('waf', { x: 10, y: 10 });
+
+    const original = store().diagram.nodes[0]!;
+    store().updateSelection([original.nodeId], []);
+    store().copySelection();
+    store().pasteClipboard();
+
+    const nodes = store().diagram.nodes;
+    expect(nodes).toHaveLength(2);
+    for (const node of nodes) {
+      expect(typeof node.nodeId).toBe('string');
+      expect(node.nodeId.length).toBeGreaterThan(0);
+    }
+    expect(nodes[1]!.nodeId).not.toBe(original.nodeId);
+  });
+
+  it('连续粘贴 5 次：id 不重复、连线两端都指向存在的节点', () => {
+    useDiagramStore.getState().setEditLocked(false);
+    const fresh = createEmptyDiagram({ name: '连续粘贴' });
+    useDiagramStore.setState({ diagram: fresh, booted: true, bootError: null, persisted: true });
+
+    const a = store().addNode('waf', { x: 10, y: 10 });
+    const b = store().addNode('server', { x: 200, y: 10 });
+    store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
+
+    store().updateSelection([a.nodeId, b.nodeId], [store().diagram.edges[0]!.edgeId]);
+    store().copySelection();
+    for (let i = 0; i < 5; i += 1) store().pasteClipboard();
+
+    const nodes = store().diagram.nodes;
+    const ids = nodes.map((n) => n.nodeId);
+    expect(nodes).toHaveLength(12); // 2 + 5×2
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.every((id) => typeof id === 'string' && id.length > 0)).toBe(true);
+
+    // 连线只连存在的端点（粘出来的边不能指向 undefined / 原节点以外的东西）
+    const known = new Set([...ids, ...store().diagram.groups.map((g) => g.groupId)]);
+    for (const edge of store().diagram.edges) {
+      expect(known.has(edge.sourceNodeId)).toBe(true);
+      expect(known.has(edge.targetNodeId)).toBe(true);
+    }
+    expect(store().diagram.edges).toHaveLength(6); // 1 + 5
+  });
+});

@@ -9,10 +9,10 @@ import type { ArchitectureDiagram, DiagramGroup, DiagramNode, Point } from './ty
  * 绝不写回 Schema。
  */
 
-/** 折叠后只留标题栏的高度（px）：标题 16 + 副文本两行 2×13 + 上边距 4（2026-11-04 第二批） */
-export const GROUP_HEADER_HEIGHT = 46;
-/** 只有一行标题时的标题栏高度（用户 2026-11-04：通用分组不显示副文本，高度按一行算） */
-export const GROUP_HEADER_HEIGHT_SINGLE = 32;
+/** 标题栏高度（带副文本，px）：上边距 2 + 标题 16 + 副文本两行 2×10（用户 2026-11-04 第二批） */
+export const GROUP_HEADER_HEIGHT = 38;
+/** 只有一行标题时的标题栏高度（通用分组不显示副文本）：上边距 4 + 标题 16 + 余量 4 */
+export const GROUP_HEADER_HEIGHT_SINGLE = 24;
 /** 最多 3 层（顶层组算第 1 层） */
 export const MAX_GROUP_DEPTH = 3;
 

@@ -936,8 +936,22 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
       const sourceGroups = s.diagram.groups;
       const copiedGroupIds = new Set(clip.groups.map((g) => g.groupId));
 
-      // 1) 先把所有分组的 id 分配好 —— 子分组可能排在父分组前面，一趟内查不到父 id
+      // 1) 先把所有分组和节点的 id 分配好 —— 子分组可能排在父分组前面，一趟内查不到父 id；
+      //    节点也必须在这里登记，否则下面 nodeId 取不到值会变成 undefined，
+      //    库里校验直接报 `nodes[n].nodeId: expected string, received undefined`（用户 2026-11-05 反馈）。
       for (const g of clip.groups) idMap.set(g.groupId, newId());
+      for (const n of clip.nodes) idMap.set(n.nodeId, newId());
+      /*
+       * 兜底：id 表必须覆盖剪贴板里的每一个元素。
+       * 少一个，粘出来就带 undefined 的 id —— 画面上不一定马上看得出来，
+       * 等保存 / 导出时才被 Zod 拦下（`nodes[n].nodeId: expected string`），
+       * 那时已经进了草稿，表现成"节点莫名消失"。宁可在这里响亮地报错。
+       */
+      for (const item of [...clip.groups, ...clip.nodes]) {
+        // 注意先判 nodeId：节点也有 groupId 字段，用 'groupId' in item 会误判成组
+        const key = 'nodeId' in item ? item.nodeId : item.groupId;
+        if (!key || !idMap.has(key)) throw new Error(`粘贴失败：${key || '(空 id)'} 没有分配到新 id`);
+      }
 
       /*
        * 2) 位移规则：父分组**也被复制**时保持局部坐标（跟着父一起平移），

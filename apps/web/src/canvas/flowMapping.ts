@@ -49,7 +49,7 @@ export type ArchFlowEdge = Edge<ArchEdgeData, 'archEdge'>;
 
 /** 组折叠后只显示标题栏；Schema 里的 height 仍是展开高度（C9），不能改 */
 export function displayGroupHeight(group: DiagramGroup): number {
-  // 折叠后只剩标题栏：单行分组 32px，带副文本的 42px
+  // 折叠后只剩标题栏：不带副文本 24px，带副文本 38px（与 SwimlaneNode 的标题栏一致）
   return group.collapsed ? groupHeaderHeight(group) : group.height;
 }
 

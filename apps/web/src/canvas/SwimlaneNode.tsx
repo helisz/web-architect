@@ -34,7 +34,6 @@ const POSITION: Record<Anchor, Position> = {
 function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
   const group = data.group;
   const patchGroup = useDiagramStore((s) => s.patchGroup);
-  const toggleGroupCollapsed = useDiagramStore((s) => s.toggleGroupCollapsed);
   const editRequestId = useDiagramStore((s) => s.editRequestId);
   const highlighted = useDiagramStore((s) => s.highlightId === group.groupId);
   const requestEdit = useDiagramStore((s) => s.requestEdit);
@@ -91,9 +90,10 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
         handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--primary)] !bg-white"
       />
 
-      {/* 标题栏：拖动组、改名、折叠都在这里；折叠三角固定在标题栏最右边。
-          两行（名称 + 副文本），图标与**第一行**顶部对齐（items-start）；
-          通用分组（singleLine）不给副文本，高度回到一行的 32px。 */}
+      {/* 标题栏：拖动组、改名都在这里。折叠三角已移除（用户 2026-11-04 第四批：
+          标题栏只要名称 + 副文本，不再放按钮）；折叠仍可从属性面板和右键菜单操作。
+          高度：带副文本 38px（上边距 2 + 标题 16 + 副文本两行 2×10），
+          不带副文本的通用分组 24px。 */}
       <div
         className="flex items-start gap-1.5 rounded-t-lg px-2"
         style={{
@@ -105,7 +105,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
         {editing ? (
           <input
             ref={inputRef}
-            className="nodrag nopan mt-1.5 w-40 rounded border border-[var(--primary)] bg-white px-1 text-xs outline-none"
+            className="nodrag nopan mt-1 w-40 rounded border border-[var(--primary)] bg-white px-1 text-xs outline-none"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
@@ -124,10 +124,10 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
               <NodeIcon
                 iconKey={resolveIconKey({ nodeType: 'group', extJson: group.extJson })}
                 size={14}
-                className="mt-[5px] shrink-0 opacity-70"
+                className={`${showSubLabel ? 'mt-[3px]' : 'mt-[5px]'} shrink-0 opacity-70`}
               />
             )}
-            <div className="min-w-0 flex-1 pt-[4px]">
+            <div className={`min-w-0 flex-1 ${showSubLabel ? 'pt-[2px]' : 'pt-[4px]'}`}>
               <div
                 className="truncate text-xs font-medium leading-[16px]"
                 onDoubleClick={(e) => {
@@ -139,7 +139,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
               </div>
               {/* 副文本：10px 等宽、允许回车换行，固定高度里最多显示两行 */}
               {showSubLabel && (
-                <div className="mono line-clamp-2 whitespace-pre-line break-words text-[10px] leading-[13px] opacity-60">
+                <div className="mono line-clamp-2 whitespace-pre-line break-words text-[10px] leading-[10px] opacity-60">
                   {group.subLabel}
                 </div>
               )}
@@ -147,8 +147,8 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           </>
         )}
 
-        {/* 锁定的分组不显示折叠三角（用户 2026-11-04），顺带给出一个小锁标记 */}
-        {locked ? (
+        {/* 锁定的分组留一个小锁标记（三角按钮已移除，这个只是状态提示） */}
+        {locked && (
           <span
             className="ml-auto mt-[3px] shrink-0 text-[10px] leading-4 opacity-50"
             title="分组已锁定"
@@ -156,18 +156,6 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           >
             🔒
           </span>
-        ) : (
-          <button
-            type="button"
-            className="nodrag mt-[3px] ml-auto grid h-4 w-4 shrink-0 place-items-center rounded hover:bg-black/5"
-            title={group.collapsed ? '展开分组' : '折叠分组'}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleGroupCollapsed(group.groupId);
-            }}
-          >
-            {group.collapsed ? '▸' : '▾'}
-          </button>
         )}
       </div>
 
