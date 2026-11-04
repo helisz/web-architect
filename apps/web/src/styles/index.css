@@ -87,6 +87,10 @@ body {
   border-radius: 6px;
 }
 .arch-handle-dot {
+  /* 必须显式 block：手柄本体是 block 容器，<span> 默认 inline 时 width/height 不生效，
+     圆点会塌成"只有边框的一根竖条"（高 = 行高 23px、宽 = 2×border）。
+     手柄正好 8×8，圆点同为 8×8 并贴左上角，视觉上就是居中的小方块。 */
+  display: block;
   width: 8px;
   height: 8px;
   border-radius: 2px;
