@@ -137,7 +137,8 @@ export default function App() {
       {guest && <GuestBanner />}
       <TopBar />
       <SaveBanner />
-      <div className="flex min-h-0 flex-1">
+      {/* relative：组件库收起时那颗手柄要贴在内容区左边缘上（不留白色占位框） */}
+      <div className="relative flex min-h-0 flex-1">
         <ComponentPanel />
         <Canvas />
         {selectedIds.length > 0 ? <PropertyPanel /> : versionOpen && <VersionPanel onClose={() => setVersionOpen(false)} />}

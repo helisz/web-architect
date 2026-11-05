@@ -121,35 +121,44 @@ export function ComponentPanel() {
   /**
    * 收起/展开手柄（用户 2026-11-05 定稿）。
    *
-   * 贴在面板右边框上的一颗竖向圆角手柄，半颗压在边框上、半颗悬在画布上：
-   * - 平时只有 12px 宽（低调），`hover` 时展开到 24px（好点）；高度固定 56px；
-   * - 垂直位置取整个界面的正中（`top-1/2`），不跟着内容走。
-   * 面板收起后只留窄边 + 同一位置的手柄，不再有任何文字。
+   * 展开态：贴在面板右边框上的竖向圆角手柄，半颗压边框、半颗悬画布；
+   * 收起态：面板整块不渲染（用户要求：别留白色窄框），只在画布左边缘露出同一颗手柄，
+   *         左半边贴边、右边圆角，像从屏幕边上抽出来的拉手。
+   * 两态都是：平时 12px 宽、`hover` 24px、高 56px、垂直居中。
    */
-  const handle = (nextOpen: boolean, label: string, glyph: string) => (
+  const handleClass =
+    'grid h-14 w-3 place-items-center overflow-hidden bg-white text-[12px] leading-none text-[var(--text-secondary)] shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-[width,color,border-color] duration-150 hover:w-6 hover:border-[var(--primary)] hover:text-[var(--primary)]';
+
+  const expandTab = (
     <button
       type="button"
-      title={label}
-      aria-label={label}
-      aria-expanded={!nextOpen}
-      onClick={() => setOpen(nextOpen)}
-      className="absolute right-0 top-1/2 z-10 grid h-14 w-3 -translate-y-1/2 translate-x-1/2 place-items-center overflow-hidden rounded-full border border-[var(--panel-border)] bg-white text-[12px] leading-none text-[var(--text-secondary)] shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-[width,color,border-color] duration-150 hover:w-6 hover:border-[var(--primary)] hover:text-[var(--primary)]"
+      title="展开组件库"
+      aria-label="展开组件库"
+      aria-expanded={false}
+      onClick={() => setOpen(true)}
+      className={`absolute left-0 top-1/2 z-20 -translate-y-1/2 rounded-r-full border border-l-0 border-[var(--panel-border)] ${handleClass}`}
     >
-      {glyph}
+      ›
     </button>
   );
 
   if (!open) {
-    return (
-      <aside className="relative flex w-7 shrink-0 border-r border-[var(--panel-border)] bg-[var(--panel-bg)]">
-        {handle(true, '展开组件库', '›')}
-      </aside>
-    );
+    // 不留任何占位：面板收起时画布直接顶到窗口左边，只剩这颗手柄浮在上面
+    return expandTab;
   }
 
   return (
     <aside className="relative flex w-60 shrink-0 flex-col border-r border-[var(--panel-border)] bg-[var(--panel-bg)]">
-      {handle(false, '收起组件库', '‹')}
+      <button
+        type="button"
+        title="收起组件库"
+        aria-label="收起组件库"
+        aria-expanded
+        onClick={() => setOpen(false)}
+        className={`absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 rounded-full border border-[var(--panel-border)] ${handleClass}`}
+      >
+        ‹
+      </button>
       {/* 搜索框去掉外框（用户 2026-11-05）：只留一条细分隔线，输入时文字本身给反馈 */}
       <div className="border-b border-[var(--panel-border)] px-2 py-1.5">
         <input
