@@ -105,6 +105,8 @@ export default function App() {
       <>
         {guest && <GuestBanner />}
         <Gallery />
+        {/* AI 模型配置在画廊也要能用（用户 2026-11-05：解析入口在图库） */}
+        <AiConfigDialog />
         <ToastHost />
         {importOpen && <GuestImportDialog onClose={() => setImportOpen(false)} />}
       </>
