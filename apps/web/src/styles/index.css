@@ -115,6 +115,15 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
+/* 空白画布用标准箭头（用户 2026-11-05）。
+   开了 selectionOnDrag 之后 React Flow 会给 pane 加 .selection 类并设 cursor: pointer，
+   于是鼠标停在啥都没有的画布上也是个"手"，看着像有什么可点。这里按用户要求改回箭头；
+   拖动模式（panOnDrag）仍由 RF 自己的 .draggable / .dragging 给 grab / grabbing，
+   节点上的 grab、连线上的 pointer 都不受影响。 */
+.react-flow__pane.selection {
+  cursor: default;
+}
+
 /* 属性面板里的图标候选行：20 个 28px 按钮约 640px，面板只有 240px。
    以前把滚动条藏起来了，桌面端根本看不出还能往右滚 —— 现在给一条细的。 */
 .arch-hscroll {
