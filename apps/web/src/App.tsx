@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Canvas } from './canvas/Canvas.js';
 import { ComponentPanel } from './components/ComponentPanel.js';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog.js';
@@ -12,7 +12,7 @@ import { VersionPanel } from './components/VersionPanel.js';
 import { PropertyPanel } from './components/PropertyPanel.js';
 import { supabaseConfig } from './lib/env.js';
 import { canLoadData, useAuth } from './lib/auth.js';
-import { useRoute } from './lib/route.js';
+import { navigateToGallery, useRoute } from './lib/route.js';
 import { useAutosave, useRouteDiagram } from './data/usePersistence.js';
 import { useWriterLock } from './data/tabLock.js';
 import { useShortcuts } from './hooks/useShortcuts.js';
@@ -51,6 +51,17 @@ export default function App() {
   useEffect(() => {
     if (versionOpen && selectedIds.length > 0) setVersionOpen(false);
   }, [versionOpen, selectedIds.length, setVersionOpen]);
+
+  /*
+   * 登录成功那一刻一律去图库（用户 2026-11-05）。
+   * 只认「signed-out → signed-in」这次跃迁：刷新页面时 useAuth 也会经历 loading → signed-in，
+   * 那时如果无条件跳图库，正在看 `#/d/<id>` 的人会被踢出去。
+   */
+  const prevAuthStatus = useRef(auth.status);
+  useEffect(() => {
+    if (prevAuthStatus.current === 'signed-out' && auth.status === 'signed-in') navigateToGallery();
+    prevAuthStatus.current = auth.status;
+  }, [auth.status]);
 
   // 先过登录这道门：没会话就只看登录页，连图库都不渲染（数据请求一律不发）
   if (auth.status === 'loading') return <AuthSplash />;

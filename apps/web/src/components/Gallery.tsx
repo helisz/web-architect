@@ -11,9 +11,10 @@ import {
   updateDiagramTags,
   type DiagramSummary,
 } from '../data/diagramRepo.js';
-import { lastOpenDiagramId, rememberSavedPayload } from '../data/usePersistence.js';
-import { goToDiagram } from '../data/navigate.js';
+import { rememberSavedPayload } from '../data/usePersistence.js';
 import { navigateToDiagram } from '../lib/route.js';
+import { ToolIcon } from './ToolIcons.js';
+import { AccountMenu } from './AccountMenu.js';
 
 type SortKey = 'updated' | 'name' | 'version';
 
@@ -36,10 +37,6 @@ export function Gallery() {
   const setDiagram = useDiagramStore((s) => s.setDiagram);
   const pushToast = useDiagramStore((s) => s.pushToast);
   const currentId = useDiagramStore((s) => s.diagram.diagramId);
-
-  /** 上次打开的图：只用来给「返回画布」兜个落点，不自动跳转 */
-  const lastOpen = useMemo(() => lastOpenDiagramId(), []);
-  const [lastOpenName, setLastOpenName] = useState<string | null>(null);
 
   const [rows, setRows] = useState<DiagramSummary[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -88,12 +85,6 @@ export function Gallery() {
       .then(setTags)
       .catch(() => setTags([]));
   }, [rows]);
-
-  // 「返回画布」的 tooltip 想显示图名：只在当前页里找，找不到就退化成一个泛称
-  useEffect(() => {
-    if (!rows || !lastOpen) return;
-    setLastOpenName(rows.find((row) => row.diagramId === lastOpen)?.name ?? null);
-  }, [rows, lastOpen]);
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -193,22 +184,15 @@ export function Gallery() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="rounded bg-[var(--primary)] px-3 py-1 text-xs text-white hover:bg-[var(--primary-hover,#1D4ED8)]"
+            className="flex items-center gap-1 rounded bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-hover,#1D4ED8)]"
             onClick={() => void createNew()}
+            title="新建一张空白架构图"
           >
+            <ToolIcon name="plus" size={14} />
             新建架构图
           </button>
-          {/* 只有"上次开过某张图"才给这个出口；刚进站点时没有画布可回（用户 2026-11-04 的 hash 路由） */}
-          {lastOpen && (
-            <button
-              type="button"
-              className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB]"
-              onClick={() => void goToDiagram(lastOpen)}
-              title={`回到「${lastOpenName ?? '上一张图'}」`}
-            >
-              返回画布
-            </button>
-          )}
+          {/* 账号固定在最右边（用户 2026-11-05：图库也要有，hover 展开登出） */}
+          <AccountMenu />
         </div>
       </header>
 
@@ -280,19 +264,30 @@ export function Gallery() {
             {activeFilter ? '没有符合条件的架构图，换个关键词或清掉标签筛选。' : '还没有架构图。图库只显示你自己创建的图，点右上角「新建架构图」开始。'}
           </p>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          // 固定列宽（用户 2026-11-05：卡片太宽）：320px 一列，宽屏自然排到 4~5 列
+          <ul className="grid justify-start gap-3 [grid-template-columns:repeat(auto-fill,320px)]">
             {rows.map((row) => (
               <li
                 key={row.diagramId}
-                className={`rounded-lg border bg-white p-3 ${
-                  row.diagramId === currentId ? 'border-[var(--primary)]' : 'border-[var(--panel-border)]'
+                className={`group relative flex h-full flex-col rounded-lg border bg-white p-3 transition-colors ${
+                  row.diagramId === currentId
+                    ? 'border-[var(--primary)]'
+                    : 'border-[var(--panel-border)] hover:border-[var(--primary)]'
                 }`}
               >
-                <div className="mb-1 flex items-start justify-between gap-2">
+                {/* 整卡片就是打开按钮（用户 2026-11-05：去掉「打开」按钮，点卡片即进图） */}
+                <button
+                  type="button"
+                  aria-label={`打开「${row.name || '未命名架构图'}」`}
+                  className="absolute inset-0 z-0 rounded-lg"
+                  onClick={() => void open(row.diagramId)}
+                  disabled={busy !== null}
+                />
+                <div className="pointer-events-none relative z-10 mb-1 flex items-start justify-between gap-2">
                   {renaming?.id === row.diagramId ? (
                     <input
                       autoFocus
-                      className="w-full rounded border border-[var(--primary)] px-1 py-0.5 text-[13px] outline-none"
+                      className="pointer-events-auto w-full rounded border border-[var(--primary)] px-1 py-0.5 text-[13px] outline-none"
                       value={renaming.value}
                       onChange={(event) => setRenaming({ id: row.diagramId, value: event.target.value })}
                       onBlur={() => void commitRename()}
@@ -302,28 +297,23 @@ export function Gallery() {
                       }}
                     />
                   ) : (
-                    <button
-                      type="button"
-                      className="truncate text-left text-[13px] font-medium hover:text-[var(--primary)]"
-                      onClick={() => void open(row.diagramId)}
-                      title="打开这张图"
-                    >
+                    <span className="truncate text-left text-[13px] font-medium">
                       {row.name || '未命名架构图'}
-                    </button>
+                    </span>
                   )}
                   {row.diagramId === currentId && (
                     <span className="shrink-0 rounded bg-[#EFF6FF] px-1 text-[10px] text-[var(--primary)]">当前</span>
                   )}
                 </div>
 
-                <p className="mb-1.5 text-[11px] text-[var(--text-secondary)]">
+                <p className="relative z-10 mb-1.5 text-[11px] text-[var(--text-secondary)]">
                   v{row.version} · {new Date(row.updatedAt).toLocaleString('zh-CN')}
                 </p>
 
                 {tagging?.id === row.diagramId ? (
                   <input
                     autoFocus
-                    className="mb-2 w-full rounded border border-[var(--primary)] px-1 py-0.5 text-[11px] outline-none"
+                    className="relative z-10 mb-2 w-full rounded border border-[var(--primary)] px-1 py-0.5 text-[11px] outline-none"
                     placeholder="用逗号分隔，例如 生产,网络"
                     value={tagging.value}
                     onChange={(event) => setTagging({ id: row.diagramId, value: event.target.value })}
@@ -334,7 +324,7 @@ export function Gallery() {
                     }}
                   />
                 ) : (
-                  <div className="mb-2 flex min-h-[18px] flex-wrap items-center gap-1">
+                  <div className="relative z-10 mb-2 flex min-h-[18px] flex-wrap items-center gap-1">
                     {row.tags.length > 0 ? (
                       row.tags.map((item) => (
                         <span key={item} className="rounded bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] text-[#4B5563]">
@@ -354,42 +344,30 @@ export function Gallery() {
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:bg-[#F9FAFB]"
-                    onClick={() => void open(row.diagramId)}
-                    disabled={busy !== null}
-                  >
-                    {busy === row.diagramId ? '处理中…' : '打开'}
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:bg-[#F9FAFB]"
+                {/* 动作图标（用户 2026-11-05：只留图标 + tooltip，整卡点击即打开） */}
+                <div className="relative z-10 mt-auto flex items-center justify-end gap-1">
+                  <CardAction
+                    icon="pencil"
+                    label="改名"
                     onClick={() => setRenaming({ id: row.diagramId, value: row.name })}
-                  >
-                    改名
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:bg-[#F9FAFB]"
-                    onClick={() => void duplicate(row.diagramId)}
+                  />
+                  <CardAction
+                    icon="copy"
+                    label={busy === row.diagramId ? '复制中…' : '复制'}
                     disabled={busy !== null}
-                  >
-                    复制
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-[#FECACA] px-2 py-0.5 text-[11px] text-[#B91C1C] hover:bg-[#FEF2F2]"
+                    onClick={() => void duplicate(row.diagramId)}
+                  />
+                  <CardAction
+                    icon="trash"
+                    label="删除"
+                    danger
+                    disabled={busy !== null}
                     onClick={() => {
                       if (window.confirm(`删除「${row.name || '未命名架构图'}」？（可在版本快照里找回）`)) {
                         void remove(row.diagramId);
                       }
                     }}
-                    disabled={busy !== null}
-                  >
-                    删除
-                  </button>
+                  />
                 </div>
               </li>
             ))}
@@ -421,5 +399,42 @@ export function Gallery() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 卡片上的图标按钮（改名 / 复制 / 删除）。
+ * 只有图标 + tooltip；`danger` 用红色 hover 表达破坏性，别靠 icon 形状去猜。
+ */
+function CardAction({
+  icon,
+  label,
+  onClick,
+  disabled,
+  danger,
+}: {
+  icon: 'pencil' | 'copy' | 'trash';
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={(event) => {
+        // 卡片本身是打开按钮：动作按钮必须拦住冒泡，否则一点就跳走了
+        event.stopPropagation();
+        onClick();
+      }}
+      className={`grid h-7 w-7 place-items-center rounded border border-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--panel-border)] hover:bg-[#F9FAFB] disabled:opacity-40 ${
+        danger ? 'hover:text-[#B91C1C]' : 'hover:text-[var(--primary)]'
+      }`}
+    >
+      <ToolIcon name={icon} size={15} />
+    </button>
   );
 }

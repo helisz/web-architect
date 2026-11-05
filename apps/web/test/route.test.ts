@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { diagramHash, readRoute } from '../src/lib/route.js';
+import { diagramHash, GALLERY_HASH, readRoute } from '../src/lib/route.js';
 
 /**
- * hash 路由（用户 2026-11-04 定稿）：
- * 根路径 / `#/` → 图库；`#/d/<diagramId>` → 某一张图。
+ * hash 路由（用户 2026-11-05 改版）：
+ * `#/gallery` → 图库；`#/d/<diagramId>` → 某一张图；其它地址都收敛到图库。
  * 这里只测纯函数，不碰 window —— 认错了会把用户带到一张空图上。
  */
 describe('readRoute', () => {
@@ -11,7 +11,12 @@ describe('readRoute', () => {
     expect(readRoute('')).toEqual({ kind: 'gallery' });
   });
 
-  it('`#/` 是图库', () => {
+  it('`#/gallery` 是图库（规范地址）', () => {
+    expect(readRoute(GALLERY_HASH)).toEqual({ kind: 'gallery' });
+    expect(GALLERY_HASH).toBe('#/gallery');
+  });
+
+  it('老地址 `#/` 仍然能落到图库（由 normalizeHash 改写成 #/gallery）', () => {
     expect(readRoute('#/')).toEqual({ kind: 'gallery' });
   });
 
@@ -34,6 +39,8 @@ describe('readRoute', () => {
   it('不认识的 hash 一律回图库（少一个白屏来源）', () => {
     expect(readRoute('#/wat')).toEqual({ kind: 'gallery' });
     expect(readRoute('#d/abc123')).toEqual({ kind: 'gallery' });
+    // 老书签里常见的 `#/gallery/` 结尾多一个斜杠
+    expect(readRoute('#/gallery/')).toEqual({ kind: 'gallery' });
   });
 });
 

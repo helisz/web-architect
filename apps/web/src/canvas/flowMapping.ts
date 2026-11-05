@@ -61,8 +61,11 @@ export function displayGroupHeight(group: DiagramGroup): number {
  * 用 WeakMap 按数据对象身份缓存后，只有被拖的那一个节点换对象，其余直接命中缓存，
  * memo 生效（实测 p50 降到个位数毫秒）。选中态变化会重建对应那一个。
  */
-const groupFlowCache = new WeakMap<DiagramGroup, { selected: boolean; height: number; flow: SwimlaneFlowNode }>();
-const nodeFlowCache = new WeakMap<DiagramNode, { selected: boolean; flow: ArchFlowNode }>();
+const groupFlowCache = new WeakMap<
+  DiagramGroup,
+  { selected: boolean; height: number; draggable: boolean; flow: SwimlaneFlowNode }
+>();
+const nodeFlowCache = new WeakMap<DiagramNode, { selected: boolean; draggable: boolean; flow: ArchFlowNode }>();
 
 /**
  * 生成分组节点。
@@ -70,7 +73,7 @@ const nodeFlowCache = new WeakMap<DiagramNode, { selected: boolean; flow: ArchFl
  * 顺序很重要：ReactFlow 要求父节点排在子节点前面，否则父级定位算不出来。
  * 这里按"深度升序"排，天然满足父子先后。
  */
-function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>): SwimlaneFlowNode[] {
+function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>, draggableAll: boolean): SwimlaneFlowNode[] {
   const depthOf = (groupId: string, guard = 0): number => {
     const group = diagram.groups.find((g) => g.groupId === groupId);
     if (!group || !group.parentGroupId || guard > 8) return 0;
@@ -84,9 +87,17 @@ function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>): S
     .map((g) => {
       const selected = selectedIds.has(g.groupId);
       const height = displayGroupHeight(g);
-      const cached = groupFlowCache.get(g);
-      if (cached && cached.selected === selected && cached.height === height) return cached.flow;
       const locked = isGroupLocked(g);
+      /*
+       * React Flow 的全局 `nodesDraggable={false}` 会被"每个节点自带 draggable 字段"覆盖，
+       * 而这里给每个分组都写了 draggable，所以"拖动模式/锁定编辑"必须在这一层生效：
+       * 把 draggableAll 传进来，别指望 ReactFlow 那个 prop。
+       */
+      const draggable = draggableAll && !locked;
+      const cached = groupFlowCache.get(g);
+      if (cached && cached.selected === selected && cached.height === height && cached.draggable === draggable) {
+        return cached.flow;
+      }
       const flow: SwimlaneFlowNode = {
         id: g.groupId,
         type: 'swimlane',
@@ -101,9 +112,9 @@ function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>): S
         // 分组永远在普通节点下面，避免挡住节点
         zIndex: 0,
         // 锁定的分组不能拖（但可以选中，用户 2026-11-04）
-        draggable: !locked,
+        draggable,
       };
-      groupFlowCache.set(g, { selected, height, flow });
+      groupFlowCache.set(g, { selected, height, draggable, flow });
       return flow;
     });
 }
@@ -112,9 +123,12 @@ function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>): S
 export function toFlowNodes(
   diagram: ArchitectureDiagram,
   selectedIds: readonly string[],
+  options: { draggable?: boolean } = {},
 ): (ArchFlowNode | SwimlaneFlowNode)[] {
   const selected = new Set(selectedIds);
-  const groups = toFlowGroups(diagram, selected);
+  // 拖动模式 / 锁定编辑时整张图都不能拖（见 toFlowGroups 里的说明）
+  const draggableAll = options.draggable ?? true;
+  const groups = toFlowGroups(diagram, selected, draggableAll);
 
   const nodes: ArchFlowNode[] = diagram.nodes
     .filter((n) => !n.isDeleted && n.visible)
@@ -122,8 +136,9 @@ export function toFlowNodes(
     .filter((n) => !isHiddenByCollapse(diagram.groups, n.groupId))
     .map((n) => {
       const selectedNow = selected.has(n.nodeId);
+      const draggable = draggableAll && !n.locked;
       const cached = nodeFlowCache.get(n);
-      if (cached && cached.selected === selectedNow) return cached.flow;
+      if (cached && cached.selected === selectedNow && cached.draggable === draggable) return cached.flow;
       const flow: ArchFlowNode = {
         id: n.nodeId,
         type: 'archNode',
@@ -134,12 +149,12 @@ export function toFlowNodes(
         style: { width: n.width, height: n.height },
         data: { node: n },
         selected: selectedNow,
-        draggable: !n.locked,
+        draggable,
         parentId: n.groupId ?? undefined,
         // 节点盖在分组之上；sort 决定同层节点的遮挡关系（右键置顶/置底、图层面板）
         zIndex: 10 + n.sort,
       };
-      nodeFlowCache.set(n, { selected: selectedNow, flow });
+      nodeFlowCache.set(n, { selected: selectedNow, draggable, flow });
       return flow;
     });
 

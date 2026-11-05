@@ -125,7 +125,21 @@ const cursorFrame = useRef<number | null>(null);
 
   // Schema → ReactFlow：每次 diagram 变化重建，ReactFlow 内部按 id diff
   // 多选高亮交给 ReactFlow 的 selected 标记（框选/Ctrl 点选都由它维护）
-  const nodes = useMemo(() => toFlowNodes(diagram, selectedIds), [diagram, selectedIds]);
+  /*
+   * 拖动模式（用户 2026-11-05）：画布右上角的 toggle，把「按住空格」变成常驻状态。
+   * 打开后：拖空白处 = 平移画布，节点不可拖（避免误拖）；框选让位给平移。
+   * 只存在内存里，不随图保存 —— 这是操作习惯，不是图的内容。
+   */
+  // 空格按住才能拖动画布（Figma 式）；松手立刻恢复
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const [panMode, setPanMode] = useState(false);
+  const panActive = panMode || spaceHeld;
+
+  // 拖动模式下整张图都不可拖（per-node draggable 会覆盖 ReactFlow 的 nodesDraggable）
+  const nodes = useMemo(
+    () => toFlowNodes(diagram, selectedIds, { draggable: !editLocked && !panMode }),
+    [diagram, editLocked, panMode, selectedIds],
+  );
   const [dragging, setDragging] = useState(false);
 
   /**
@@ -174,8 +188,6 @@ const cursorFrame = useRef<number | null>(null);
 
   const groupIds = useMemo(() => new Set(diagram.groups.map((g) => g.groupId)), [diagram.groups]);
 
-  // 空格按住才能拖动画布（Figma 式）；松手立刻恢复
-  const [spaceHeld, setSpaceHeld] = useState(false);
   useEffect(() => {
     const isTyping = (target: EventTarget | null): boolean => {
       const el = target as HTMLElement | null;
@@ -618,7 +630,7 @@ const cursorFrame = useRef<number | null>(null);
   return (
     <div
       ref={wrapperRef}
-      className={`h-full w-full ${spaceHeld ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`h-full w-full ${panActive ? 'cursor-grab active:cursor-grabbing' : ''}`}
       onMouseMove={onPointerMove}
       onMouseLeave={onPointerLeave}
     >
@@ -633,7 +645,8 @@ const cursorFrame = useRef<number | null>(null);
       // Loose：任意 Handle 都能起线/接收，四边皆可（规格 §4.2 建线）
       connectionMode={ConnectionMode.Loose}
       // 锁定编辑：节点不能拖、不能拉线，但还能选中/平移/缩放/搜索
-      nodesDraggable={!editLocked}
+      // 拖动模式下节点不能被拖走（用户 2026-11-05：只平移画布）
+      nodesDraggable={!editLocked && !panMode}
       nodesConnectable={!editLocked}
       edgesReconnectable={!editLocked}
       // 吸附：元素按 10px 网格对齐（背景栅格密度与之保持一致）
@@ -641,10 +654,10 @@ const cursorFrame = useRef<number | null>(null);
       snapGrid={SNAP_GRID}
       // 交互（2026-11-04 定稿）：空白拖拽不平移，按住空格才拖动画布；
       // 滚轮只在 Ctrl/Cmd 时缩放，普通滚轮上下平移（见上面的 wheel 监听）。
-      panOnDrag={spaceHeld}
+      panOnDrag={panActive}
       panActivationKeyCode="Space"
       // 空白处拖动 = 框选（多选）；按住空格则变成平移
-      selectionOnDrag={!spaceHeld}
+      selectionOnDrag={!panActive}
       selectionMode={SelectionMode.Partial}
       multiSelectionKeyCode={['Meta', 'Control', 'Shift']}
       zoomOnScroll={false}
@@ -701,34 +714,60 @@ const cursorFrame = useRef<number | null>(null);
         style={{ width: 160, height: 110 }}
       />
     </ReactFlow>
-    {/* 全局锁定编辑（用户 2026-11-04 第二批）：画布右上角一枚 toggle，状态随图保存 */}
-    <EditLockButton />
+    {/* 画布右上角：拖动模式 + 锁定编辑（用户 2026-11-05） */}
+    <CanvasModeButtons panMode={panMode} onTogglePanMode={() => setPanMode((v) => !v)} />
     {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
     <SearchDialog />
     </div>
   );
 }
 
-/** 右上角「锁定编辑」开关 */
-function EditLockButton() {
+/**
+ * 右上角两个开关（用户 2026-11-05）：
+ *
+ * - 左：拖动模式（`panMode`）—— 拖空白处平移画布、节点不可拖；等价于"一直按住空格"。
+ * - 右：锁定编辑 —— 更彻底的只读（连框选/连线都不行），状态随图保存。
+ *
+ * 两个按钮都只有图标，含义放在 title / aria-label 里。
+ */
+function CanvasModeButtons({
+  panMode,
+  onTogglePanMode,
+}: {
+  panMode: boolean;
+  onTogglePanMode: () => void;
+}) {
   const locked = useDiagramStore((s) => isEditLocked(s.diagram));
   const setEditLocked = useDiagramStore((s) => s.setEditLocked);
   return (
-    <div className="absolute right-3 top-3 z-10">
+    <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+      <button
+        type="button"
+        aria-pressed={panMode}
+        aria-label={panMode ? '退出拖动模式' : '拖动模式'}
+        title={panMode ? '拖动模式：拖空白处平移画布（再点一下回到编辑）' : '拖动模式：拖空白处平移画布，节点不跟着动'}
+        onClick={onTogglePanMode}
+        className={`grid h-8 w-8 place-items-center rounded-md border shadow-sm ${
+          panMode
+            ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+            : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
+        }`}
+      >
+        <ToolIcon name="move" size={16} />
+      </button>
       <button
         type="button"
         aria-pressed={locked}
         aria-label={locked ? '解锁编辑' : '锁定编辑'}
         title={locked ? '已锁定：点一下恢复编辑' : '锁定编辑：防止误改（仍可查看、选中、平移缩放）'}
         onClick={() => setEditLocked(!locked)}
-        className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs shadow-sm ${
+        className={`grid h-8 w-8 place-items-center rounded-md border shadow-sm ${
           locked
             ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
             : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
         }`}
       >
-        <ToolIcon name={locked ? 'lock' : 'unlock'} />
-        {locked ? '已锁定' : '锁定编辑'}
+        <ToolIcon name={locked ? 'lock' : 'unlock'} size={16} />
       </button>
     </div>
   );

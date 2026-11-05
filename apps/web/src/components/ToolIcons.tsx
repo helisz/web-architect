@@ -23,7 +23,11 @@ export type ToolIconName =
   | 'chevronLeft'
   | 'plus'
   | 'minus'
-  | 'fit';
+  | 'fit'
+  | 'pencil'
+  | 'copy'
+  | 'trash'
+  | 'move';
 
 const PATHS: Record<ToolIconName, string> = {
   undo: 'M9 14 5 10l4-4M5 10h11a4 4 0 0 1 0 8h-2',
@@ -45,6 +49,12 @@ const PATHS: Record<ToolIconName, string> = {
   minus: 'M5 12h14',
   // 四角对准画布边框的"适配视图"图标
   fit: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  // 图库卡片的行内动作（用户 2026-11-05：按钮换图标）
+  pencil: 'M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4',
+  copy: 'M9 9h10v11H9zM5 15H4V5h10v1',
+  trash: 'M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6',
+  // 画布上的「拖动模式」：四向箭头 = 平移
+  move: 'M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3',
 };
 
 export function ToolIcon({
