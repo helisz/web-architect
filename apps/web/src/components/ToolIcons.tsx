@@ -30,7 +30,8 @@ export type ToolIconName =
   | 'move'
   | 'hand'
   | 'panelLeft'
-  | 'ai';
+  | 'ai'
+  | 'layout';
 
 const PATHS: Record<ToolIconName, string> = {
   undo: 'M9 14 5 10l4-4M5 10h11a4 4 0 0 1 0 8h-2',
@@ -64,6 +65,8 @@ const PATHS: Record<ToolIconName, string> = {
   hand: 'M8 12.5V5.5a1.5 1.5 0 0 1 3 0V11m0-6.5a1.5 1.5 0 0 1 3 0V11m0-5.5a1.5 1.5 0 0 1 3 0V12m0-3.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.6a5 5 0 0 1-3.7-1.7l-3.4-3.8a1.6 1.6 0 0 1 2.3-2.2L8 15',
   // AI 设置：一大一小两颗星，和「导入/导出」这类工具图标区分开
   ai: 'M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6zM17.5 14l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z',
+  // 一键整理：上面两个方块、下面一个，用连线连起来 = 按层级重排
+  layout: 'M4 5h6v5H4zM14 5h6v5h-6zM9 15h6v5H9zM7 10v2.5h10V10M12 12.5V15',
 };
 
 export function ToolIcon({

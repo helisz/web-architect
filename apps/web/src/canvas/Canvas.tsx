@@ -115,6 +115,7 @@ function CanvasInner() {
   const showGrid = useDiagramStore((s) => s.showGrid);
   const setViewport = useDiagramStore((s) => s.setViewport);
   const applyAiImport = useDiagramStore((s) => s.applyAiImport);
+  const applyAiLayout = useDiagramStore((s) => s.applyAutoLayout);
   const pushToast = useDiagramStore((s) => s.pushToast);
 
   const { screenToFlowPosition, getViewport, setViewport: applyViewport, fitView } = useReactFlow();
@@ -790,6 +791,20 @@ const cursorFrame = useRef<number | null>(null);
           aria-label="适配视图"
         >
           <ToolIcon name="fit" />
+        </ControlButton>
+        <ControlButton
+          onClick={() => {
+            const moved = applyAiLayout();
+            pushToast(
+              moved > 0 ? `已整理 ${moved} 个节点（保留分组，Ctrl+Z 可撤销）` : '图里还没有节点，没什么可整理的',
+              moved > 0 ? 'success' : 'info',
+            );
+            if (moved > 0) window.setTimeout(() => void fitView({ padding: 0.14, duration: 320 }), 260);
+          }}
+          title="一键整理：按连线层级重排（保留分组）"
+          aria-label="一键整理"
+        >
+          <ToolIcon name="layout" />
         </ControlButton>
       </Controls>
       <MiniMap
