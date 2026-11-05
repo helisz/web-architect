@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Canvas } from './canvas/Canvas.js';
 import { ComponentPanel } from './components/ComponentPanel.js';
+import { AiConfigDialog } from './components/AiConfigDialog.js';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog.js';
 import { SaveBanner } from './components/SaveBanner.js';
 import { StartupError } from './components/StartupError.js';
@@ -144,6 +145,7 @@ export default function App() {
         {selectedIds.length > 0 ? <PropertyPanel /> : versionOpen && <VersionPanel onClose={() => setVersionOpen(false)} />}
       </div>
       <DeleteConfirmDialog />
+      <AiConfigDialog />
       <ToastHost />
       {importOpen && <GuestImportDialog onClose={() => setImportOpen(false)} />}
     </div>

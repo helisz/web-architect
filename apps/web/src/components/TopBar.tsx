@@ -9,6 +9,7 @@ import { GuestAccount } from './GuestAccount.js';
 import { useGuestSession } from '../data/guestSession.js';
 import { ToolIcon, type ToolIconName } from './ToolIcons.js';
 import { goToGallery } from '../data/navigate.js';
+import { useAiStore } from '../store/useAiStore.js';
 
 const SAVE_LABEL: Record<string, string> = {
   saved: '已保存',
@@ -200,6 +201,12 @@ export function TopBar() {
           label={showGrid ? '隐藏网格' : '显示网格'}
           active={showGrid}
           onClick={() => useDiagramStore.getState().toggleGrid()}
+        />
+        {/* AI 解析的模型配置（用户 2026-11-05）：配置只存本机，点开才解密 */}
+        <IconButton
+          icon="ai"
+          label="AI 模型设置"
+          onClick={() => useAiStore.getState().setDialogOpen(true)}
         />
         <Divider />
         <IconButton
