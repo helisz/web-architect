@@ -53,6 +53,7 @@ import { LayerPanel } from '../components/LayerPanel.js';
 import { useEdgeLabelEdit } from '../store/useEdgeLabelEdit.js';
 import { useCanvasMode } from '../store/useCanvasMode.js';
 import { ArchEdge } from './ArchEdge.js';
+import { edgeIdsInRect, rectFromPoints } from './edgeHitTest.js';
 import { ArchConnectionLine } from './ArchConnectionLine.js';
 import { nextZoom, zoomAroundCenter, ZOOM_RESET_EVENT } from './zoom.js';
 
@@ -217,6 +218,8 @@ const cursorFrame = useRef<number | null>(null);
 
   // 普通滚轮 = 上下平移；Ctrl/Cmd + 滚轮 = 按 20% 档位缩放（用户 2026-11-04 定稿）
   const wrapperRef = useRef<HTMLDivElement>(null);
+  /** 框选起点（框选连线用）：React Flow 在 onSelectionEnd 之前就把它的矩形清空了，只能自己记 */
+  const selectDrag = useRef<{ x: number; y: number; snapshot: string[]; additive: boolean } | null>(null);
   const lastWheelStep = useRef(0);
   const stepZoomRef = useRef<(direction: 1 | -1) => void>(() => {});
   useEffect(() => {
@@ -636,6 +639,17 @@ const cursorFrame = useRef<number | null>(null);
       className={`h-full w-full ${panActive ? 'cursor-grab active:cursor-grabbing' : ''}`}
       onMouseMove={onPointerMove}
       onMouseLeave={onPointerLeave}
+      onPointerDownCapture={(event) => {
+        // 只记「从画布空白处开始」的拖动：节点、连接手柄、控件上的按下都不算框选起点
+        const target = event.target as HTMLElement;
+        if (event.button !== 0 || panActive || !target.closest('.react-flow__pane')) return;
+        selectDrag.current = {
+          x: event.clientX,
+          y: event.clientY,
+          snapshot: [...useDiagramStore.getState().selectedIds],
+          additive: event.shiftKey || event.metaKey || event.ctrlKey,
+        };
+      }}
     >
     <ReactFlow
       // 节点超过 300 个时只渲染视口内的节点（规格 §11.4）；小图不启用，
@@ -684,15 +698,44 @@ const cursorFrame = useRef<number | null>(null);
       onNodeDragStop={onNodeDragStop}
       onMoveEnd={onMoveEnd}
       onPaneClick={() => select(null)}
-      onSelectionEnd={() => {
-        // 框选只选节点/分组（用户 2026-11-05）：框 10 个节点时别顺手带上十几条穿过的线，
-        // 否则一次 Delete 就会连确认框都没看清地删掉一堆连线。
-        // 连线仍然可以单击 / Shift+单击单独选中。
+      onSelectionEnd={(event) => {
+        /**
+         * 框选收尾（用户 2026-11-05 定稿，规则 A）：
+         * - 框里有节点/分组 → 只留节点与分组，把连线剔掉（框 10 个节点别顺手带上十几条线）；
+         * - 框里**没有**节点/分组 → 自己按几何把穿过的连线选上（React Flow 不做这件事）。
+         * Shift 框选 = 追加到原有选择（快照在 pointerdown 抓，RF 一开始框选就会清空选择）。
+         */
+        const drag = selectDrag.current;
+        selectDrag.current = null;
         const state = useDiagramStore.getState();
-        const selectedEdges = state.diagram.edges
+        const selectedEdgeIds = state.diagram.edges
           .filter((e) => state.selectedIds.includes(e.edgeId))
           .map((e) => e.edgeId);
-        if (selectedEdges.length > 0) state.updateSelection([], selectedEdges);
+        const nodeOrGroupCount =
+          state.diagram.nodes.filter((n) => state.selectedIds.includes(n.nodeId)).length +
+          state.diagram.groups.filter((g) => state.selectedIds.includes(g.groupId)).length;
+
+        if (nodeOrGroupCount > 0) {
+          if (selectedEdgeIds.length > 0) state.updateSelection([], selectedEdgeIds);
+          return;
+        }
+        if (!drag) return;
+
+        const rect = rectFromPoints(
+          screenToFlowPosition({ x: drag.x, y: drag.y }),
+          screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+        );
+        // 太小的拖动当点击，别让它变成一次"空框选"
+        if (rect.width < 4 || rect.height < 4) return;
+
+        const hit = edgeIdsInRect(wrapperRef.current, rect);
+        const keep = drag.additive
+          ? drag.snapshot.filter((id) => state.diagram.edges.some((e) => e.edgeId === id))
+          : [];
+        const target = [...new Set([...keep, ...hit])];
+        const add = target.filter((id) => !state.selectedIds.includes(id));
+        const remove = selectedEdgeIds.filter((id) => !target.includes(id));
+        if (add.length > 0 || remove.length > 0) state.updateSelection(add, remove);
       }}
       onEdgeDoubleClick={(event, edge) => {
         // 双击连线 → 就地改标注（用户 2026-11-05）；只读态和拖动模式下不响应
