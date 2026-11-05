@@ -28,6 +28,7 @@ import {
   type Viewport,
 } from '@arch/schema';
 import { alignRects, distributeRects, type AlignMode, type Rect } from '../canvas/align.js';
+import type { LineGeometry } from '../canvas/lineGeometry.js';
 import { persistDiagramExt } from '../data/diagramRepo.js';
 
 const PREF_KEY = 'arch.ui.prefs';
@@ -142,6 +143,8 @@ interface DiagramStore {
   addNode: (nodeType: NodeType, position: Point, groupId?: string | null) => DiagramNode;
   moveNode: (nodeId: string, position: Point) => void;
   resizeNode: (nodeId: string, size: { width: number; height: number }) => void;
+  /** 线条专用：端点一动，盒子跟着重算（x/y/width/height 与 extJson.line.a/b 必须一起写） */
+  setLineGeometry: (nodeId: string, geometry: LineGeometry) => void;
   removeNode: (nodeId: string) => void;
   addEdge: (sourceId: string, targetId: string, sourceAnchor: string, targetAnchor: string) => void;
   removeEdge: (edgeId: string) => void;
@@ -600,6 +603,18 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
   addNode: (nodeType, position, groupId) => {
     const state = get();
     const node = createNode(nodeType, state.diagram.diagramId, position, groupId ? { groupId } : {});
+    // 线条（用户 2026-11-05）：拖进来就是一条水平线，端点存相对坐标
+    if (nodeType === 'line') {
+      node.extJson = {
+        ...(node.extJson ?? {}),
+        line: {
+          a: { x: 2, y: Math.round(node.height / 2) },
+          b: { x: Math.max(2, node.width - 2), y: Math.round(node.height / 2) },
+          width: 2,
+          dash: null,
+        },
+      };
+    }
     set((s) => ({
       ...withHistory(s, `add:${node.nodeId}`),
       diagram: { ...s.diagram, nodes: [...s.diagram.nodes, node] },
@@ -623,6 +638,32 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
       diagram: applyNode(s.diagram, nodeId, { width: size.width, height: size.height }),
       saveState: 'dirty',
     })),
+
+  setLineGeometry: (nodeId, geometry) =>
+    set((s) => {
+      const node = s.diagram.nodes.find((n) => n.nodeId === nodeId);
+      if (!node) return s;
+      // 端点与盒子必须一次写完：只改盒子会让线在框里漂
+      const extJson = {
+        ...(node.extJson ?? {}),
+        line: {
+          ...(node.extJson?.line as Record<string, unknown> | undefined),
+          a: geometry.a,
+          b: geometry.b,
+        },
+      };
+      return {
+        ...withHistory(s, `line:${nodeId}`),
+        diagram: applyNode(s.diagram, nodeId, {
+          x: geometry.x,
+          y: geometry.y,
+          width: geometry.width,
+          height: geometry.height,
+          extJson,
+        }),
+        saveState: 'dirty',
+      };
+    }),
 
   removeNode: (nodeId) =>
     set((s) => ({

@@ -107,6 +107,8 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   annotation: 'tabler:typography',
   // 单行元素：默认不显示图标（高度 40 本来就不画），这里只给一个兜底 key
   element: 'tabler:typography',
+  // 自由线条：画布上不画图标，这个 key 只给左侧面板的卡片用
+  line: 'tabler:route',
   custom: 'tabler:cube',
 };
 

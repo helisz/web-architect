@@ -248,6 +248,8 @@ export const TEXT_NODE_STYLE: Partial<
   text: { bgColor: '#00000000', borderColor: '#00000000', textColor: '#374151' },
   sticky: { bgColor: '#FFF7C2', borderColor: '#EFD98A', textColor: '#4A3A00' },
   annotation: { bgColor: '#FFFFFF', borderColor: '#9CA3AF', textColor: '#374151' },
+  // 自由线条：底色/边框都透明，颜色用 borderColor（属性面板里显示成「颜色」）
+  line: { bgColor: '#00000000', borderColor: '#4B5563', textColor: '#374151' },
 };
 
 /* ------------------------------------------------------------------ */
@@ -375,7 +377,7 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
  * 单行元素 = 普通节点（有边框、有底色、能连线、能进分组），只是默认 200×40：
  * 高度 <52 时图标本来就不画，副文本默认空 —— 于是视觉上就是"一行字 + 一个框"。
  */
-export const STRUCTURE_NODE_SPECS: ComponentSpec[] = [spec('element', '单行元素', 200, 40)];
+export const STRUCTURE_NODE_SPECS: ComponentSpec[] = [spec('element', '单行元素', 200, 40), spec('line', '线条', 200, 40)];
 
 /** nodeType → 默认尺寸 / 默认副文本，供拖入创建时使用 */
 export const COMPONENT_INDEX: Record<NodeType, ComponentSpec> = Object.fromEntries(

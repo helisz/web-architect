@@ -840,10 +840,8 @@ function CanvasModeButtons() {
   );
 }
 
-/** 画布外壳：网格、空状态提示与左下角状态条都挂在这里 */
+/** 画布外壳：网格与左下角状态条都挂在这里（空状态提示已按用户 2026-11-05 要求删除） */
 export function Canvas() {
-  const nodeCount = useDiagramStore((s) => s.diagram.nodes.length);
-
   return (
     <main className="relative min-w-0 flex-1 bg-[var(--canvas-bg)]">
       <ReactFlowProvider>
@@ -852,16 +850,6 @@ export function Canvas() {
       <AlignToolbar />
       <LayerPanel />
       <CanvasStatus />
-      {nodeCount === 0 && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <div className="rounded-lg border border-dashed border-[#D1D5DB] bg-white/80 px-6 py-5 text-center">
-            <p className="text-sm font-semibold">从左侧面板拖一个组件到这里</p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              拖拽节点边缘的小圆点即可连线 · 空格 + 拖动平移 · Ctrl + 滚轮缩放 · Delete 删除
-            </p>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

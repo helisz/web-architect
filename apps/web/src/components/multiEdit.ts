@@ -1,4 +1,5 @@
 import { textStyleOf } from '@arch/schema';
+import { readLineData } from '../canvas/lineGeometry.js';
 import type { DiagramEdge, DiagramGroup, DiagramNode } from '@arch/schema';
 
 /**
@@ -9,7 +10,7 @@ import type { DiagramEdge, DiagramGroup, DiagramNode } from '@arch/schema';
  * 只剩「名称」这一项（连线没有背景色、节点没有线宽）。
  */
 
-export type MultiKind = 'node' | 'group' | 'edge';
+export type MultiKind = 'node' | 'group' | 'edge' | 'line';
 
 export type MultiField =
   | 'label'
@@ -30,7 +31,10 @@ export type MultiField =
 
 /** 每类对象支持哪些可批量编辑的字段 */
 const SUPPORT: Record<MultiKind, readonly MultiField[]> = {
-  node: [ 'label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden', 'align', 'valign' ],
+  node: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden', 'align', 'valign'],
+  // 线条（用户 2026-11-05）：颜色复用节点边框色，粗细/虚线在 extJson.line 里；
+  // 与普通节点混选时交集正好剩下 borderColor，可以一起改色。
+  line: ['borderColor', 'strokeWidth', 'strokeDasharray'],
   group: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden'],
   edge: ['label', 'strokeColor', 'strokeWidth', 'edgeType', 'arrow', 'strokeDasharray'],
 };
@@ -82,7 +86,7 @@ export function pickSelection(ids: string[], selection: MultiSelection): { kind:
   for (const id of ids) {
     const node = selection.nodes.find((n) => n.nodeId === id);
     if (node) {
-      out.push({ kind: 'node', item: node });
+      out.push({ kind: node.nodeType === 'line' ? 'line' : 'node', item: node });
       continue;
     }
     const group = selection.groups.find((g) => g.groupId === id);
@@ -125,6 +129,15 @@ export function readField(
     if (field === 'textColor') return group.titleColor;
     if (field === 'iconKey') return typeof group.extJson?.iconKey === 'string' ? group.extJson.iconKey : '';
     if (field === 'iconHidden') return group.extJson?.iconHidden === true ? 'hidden' : 'shown';
+    return undefined;
+  }
+  if (kind === 'line') {
+    const node = item as DiagramNode;
+    // 线条只有三样可批量改：颜色（节点边框色）、粗细、虚线
+    if (field === 'borderColor') return node.borderColor;
+    const line = readLineData(node.extJson, node.width, node.height);
+    if (field === 'strokeWidth') return String(line.width);
+    if (field === 'strokeDasharray') return line.dash ?? 'solid';
     return undefined;
   }
   const node = item as DiagramNode;

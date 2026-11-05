@@ -25,11 +25,20 @@ import { NodeIcon } from '../icons/index.js';
 import { IconPicker } from './IconPicker.js';
 import { ColorField } from './ColorField.js';
 import { ToolIcon } from './ToolIcons.js';
-import { FIELD_LABEL, commonFields, pickSelection, type MultiField } from './multiEdit.js';
+import { FIELD_LABEL, commonFields, pickSelection, type MultiField, type MultiKind } from './multiEdit.js';
+import {
+  LINE_DASH_PRESETS,
+  LINE_MAX_WIDTH,
+  LINE_MIN_WIDTH,
+  clampLineWidth,
+  describeAngle,
+  lineInfo,
+  readLineData,
+} from '../canvas/lineGeometry.js';
 
 /** 多选批量改写：按对象类型把字段落到正确的属性上（分组没有独立的文字色，用标题色） */
 function applyMultiField(
-  kind: 'node' | 'group' | 'edge',
+  kind: MultiKind,
   field: MultiField,
   value: string,
   actions: {
@@ -69,6 +78,20 @@ function applyMultiField(
     } else if (field === 'iconHidden') {
       const group = useDiagramStore.getState().diagram.groups.find((g) => g.groupId === id);
       actions.patchGroup(id, { extJson: { ...(group?.extJson ?? {}), iconHidden: value === 'hidden' } });
+    }
+    return;
+  }
+  if (kind === 'line') {
+    const node = useDiagramStore.getState().diagram.nodes.find((n) => n.nodeId === id);
+    if (!node) return;
+    const current = readLineData(node.extJson, node.width, node.height);
+    const line = { ...(node.extJson?.line as Record<string, unknown> | undefined), a: current.a, b: current.b, width: current.width, dash: current.dash };
+    if (field === 'borderColor') actions.patchNode(id, { borderColor: value });
+    else if (field === 'strokeWidth') {
+      actions.patchNode(id, { extJson: { ...(node.extJson ?? {}), line: { ...line, width: clampLineWidth(Number(value)) } } });
+    } else if (field === 'strokeDasharray') {
+      const preset = LINE_DASH_PRESETS.find((p) => p.key === value);
+      actions.patchNode(id, { extJson: { ...(node.extJson ?? {}), line: { ...line, dash: preset ? preset.value : value } } });
     }
     return;
   }
@@ -198,21 +221,34 @@ function MultiForm() {
   const apply = (field: MultiField, value: string): void => {
     for (const { kind, item } of picked) {
       const id =
-        kind === 'node'
-          ? (item as DiagramNode).nodeId
+        kind === 'edge'
+          ? (item as DiagramEdge).edgeId
           : kind === 'group'
             ? (item as DiagramGroup).groupId
-            : (item as DiagramEdge).edgeId;
+            : (item as DiagramNode).nodeId;
       applyMultiField(kind, field, value, { patchNode, patchGroup, patchEdge }, id);
     }
   };
 
   const find = (field: MultiField) => fields.find((f) => f.field === field);
+  // 纯线条选择时把字段名换成线条的说法（颜色 / 粗细 / 虚线）
+  const allLines = picked.length > 0 && picked.every(({ kind }) => kind === 'line');
+  const labelOf = (field: MultiField): string => {
+    if (!allLines) return FIELD_LABEL[field];
+    if (field === 'borderColor') return '颜色';
+    if (field === 'strokeWidth') return '粗细';
+    if (field === 'strokeDasharray') return '虚线';
+    return FIELD_LABEL[field];
+  };
 
   return (
     <div>
       <p className="text-sm font-semibold">
-        {picked.every(({ kind }) => kind === 'edge') ? `已选中 ${picked.length} 条连线` : `已选中 ${picked.length} 个元素`}
+        {picked.every(({ kind }) => kind === 'edge')
+          ? `已选中 ${picked.length} 条连线`
+          : allLines
+            ? `已选中 ${picked.length} 条线条`
+            : `已选中 ${picked.length} 个元素`}
       </p>
       <p className="mt-1 text-xs text-[var(--text-secondary)]">
         只显示所有对象都有的属性，改一次全部生效；值不一致时显示「多个值」。
@@ -302,7 +338,7 @@ function MultiForm() {
 
         {/* 连线样式（用户 2026-11-05：选多条线时也要能一次改完） */}
         {find('strokeWidth') && (
-          <Field label={`${FIELD_LABEL.strokeWidth}${find('strokeWidth')!.mixed ? '（多个值）' : ''}`}>
+          <Field label={`${labelOf('strokeWidth')}${find('strokeWidth')!.mixed ? '（多个值）' : ''}`}>
             <input
               type="number"
               step={0.5}
@@ -351,7 +387,7 @@ function MultiForm() {
         )}
 
         {find('strokeDasharray') && (
-          <Field label={`${FIELD_LABEL.strokeDasharray}${find('strokeDasharray')!.mixed ? '（多个值）' : ''}`}>
+          <Field label={`${labelOf('strokeDasharray')}${find('strokeDasharray')!.mixed ? '（多个值）' : ''}`}>
             <div className="flex gap-1">
               {EDGE_DASH_PRESETS.map((preset) => {
                 const active = find('strokeDasharray')!.value === preset.key;
@@ -484,7 +520,7 @@ export function PropertyPanel() {
           </div>
         )}
         <div className={locked ? 'pointer-events-none select-none opacity-60' : undefined} aria-disabled={locked}>
-          {node && <NodeForm node={node} />}
+          {node && (node.nodeType === 'line' ? <LineForm node={node} /> : <NodeForm node={node} />)}
           {edge && <EdgeForm edge={edge} />}
           {group && <GroupForm group={group} />}
           {!node && !edge && !group && selectedIds.length > 1 && <MultiForm />}
@@ -734,6 +770,103 @@ const inputClass =
 /* ------------------------------------------------------------------ */
 /* 节点表单                                                            */
 /* ------------------------------------------------------------------ */
+
+/**
+ * 线条的属性（用户 2026-11-05）。
+ *
+ * 只有三样可调：颜色（复用节点边框色）、粗细、虚线；外加一行几何读数帮忙对角度。
+ * 名称/副文本/文字/图标对线条没有意义，所以整个 NodeForm 换掉而不是加开关。
+ */
+function LineForm({ node }: { node: DiagramNode }) {
+  const patch = useDiagramStore((s) => s.patchNode);
+  const line = readLineData(node.extJson, node.width, node.height);
+  const info = lineInfo(line.a, line.b);
+  const setLine = (next: Partial<{ width: number; dash: string | null }>): void =>
+    patch(node.nodeId, {
+      extJson: {
+        ...(node.extJson ?? {}),
+        line: { ...(node.extJson?.line as Record<string, unknown> | undefined), ...next },
+      },
+    });
+
+  return (
+    <div>
+      <ColorField
+        kind="edge"
+        targets={[
+          {
+            scope: 'edge',
+            value: node.borderColor,
+            onChange: (borderColor: string) => patch(node.nodeId, { borderColor }),
+          },
+        ]}
+      />
+
+      <Field label="粗细">
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            aria-label="线条粗细"
+            min={LINE_MIN_WIDTH}
+            max={LINE_MAX_WIDTH}
+            step={0.5}
+            className={`${inputClass} w-16`}
+            value={line.width}
+            onChange={(e) => {
+              const width = Number(e.target.value);
+              if (Number.isFinite(width)) setLine({ width: clampLineWidth(width) });
+            }}
+          />
+          <span className="text-[11px] text-[var(--text-secondary)]">px</span>
+        </div>
+      </Field>
+
+      <Field label="样式">
+        <div className="flex items-center gap-1">
+          {LINE_DASH_PRESETS.map((preset) => {
+            const active = line.dash === preset.value;
+            return (
+              <button
+                key={preset.key}
+                type="button"
+                aria-pressed={active}
+                title={preset.label}
+                onClick={() => setLine({ dash: preset.value })}
+                className={`flex h-7 flex-1 items-center justify-center gap-1 rounded border text-[11px] ${
+                  active
+                    ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                    : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                }`}
+              >
+                <svg width={28} height={8} aria-hidden>
+                  <line
+                    x1={1}
+                    y1={4}
+                    x2={27}
+                    y2={4}
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeDasharray={preset.value ?? undefined}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+
+      <Field label="几何">
+        <p className="text-[11px] leading-snug text-[var(--text-secondary)]">
+          长 {Math.round(info.length)} px · 角度 {describeAngle(info.angle)}
+          <br />
+          拖端点靠近水平 / 垂直 / 45° 会吸附，按住 Shift 强制 45° 步进。
+        </p>
+      </Field>
+    </div>
+  );
+}
 
 function NodeForm({ node }: { node: DiagramNode }) {
   const patch = useDiagramStore((s) => s.patchNode);

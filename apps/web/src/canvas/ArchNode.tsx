@@ -15,6 +15,7 @@ import {
 import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { ArchFlowNode } from './flowMapping.js';
+import { ArchLine } from './ArchLine.js';
 import { angleFromOffset, tailAngleOf, tailGeometry } from './tail.js';
 
 const POSITION: Record<Anchor, Position> = {
@@ -33,7 +34,7 @@ const POSITION: Record<Anchor, Position> = {
  * 2026-11-04 起，文本类（标题 / 文本 / 便利贴 / 注释）也走这个组件，
  * 只是渲染分支不同：仍然是可以连线、可以进分组、可以多选对齐的**真节点**。
  */
-function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
+function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
   const node = data.node;
   const kind = node.nodeType;
   const isTitle = kind === 'title';
@@ -262,6 +263,17 @@ function ArchNodeImpl({ data, selected }: NodeProps<ArchFlowNode>) {
       ))}
     </div>
   );
+}
+
+/**
+ * 节点分派：线条是另一种渲染（无边框、无文字、两个端点手柄），其余都走 ArchBox。
+ * 分派放在外层而不是在 ArchBox 里早退，是为了让两个组件的 Hook 调用各自稳定。
+ */
+function ArchNodeImpl(props: NodeProps<ArchFlowNode>) {
+  if (props.data.node.nodeType === 'line') {
+    return <ArchLine node={props.data.node} selected={Boolean(props.selected)} />;
+  }
+  return <ArchBox {...props} />;
 }
 
 export const ArchNode = memo(ArchNodeImpl);

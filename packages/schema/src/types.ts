@@ -111,6 +111,8 @@ export const NODE_TYPES = [
   'annotation',
   // 单行元素（2026-11-04）：结构区新建，普通节点样式但只有一行字、默认无图标无副文本
   'element',
+  // 自由线条（2026-11-05）：结构区新建，节点当外壳、端点存 extJson.line，用来画装饰线/分割线
+  'line',
   'custom',
 ] as const;
 
