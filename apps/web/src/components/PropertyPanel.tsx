@@ -30,6 +30,7 @@ import {
   LINE_DASH_PRESETS,
   LINE_MAX_WIDTH,
   LINE_MIN_WIDTH,
+  LINE_WIDTH_PRESETS,
   clampLineWidth,
   describeAngle,
   lineInfo,
@@ -818,6 +819,29 @@ function LineForm({ node }: { node: DiagramNode }) {
             }}
           />
           <span className="text-[11px] text-[var(--text-secondary)]">px</span>
+          {/* 常用粗细快选（用户 2026-11-05）：手填之外给 0.5/1/1.5/2 四个档，点一下就用 */}
+          <div className="ml-auto flex items-center gap-0.5">
+            {LINE_WIDTH_PRESETS.map((preset) => {
+              const active = clampLineWidth(line.width) === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  aria-pressed={active}
+                  aria-label={`线条粗细 ${preset}px`}
+                  title={`${preset}px`}
+                  onClick={() => setLine({ width: preset })}
+                  className={`h-6 min-w-7 rounded border px-1 text-[11px] leading-none ${
+                    active
+                      ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                      : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                  }`}
+                >
+                  {preset}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </Field>
 

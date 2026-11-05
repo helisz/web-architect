@@ -35,6 +35,9 @@ export const LINE_DEFAULT_WIDTH = 2;
 export const LINE_MIN_WIDTH = 0.5;
 export const LINE_MAX_WIDTH = 6;
 
+/** 属性面板里的常用粗细（用户 2026-11-05）：手填之外再给四个一键档位 */
+export const LINE_WIDTH_PRESETS = [0.5, 1, 1.5, 2] as const;
+
 /** 吸附步长：0 / 45 / 90 / 135 / 180… 用户要求「水平、垂直、45 度自动对齐」 */
 export const SNAP_STEP_DEG = 45;
 /** 自动吸附的角度容差；超过就保持自由角度 */

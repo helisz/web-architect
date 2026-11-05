@@ -3,6 +3,9 @@ import {
   absoluteEndpoints,
   clampLineWidth,
   describeAngle,
+  LINE_MAX_WIDTH,
+  LINE_MIN_WIDTH,
+  LINE_WIDTH_PRESETS,
   lineGeometry,
   lineInfo,
   readLineData,
@@ -142,5 +145,16 @@ describe('lineInfo / describeAngle', () => {
     expect(describeAngle(270)).toBe('垂直 270°');
     expect(describeAngle(45)).toBe('45°');
     expect(describeAngle(-45)).toBe('315°');
+  });
+});
+
+describe('LINE_WIDTH_PRESETS（面板快选档位）', () => {
+  it('四个常用档位都在允许区间内，且不会被夹取', () => {
+    expect(LINE_WIDTH_PRESETS).toEqual([0.5, 1, 1.5, 2]);
+    for (const preset of LINE_WIDTH_PRESETS) {
+      expect(preset).toBeGreaterThanOrEqual(LINE_MIN_WIDTH);
+      expect(preset).toBeLessThanOrEqual(LINE_MAX_WIDTH);
+      expect(clampLineWidth(preset)).toBe(preset);
+    }
   });
 });
