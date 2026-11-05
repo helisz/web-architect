@@ -1,8 +1,8 @@
 # AI 解析架构图：评估与实施计划
 
 日期：2026-11-05
-状态：已定需求，待开工
-关联：图库「新建」、`packages/schema`、`apps/web/src/components/Gallery.tsx`
+状态：**已实现（B1–B7 全部完成）**，线上可用
+关联：图库「新建」、`packages/schema`、`apps/web/src/components/Gallery.tsx`、`apps/web/src/ai/*`
 
 ## 1. 需求（用户 2026-11-05）
 
@@ -52,6 +52,20 @@
 | B7 | 测试（纯函数 + mock 三适配器）、文档、验收记录 | 2d |
 
 合计 **13–17 人日**。
+
+### 4.1 实际落地与计划的差异
+
+| 计划 | 实际 | 原因 |
+| --- | --- | --- |
+| 图片叠坐标网格再让模型给坐标 | **没做**：直接让模型给 0–1 归一化坐标，落图按比例换算 | 网格在图里会被当成内容，反而干扰识别；归一化坐标实测足够（mock 与真图结构一致），且省一次图像变换 |
+| Zod 校验 + 回喂校验错误重试 | 自写 `parseSchema` 整理 + **只在 JSON 不可解析时**重试一次，重试提示只强调"纯 JSON" | 我们的字段少、容错比严格校验更实用（坏一个元素不该让整张图失败）；回喂错误会多花一次图片输入的钱 |
+| 分组按"包含关系"归属 | 提示词让模型直接给成员 key，我们算包围盒 | 模型给框坐标普遍偏移，给成员关系更可靠 |
+| Anthropic 用纯提示词约束 JSON | 同 B1 的适配器 + 重试机制，行为一致 | 减少分支 |
+| 「重新解析」按钮（保留上次上传的图） | 弹窗内保留图片 + 「重试」；关闭弹窗即丢弃 | 需求是"不保留原图"，弹窗内的重试已覆盖真实场景 |
+
+实现位置：`apps/web/src/ai/`（`types` / `vault` / `providers` / `prompt` / `parseSchema` / `image` / `parse` / `landing` / `autoLayout` / `staging`），
+UI 在 `AiConfigDialog` / `NewDiagramDialog` / `AiParseDialog`，落图与撤销在 store 的 `applyAiImport` / `applyAutoLayout`。
+测试 78 条（`aiVault` / `aiProviders` / `aiParseSchema` / `aiLanding` / `aiImagePrompt` / `aiParse` / `aiAutoLayout`），验收记录 §27–§29。
 
 ## 5. 风险
 
