@@ -116,11 +116,54 @@ export function ComponentPanel() {
   }, [keyword]);
 
   const total = categories.reduce((sum, c) => sum + c.items.length, 0) + presets.length;
+  const setOpen = (next: boolean): void => useDiagramStore.getState().setComponentPanelOpen(next);
 
-  if (!open) return null;
+  // 收起后留一条窄边（用户 2026-11-05 反馈：顶栏那个小图标根本找不到）：
+  // 竖排「组件库」+ 展开箭头，永远贴在左边缘，随时点得回来。
+  if (!open) {
+    return (
+      <aside className="flex w-7 shrink-0 flex-col items-center border-r border-[var(--panel-border)] bg-[var(--panel-bg)] py-1.5">
+        <button
+          type="button"
+          title="展开组件库"
+          aria-label="展开组件库"
+          aria-expanded={false}
+          onClick={() => setOpen(true)}
+          className="grid h-7 w-7 place-items-center rounded text-[13px] text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--primary)]"
+        >
+          ›
+        </button>
+        <button
+          type="button"
+          title="展开组件库"
+          aria-label="展开组件库"
+          aria-expanded={false}
+          onClick={() => setOpen(true)}
+          className="mt-2 flex-1 cursor-pointer select-none text-[11px] tracking-[0.2em] text-[var(--text-secondary)] hover:text-[var(--primary)]"
+          style={{ writingMode: 'vertical-rl' }}
+        >
+          组件库
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-[var(--panel-border)] bg-[var(--panel-bg)]">
+      {/* 面板头（用户 2026-11-05）：给一个明确的「组件库 + 收起」入口，不再只靠顶栏图标 */}
+      <div className="flex items-center justify-between border-b border-[var(--panel-border)] px-2 py-1">
+        <span className="text-[11px] font-semibold tracking-wide text-[var(--text-secondary)]">组件库</span>
+        <button
+          type="button"
+          title="收起组件库"
+          aria-label="收起组件库"
+          aria-expanded
+          onClick={() => setOpen(false)}
+          className="grid h-6 w-6 place-items-center rounded text-[13px] text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--primary)]"
+        >
+          ‹
+        </button>
+      </div>
       {/* 搜索框去掉外框（用户 2026-11-05）：只留一条细分隔线，输入时文字本身给反馈 */}
       <div className="border-b border-[var(--panel-border)] px-2 py-1.5">
         <input
