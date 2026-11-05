@@ -5,6 +5,8 @@ import { useDiagramStore } from '../store/useDiagramStore.js';
 import { EdgeSettings } from './EdgeSettings.js';
 import { useTransfer } from '../hooks/useTransfer.js';
 import { AccountMenu } from './AccountMenu.js';
+import { GuestAccount } from './GuestAccount.js';
+import { useGuestSession } from '../data/guestSession.js';
 import { ToolIcon, type ToolIconName } from './ToolIcons.js';
 import { goToGallery } from '../data/navigate.js';
 
@@ -109,6 +111,9 @@ export function TopBar() {
   const showGrid = useDiagramStore((s) => s.showGrid);
   const componentPanelOpen = useDiagramStore((s) => s.componentPanelOpen);
   const versionOpen = useDiagramStore((s) => s.versionOpen);
+  // 游客模式（用户 2026-11-05）：账号区换成本机胶囊，版本历史与数据库探针都不适用
+  const guest = useGuestSession((s) => s.guest);
+  const pushToast = useDiagramStore((s) => s.pushToast);
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--panel-border)] bg-[var(--panel-bg)] px-3">
@@ -144,7 +149,11 @@ export function TopBar() {
       </div>
 
       <div className="ml-auto flex items-center gap-0.5">
-        {missingEnv.length > 0 ? (
+        {guest ? (
+          <span className="pr-1 text-[11px] text-[#92400E]" title="游客模式：数据存在浏览器本地，不连数据库">
+            本机存储
+          </span>
+        ) : missingEnv.length > 0 ? (
           <span className="text-xs text-amber-600">缺环境变量：{missingEnv.join(', ')}</span>
         ) : (
           <DbStatus />
@@ -168,6 +177,11 @@ export function TopBar() {
           label="版本历史（快照与回滚）"
           active={versionOpen}
           onClick={() => {
+            // 游客不存历史版本：数据只在本机，5MB 配额也撑不住快照
+            if (guest) {
+              pushToast('游客模式不保存历史版本；需要留档请导出 JSON', 'info');
+              return;
+            }
             // 版本栏和属性面板共用右侧一列：开版本栏就先清掉选中
             useDiagramStore.getState().select(null);
             useDiagramStore.getState().setVersionOpen(true);
@@ -330,7 +344,7 @@ export function TopBar() {
 
         {/* 账号挪到最右边（用户 2026-11-05）；跟导出按钮之间加一条分隔线，别贴着 */}
         <Divider />
-        <AccountMenu />
+        {guest ? <GuestAccount /> : <AccountMenu />}
       </div>
     </header>
   );

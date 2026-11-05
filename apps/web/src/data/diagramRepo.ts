@@ -13,6 +13,8 @@ import {
 import { supabase } from '../lib/supabase.js';
 import type { PayloadPatch } from './payloadDiff.js';
 import { reissueIds } from './transfer.js';
+import { isGuestMode } from './guestSession.js';
+import * as guest from './guestRepo.js';
 
 /**
  * 数据访问层：浏览器 → Supabase PostgREST。
@@ -64,6 +66,8 @@ export interface DiagramPage {
  * 前端不做二次过滤 —— 图多了以后"先拉全量再过滤"等于没分页。
  */
 export async function listDiagrams(options: ListOptions = {}): Promise<DiagramPage> {
+  // 游客模式：读写全在本机 localStorage，一个请求都不发（用户 2026-11-05）
+  if (isGuestMode()) return guest.listDiagrams(options);
   const { search, tag, sort = 'updated', limit = 12, offset = 0 } = options;
 
   let query = client()
@@ -95,6 +99,7 @@ export async function listDiagrams(options: ListOptions = {}): Promise<DiagramPa
 
 /** 图库里出现过的所有标签（去重后按字面排序） */
 export async function listAllTags(): Promise<string[]> {
+  if (isGuestMode()) return guest.listAllTags();
   const { data, error } = await client().from(TABLES.diagram).select('tags').eq('is_deleted', false);
   if (error) fail('读取标签失败', error);
 
@@ -107,6 +112,7 @@ export async function listAllTags(): Promise<string[]> {
 
 /** 改图的标签（图库卡片里编辑，最多 12 个） */
 export async function updateDiagramTags(diagramId: string, tags: string[]): Promise<void> {
+  if (isGuestMode()) return guest.updateDiagramTags(diagramId, tags);
   const cleaned = [...new Set(tags.map((t) => t.trim()).filter(Boolean))].slice(0, 12);
   const { error } = await client().from(TABLES.diagram).update({ tags: cleaned }).eq('diagram_id', diagramId);
   if (error) fail('保存标签失败', error);
@@ -124,6 +130,7 @@ export async function persistDiagramExt(
   diagramId: string,
   extJson: Record<string, unknown>,
 ): Promise<void> {
+  if (isGuestMode()) return guest.persistDiagramExt(diagramId, extJson);
   try {
     const { error } = await client()
       .from(TABLES.diagram)
@@ -150,6 +157,7 @@ export interface LoadedDiagram {
  * 库里可能存着旧版本或被手工改坏的行，宁可修可修项也不让画布崩掉。
  */
 export async function loadDiagram(diagramId: string): Promise<LoadedDiagram> {
+  if (isGuestMode()) return guest.loadDiagram(diagramId);
   const db = client();
 
   const [master, groups, nodes, edges] = await Promise.all([
@@ -192,6 +200,7 @@ export async function loadDiagram(diagramId: string): Promise<LoadedDiagram> {
 
 /** 新建一张空图的数据库记录 —— 现在统一走 saveDiagram（baseVersion = null 即插入） */
 export async function createDiagram(diagram: ArchitectureDiagram): Promise<SaveResult> {
+  if (isGuestMode()) return guest.createDiagram(diagram);
   return saveDiagram(diagram, null);
 }
 
@@ -201,6 +210,7 @@ export async function createDiagram(diagram: ArchitectureDiagram): Promise<SaveR
 
 /** 改名只动主表一行，不碰三张子表 */
 export async function renameDiagram(diagramId: string, name: string): Promise<void> {
+  if (isGuestMode()) return guest.renameDiagram(diagramId, name);
   const { error } = await client()
     .from(TABLES.diagram)
     .update({ name: name.trim() || '未命名架构图' })
@@ -214,6 +224,7 @@ export async function renameDiagram(diagramId: string, name: string): Promise<vo
  * 换 id 是必须的：主键冲突会被当作 update，把原图覆盖掉。
  */
 export async function duplicateDiagram(diagramId: string): Promise<{ diagramId: string; name: string }> {
+  if (isGuestMode()) return guest.duplicateDiagram(diagramId);
   const loaded = await loadDiagram(diagramId);
   const withNewIds = reissueIds({
     ...loaded.diagram,
@@ -236,6 +247,7 @@ export async function duplicateDiagram(diagramId: string): Promise<{ diagramId: 
 
 /** 删除 = 软删主表（子表留着，便于以后做恢复）；误删也能从快照回滚 */
 export async function deleteDiagram(diagramId: string): Promise<void> {
+  if (isGuestMode()) return guest.deleteDiagram(diagramId);
   const { error } = await client()
     .from(TABLES.diagram)
     .update({ is_deleted: true })
@@ -273,6 +285,9 @@ export async function saveDiagram(
   diagram: ArchitectureDiagram,
   baseVersion: number | null,
 ): Promise<SaveResult> {
+  // 游客模式：整图写 localStorage，不做版本冲突/增量（用户 2026-11-05）
+  if (isGuestMode()) return guest.saveDiagram(diagram, baseVersion);
+
   // 前端闸：枚举 / 引用 / 数值 / 规模的硬错误直接拒，别放到数据库里撞约束 ——
   // 那边只会回一句 "violates foreign key constraint"，定位不到字段（D4）
   const check = validateDiagram(diagram, { repair: false });
@@ -337,6 +352,9 @@ export async function patchDiagram(
   baseVersion: number,
   patch: PayloadPatch,
 ): Promise<SaveResult> {
+  // 游客不做增量：localStorage 写整图足够快
+  if (isGuestMode()) return guest.patchDiagram(diagram, baseVersion, patch);
+
   const check = validateDiagram(diagram, { repair: false });
   if (!check.ok) {
     const errors = check.errors.slice(0, 5);

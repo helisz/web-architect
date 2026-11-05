@@ -1,4 +1,5 @@
-﻿import { TABLES } from '@arch/schema';
+import { isGuestMode } from './guestSession.js';
+import { TABLES } from '@arch/schema';
 import { supabase as supabaseClient } from '../lib/supabase.js';
 
 /** supabase 在缺环境变量时为 null；能走到这里说明配置已校验过 */
@@ -53,6 +54,8 @@ const countOf = (payload: SavePayload | null): SnapshotSummary['counts'] => {
 
 /** 列出某张图的快照（新 → 旧，最多 50 条） */
 export async function listSnapshots(diagramId: string): Promise<SnapshotSummary[]> {
+  // 游客模式没有快照表可用（数据只在本机），版本面板不会打开
+  if (isGuestMode()) return [];
   const { data, error } = await db()
     .from(TABLES.snapshot)
     .select('snapshot_id, version, name, created_at, created_by, payload')

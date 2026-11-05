@@ -15,6 +15,8 @@ import { rememberSavedPayload } from '../data/usePersistence.js';
 import { navigateToDiagram } from '../lib/route.js';
 import { ToolIcon } from './ToolIcons.js';
 import { AccountMenu } from './AccountMenu.js';
+import { GuestAccount } from './GuestAccount.js';
+import { useGuestSession } from '../data/guestSession.js';
 
 type SortKey = 'updated' | 'name' | 'version';
 
@@ -34,6 +36,8 @@ const SORT_LABEL: Record<SortKey, string> = {
  * 前端只保存"当前条件"，不缓存全量列表。
  */
 export function Gallery() {
+  // 游客模式（用户 2026-11-05）：列表/新建/删除全部走本地仓储，账号区换成本机胶囊
+  const guest = useGuestSession((s) => s.guest);
   const setDiagram = useDiagramStore((s) => s.setDiagram);
   const pushToast = useDiagramStore((s) => s.pushToast);
   const currentId = useDiagramStore((s) => s.diagram.diagramId);
@@ -191,8 +195,8 @@ export function Gallery() {
             <ToolIcon name="plus" size={14} />
             新建架构图
           </button>
-          {/* 账号固定在最右边（用户 2026-11-05：图库也要有，hover 展开登出） */}
-          <AccountMenu />
+          {/* 账号固定在最右边（用户 2026-11-05：图库也要有，hover 展开登出）；游客换成"本机"胶囊 */}
+          {guest ? <GuestAccount /> : <AccountMenu />}
         </div>
       </header>
 

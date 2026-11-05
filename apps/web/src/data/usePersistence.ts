@@ -9,6 +9,7 @@ import { isWriterTab, takeOverWriter } from './tabLock.js';
 import { shouldWarnOnUnload } from './unloadGuard.js';
 import { readLocalViewport } from './viewportPrefs.js';
 import { navigateToGallery, type Route } from '../lib/route.js';
+import { isGuestMode } from './guestSession.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 
 /** 上次打开的图：只用于图库里高亮，不再自动跳转（用户 2026-11-04 定稿） */
@@ -223,6 +224,27 @@ async function runSave(diagram: ArchitectureDiagram): Promise<void> {
   lastStructural = structuralKey(diagram);
 
   const payload = toSavePayload(diagram);
+
+  /**
+   * 游客模式（用户 2026-11-05）：整图写 localStorage。
+   * 不走增量/版本冲突/重定基 —— 本机没有"别人也在改"这回事，快照也不做。
+   */
+  if (isGuestMode()) {
+    const result = await saveDiagram(diagram, null);
+    const after = useDiagramStore.getState();
+    if (after.diagram.diagramId !== diagram.diagramId) return;
+    if (result.ok) {
+      lastPayload = payload;
+      const dirtyAgain = after.saveState === 'dirty';
+      after.applySaved(result.version, result.savedAt);
+      if (dirtyAgain) after.markDirty();
+      return;
+    }
+    after.setSaveError(result.message);
+    after.markDirty();
+    return;
+  }
+
   // 首次保存（服务端还没有这张图）必须不带基线，否则会插出一条重复的图；
   // 没有基线 payload 时也只能整图保存（增量需要"上次存的是什么"）
   const canPatch = store.persisted && lastPayload !== null && !patchUnavailable;
@@ -400,6 +422,8 @@ export function useAutosave(): void {
    */
   useEffect(() => {
     if (!booted || !persisted) return;
+    // 游客模式不写草稿：整张图本来就在 localStorage 里，再存一份只浪费配额
+    if (isGuestMode()) return;
     const handle = setTimeout(() => saveDraft(diagram), DRAFT_MS);
     return () => clearTimeout(handle);
   }, [diagram, booted, persisted]);

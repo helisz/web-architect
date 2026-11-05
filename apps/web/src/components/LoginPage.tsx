@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { AuthState } from '../lib/auth.js';
+import { useGuestSession } from '../data/guestSession.js';
+import { navigateToGallery } from '../lib/route.js';
 import { AUTH_ERRORS } from '../lib/auth.js';
 
 /**
@@ -11,6 +13,7 @@ import { AUTH_ERRORS } from '../lib/auth.js';
 export function LoginPage({ auth }: { auth: AuthState }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const enterGuest = useGuestSession((s) => s.enter);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -77,6 +80,25 @@ export function LoginPage({ auth }: { auth: AuthState }) {
           <br />
           （Authentication → Users → Add user）
         </p>
+
+        {/* 游客试用（用户 2026-11-05）：不登录也能画，数据只写本机 localStorage */}
+        <div className="mt-4 border-t border-[var(--panel-border)] pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              enterGuest();
+              navigateToGallery();
+            }}
+            className="w-full rounded border border-[var(--panel-border)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[#F9FAFB]"
+          >
+            不登录，先试用
+          </button>
+          <p className="mt-1.5 text-center text-[11px] leading-5 text-[var(--text-secondary)]">
+            数据只保存在这台电脑的浏览器里（最多 20 张），
+            <br />
+            换设备或清缓存就没了；登录后可以一键导入账号
+          </p>
+        </div>
       </div>
     </div>
   );
