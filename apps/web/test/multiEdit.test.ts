@@ -88,13 +88,33 @@ describe('多选字段交集', () => {
     ]);
   });
 
-  it('两个连线：名称 + 线条颜色', () => {
+  it('两个连线：名称 + 线条颜色 + 线宽/线型/箭头/虚线', () => {
     const { diagram, edge, a, b } = makeDiagram();
     const second = { ...edge, edgeId: newId(), strokeColor: '#2563EB' };
     const withTwo = { ...diagram, edges: [edge, second] };
     const fields = commonFields([edge.edgeId, second.edgeId], withTwo);
-    expect(fields.map((f) => f.field)).toEqual(['label', 'strokeColor']);
+    expect(fields.map((f) => f.field)).toEqual([
+      'label',
+      'strokeColor',
+      'strokeWidth',
+      'edgeType',
+      'arrow',
+      'strokeDasharray',
+    ]);
     expect(fields.find((f) => f.field === 'strokeColor')!.mixed).toBe(true);
+  });
+
+  it('连线的虚线字段：null 折算成 solid，方便批量比较', () => {
+    const { diagram, edge } = makeDiagram();
+    expect(readField('edge', edge, 'strokeDasharray')).toBe('solid');
+    expect(readField('edge', { ...edge, strokeDasharray: '6 4' }, 'strokeDasharray')).toBe('6 4');
+    expect(readField('edge', edge, 'strokeWidth')).toBe(String(edge.strokeWidth));
+  });
+
+  it('节点 + 连线混选时只剩名称（连线没有背景色、节点没有线宽）', () => {
+    const { diagram, edge, a } = makeDiagram();
+    const fields = commonFields([a.nodeId, edge.edgeId], diagram);
+    expect(fields.map((f) => f.field)).toEqual(['label']);
   });
 
   it('只选中一个对象时不出交集表单', () => {

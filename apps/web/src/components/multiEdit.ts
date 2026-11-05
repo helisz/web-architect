@@ -21,13 +21,18 @@ export type MultiField =
   | 'iconHidden'
   | 'align'
   | 'valign'
-  | 'strokeColor';
+  | 'strokeColor'
+  /* 2026-11-05：连线的批量样式（选多条线时一次改完，省得一条条点） */
+  | 'strokeWidth'
+  | 'edgeType'
+  | 'arrow'
+  | 'strokeDasharray';
 
 /** 每类对象支持哪些可批量编辑的字段 */
 const SUPPORT: Record<MultiKind, readonly MultiField[]> = {
   node: [ 'label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden', 'align', 'valign' ],
   group: ['label', 'subLabel', 'bgColor', 'borderColor', 'textColor', 'iconKey', 'iconHidden'],
-  edge: ['label', 'strokeColor'],
+  edge: ['label', 'strokeColor', 'strokeWidth', 'edgeType', 'arrow', 'strokeDasharray'],
 };
 
 /** 字段的中文名，面板上按这个顺序铺开 */
@@ -42,6 +47,10 @@ export const FIELD_LABEL: Record<MultiField, string> = {
   align: '水平对齐',
   valign: '垂直对齐',
   strokeColor: '线条颜色',
+  strokeWidth: '线宽',
+  edgeType: '线型',
+  arrow: '箭头',
+  strokeDasharray: '虚线',
 };
 
 const ORDER: MultiField[] = [
@@ -51,6 +60,10 @@ const ORDER: MultiField[] = [
   'borderColor',
   'textColor',
   'strokeColor',
+  'strokeWidth',
+  'edgeType',
+  'arrow',
+  'strokeDasharray',
   'iconKey',
   'iconHidden',
   'align',
@@ -94,6 +107,12 @@ export function readField(
     const edge = item as DiagramEdge;
     if (field === 'label') return edge.label ?? '';
     if (field === 'strokeColor') return edge.strokeColor;
+    // 数字/枚举统一转成字符串参与「多个值」比较，apply 时再解析回类型
+    if (field === 'strokeWidth') return String(edge.strokeWidth);
+    if (field === 'edgeType') return edge.edgeType;
+    if (field === 'arrow') return edge.arrow;
+    // 「实线」用 'solid' 表示：strokeDasharray 为 null
+    if (field === 'strokeDasharray') return edge.strokeDasharray ?? 'solid';
     return undefined;
   }
   if (kind === 'group') {

@@ -51,6 +51,7 @@ import { AlignToolbar } from '../components/AlignToolbar.js';
 import { SearchDialog } from '../components/SearchDialog.js';
 import { LayerPanel } from '../components/LayerPanel.js';
 import { useEdgeLabelEdit } from '../store/useEdgeLabelEdit.js';
+import { useCanvasMode } from '../store/useCanvasMode.js';
 import { ArchEdge } from './ArchEdge.js';
 import { ArchConnectionLine } from './ArchConnectionLine.js';
 import { nextZoom, zoomAroundCenter, ZOOM_RESET_EVENT } from './zoom.js';
@@ -133,7 +134,7 @@ const cursorFrame = useRef<number | null>(null);
    */
   // 空格按住才能拖动画布（Figma 式）；松手立刻恢复
   const [spaceHeld, setSpaceHeld] = useState(false);
-  const [panMode, setPanMode] = useState(false);
+  const panMode = useCanvasMode((s) => s.panMode);
   const panActive = panMode || spaceHeld;
   const startEdgeLabelEdit = useEdgeLabelEdit((s) => s.start);
 
@@ -683,6 +684,16 @@ const cursorFrame = useRef<number | null>(null);
       onNodeDragStop={onNodeDragStop}
       onMoveEnd={onMoveEnd}
       onPaneClick={() => select(null)}
+      onSelectionEnd={() => {
+        // 框选只选节点/分组（用户 2026-11-05）：框 10 个节点时别顺手带上十几条穿过的线，
+        // 否则一次 Delete 就会连确认框都没看清地删掉一堆连线。
+        // 连线仍然可以单击 / Shift+单击单独选中。
+        const state = useDiagramStore.getState();
+        const selectedEdges = state.diagram.edges
+          .filter((e) => state.selectedIds.includes(e.edgeId))
+          .map((e) => e.edgeId);
+        if (selectedEdges.length > 0) state.updateSelection([], selectedEdges);
+      }}
       onEdgeDoubleClick={(event, edge) => {
         // 双击连线 → 就地改标注（用户 2026-11-05）；只读态和拖动模式下不响应
         event.stopPropagation();
@@ -723,7 +734,7 @@ const cursorFrame = useRef<number | null>(null);
       />
     </ReactFlow>
     {/* 画布右上角：拖动模式 + 锁定编辑（用户 2026-11-05） */}
-    <CanvasModeButtons panMode={panMode} onTogglePanMode={() => setPanMode((v) => !v)} />
+    <CanvasModeButtons />
     {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
     <SearchDialog />
     </div>
@@ -739,13 +750,9 @@ const cursorFrame = useRef<number | null>(null);
  *
  * 三个按钮都只有图标，含义放在 title / aria-label 里。
  */
-function CanvasModeButtons({
-  panMode,
-  onTogglePanMode,
-}: {
-  panMode: boolean;
-  onTogglePanMode: () => void;
-}) {
+function CanvasModeButtons() {
+  const panMode = useCanvasMode((s) => s.panMode);
+  const togglePanMode = useCanvasMode((s) => s.togglePanMode);
   const locked = useDiagramStore((s) => isEditLocked(s.diagram));
   const setEditLocked = useDiagramStore((s) => s.setEditLocked);
   const layerOpen = useDiagramStore((s) => s.layerPanelOpen);
@@ -771,7 +778,7 @@ function CanvasModeButtons({
         aria-pressed={panMode}
         aria-label={panMode ? '退出拖动模式' : '拖动模式'}
         title={panMode ? '拖动模式：拖空白处平移画布（再点一下回到编辑）' : '拖动模式：拖空白处平移画布，节点不跟着动'}
-        onClick={onTogglePanMode}
+        onClick={togglePanMode}
         className={`${base} ${panMode ? on : off}`}
       >
         <ToolIcon name="hand" size={16} />

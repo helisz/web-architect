@@ -1,4 +1,4 @@
-﻿import { useDiagramStore } from '../store/useDiagramStore.js';
+import { useDiagramStore } from '../store/useDiagramStore.js';
 
 /**
  * 删除二次确认。
@@ -21,6 +21,22 @@ export function DeleteConfirmDialog() {
     .map((id) => diagram.groups.find((g) => g.groupId === id)?.label)
     .filter((label): label is string => Boolean(label));
 
+  /*
+   * 连线也要报名字（用户 2026-11-05）：只说「2 条连线」根本不知道自己删的是哪两条。
+   * 用「A → B（443/TLS）」的形式，端点是分组也能显示分组名。
+   */
+  const endpointName = (id: string): string =>
+    diagram.nodes.find((n) => n.nodeId === id)?.label ||
+    diagram.groups.find((g) => g.groupId === id)?.label ||
+    '未命名';
+  const edgeLabels = pending.edgeIds
+    .map((id) => diagram.edges.find((e) => e.edgeId === id))
+    .filter((edge): edge is NonNullable<typeof edge> => Boolean(edge))
+    .map((edge) => {
+      const pair = `${endpointName(edge.sourceNodeId)} → ${endpointName(edge.targetNodeId)}`;
+      return edge.label ? `${pair}（${edge.label}）` : pair;
+    });
+
   // 删节点会连带删掉挂在它上面的连线，提前告诉用户
   const nodeSet = new Set(pending.nodeIds);
   const cascadedEdges = diagram.edges.filter(
@@ -28,8 +44,9 @@ export function DeleteConfirmDialog() {
   ).length;
   const total = pending.nodeIds.length + pending.edgeIds.length + pending.groupIds.length + cascadedEdges;
 
-  const preview = [...groupLabels, ...nodeLabels].slice(0, 4).join('、');
-  const rest = groupLabels.length + nodeLabels.length > 4 ? ' 等' : '';
+  const names = [...groupLabels, ...nodeLabels, ...edgeLabels];
+  const preview = names.slice(0, 4).join('、');
+  const rest = names.length > 4 ? ' 等' : '';
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/30" role="dialog" aria-modal>

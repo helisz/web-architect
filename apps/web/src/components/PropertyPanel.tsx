@@ -5,6 +5,7 @@ import {
   EDGE_DASH_PRESETS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  LIMITS,
   dashPresetOf,
   iconKeyFor,
   isGroupLocked,
@@ -41,6 +42,19 @@ function applyMultiField(
   if (kind === 'edge') {
     if (field === 'label') actions.patchEdge(id, { label: value });
     else if (field === 'strokeColor') actions.patchEdge(id, { strokeColor: value });
+    // 2026-11-05：多选连线批量改样式
+    else if (field === 'strokeWidth') {
+      const width = Math.min(LIMITS.strokeWidthMax, Math.max(LIMITS.strokeWidthMin, Number(value) || 1));
+      actions.patchEdge(id, { strokeWidth: width });
+    } else if (field === 'edgeType') {
+      actions.patchEdge(id, { edgeType: value as DiagramEdge['edgeType'] });
+    } else if (field === 'arrow') {
+      actions.patchEdge(id, { arrow: value as DiagramEdge['arrow'] });
+    } else if (field === 'strokeDasharray') {
+      // 'solid' 表示实线（null），其余值沿用预设里的 '6 4' / '12 8'
+      const preset = EDGE_DASH_PRESETS.find((p) => p.key === value);
+      actions.patchEdge(id, { strokeDasharray: preset ? preset.value : value });
+    }
     return;
   }
   if (kind === 'group') {
@@ -197,7 +211,9 @@ function MultiForm() {
 
   return (
     <div>
-      <p className="text-sm font-semibold">已选中 {picked.length} 个元素</p>
+      <p className="text-sm font-semibold">
+        {picked.every(({ kind }) => kind === 'edge') ? `已选中 ${picked.length} 条连线` : `已选中 ${picked.length} 个元素`}
+      </p>
       <p className="mt-1 text-xs text-[var(--text-secondary)]">
         只显示所有对象都有的属性，改一次全部生效；值不一致时显示「多个值」。
       </p>
@@ -282,6 +298,81 @@ function MultiForm() {
               },
             ]}
           />
+        )}
+
+        {/* 连线样式（用户 2026-11-05：选多条线时也要能一次改完） */}
+        {find('strokeWidth') && (
+          <Field label={`${FIELD_LABEL.strokeWidth}${find('strokeWidth')!.mixed ? '（多个值）' : ''}`}>
+            <input
+              type="number"
+              step={0.5}
+              min={LIMITS.strokeWidthMin}
+              max={LIMITS.strokeWidthMax}
+              className={inputClass}
+              value={find('strokeWidth')!.value ?? ''}
+              placeholder={find('strokeWidth')!.mixed ? '多个值' : ''}
+              onChange={(e) => apply('strokeWidth', e.target.value)}
+            />
+          </Field>
+        )}
+
+        {find('edgeType') && (
+          <Field label={`${FIELD_LABEL.edgeType}${find('edgeType')!.mixed ? '（多个值）' : ''}`}>
+            <select
+              className={inputClass}
+              value={find('edgeType')!.value ?? 'ortho'}
+              onChange={(e) => apply('edgeType', e.target.value)}
+            >
+              {find('edgeType')!.mixed && <option value="">多个值</option>}
+              {EDGE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+
+        {find('arrow') && (
+          <Field label={`${FIELD_LABEL.arrow}${find('arrow')!.mixed ? '（多个值）' : ''}`}>
+            <select
+              className={inputClass}
+              value={find('arrow')!.value ?? 'none'}
+              onChange={(e) => apply('arrow', e.target.value)}
+            >
+              {find('arrow')!.mixed && <option value="">多个值</option>}
+              {ARROWS.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+
+        {find('strokeDasharray') && (
+          <Field label={`${FIELD_LABEL.strokeDasharray}${find('strokeDasharray')!.mixed ? '（多个值）' : ''}`}>
+            <div className="flex gap-1">
+              {EDGE_DASH_PRESETS.map((preset) => {
+                const active = find('strokeDasharray')!.value === preset.key;
+                return (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => apply('strokeDasharray', preset.key)}
+                    className={`flex-1 rounded border px-1.5 py-1 text-[11px] ${
+                      active
+                        ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                        : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
         )}
 
         {find('iconKey') && (
