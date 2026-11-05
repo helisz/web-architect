@@ -77,8 +77,10 @@ describe('图标规则：nodeType → iconKey', () => {
     }
   });
 
-  it('允许集合 = 用户 10 个 + 方案 (a) 6 个 + nginx/集群/文本 4 个', () => {
-    expect(ALLOWED_ICON_KEYS).toHaveLength(20);
+  it('允许集合 = 用户 10 个 + 方案 (a) 6 个 + nginx/集群/文本 4 个，减去并掉的 devicon:nginx', () => {
+    expect(ALLOWED_ICON_KEYS).toHaveLength(19);
+    // 用户 2026-11-05：旧的 nginx 全称 logo 从常用集里彻底移除，只留自绘的方框 N
+    expect(ALLOWED_ICON_KEYS).not.toContain('devicon:nginx');
     for (const key of Object.values(USER_DECIDED)) expect(ALLOWED_ICON_KEYS).toContain(key);
     for (const extra of [
       'tabler:server',
@@ -218,6 +220,29 @@ describe('校验与修复（V11）', () => {
     expect(resolveIconKey({ nodeType: 'server' })).toBe('tabler:server');
   });
 });
+describe('nginx 图标归一（用户 2026-11-05：手绘方框 N 完全替换旧全称 logo）', () => {
+  it('老 key 一律映射到自绘的 arch:nginx', () => {
+    for (const legacy of ['devicon:nginx', 'logos:nginx', 'simple-icons:nginx', 'cib:nginx']) {
+      expect(resolveIconKey({ nodeType: 'server', extJson: { iconKey: legacy } })).toBe('arch:nginx');
+    }
+  });
 
+  it('其它图标不受影响（别名表只认 nginx）', () => {
+    expect(resolveIconKey({ nodeType: 'server', extJson: { iconKey: 'devicon:kubernetes' } })).toBe(
+      'devicon:kubernetes',
+    );
+    expect(resolveIconKey({ nodeType: 'nginx', extJson: {} })).toBe('arch:nginx');
+  });
 
+  it('repair 模式会把库里的老 key 改成新 key（打开一次就自愈）', () => {
+    const d = createEmptyDiagram({ name: 'nginx 归一' });
+    const node = createNode('nginx', d.diagramId, { x: 0, y: 0 });
+    node.extJson = { ...node.extJson, iconKey: 'devicon:nginx' };
+    d.nodes.push(node);
 
+    const result = validateDiagram(d, { repair: true });
+    // 修复结果在 result.diagram 上（zod 会 clone，不会回写入参）
+    expect(result.diagram?.nodes[0]!.extJson?.iconKey).toBe('arch:nginx');
+    expect(result.errors).toHaveLength(0);
+  });
+});

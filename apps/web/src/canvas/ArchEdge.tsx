@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -12,6 +12,8 @@ import {
 import type { EdgeProps, InternalNode } from '@xyflow/react';
 import { anchorPoint, type Anchor, type Rect } from '@arch/schema';
 import { anchorOf, type ArchFlowEdge } from './flowMapping.js';
+import { useDiagramStore } from '../store/useDiagramStore.js';
+import { useEdgeLabelEdit } from '../store/useEdgeLabelEdit.js';
 
 /** 箭头尺寸（userSpaceOnUse，固定 10px，不随线宽放大） */
 const ARROW = 10;
@@ -138,6 +140,23 @@ function ArchEdgeImpl({
   const arrow = edge?.arrow ?? 'none';
   const arrowColor = selected ? 'var(--primary)' : stroke;
 
+  /* —— 双击连线就地改标注（用户 2026-11-05） —— */
+  const editingEdgeId = useEdgeLabelEdit((s) => s.editingEdgeId);
+  const stopEditing = useEdgeLabelEdit((s) => s.stop);
+  const editing = editingEdgeId === id;
+  const patchEdgeNow = useDiagramStore((s) => s.patchEdge);
+  const [draft, setDraft] = useState('');
+
+  useEffect(() => {
+    if (editing) setDraft(edge?.label ?? '');
+  }, [editing, edge?.label]);
+
+  const commitDraft = (): void => {
+    const next = draft.trim();
+    if (next !== (edge?.label ?? '')) patchEdgeNow(id, { label: next === '' ? undefined : next });
+    stopEditing();
+  };
+
   // 箭头颜色跟着线走，所以 marker 只能一条线一个；用暖一点的 tip 对齐：refX = 尺寸
   const markerId = `arch-arrow-${id}`;
   const hasArrow = Boolean(edge) && (arrow === 'forward' || arrow === 'backward' || arrow === 'both');
@@ -186,6 +205,36 @@ function ArchEdgeImpl({
             }}
           >
             {edge?.label}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+      {/* 双击连线就地输入（用户 2026-11-05）：输入框永远渲染在线的中点 */}
+      {editing && (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan absolute"
+            style={{
+              transform: `translate(-50%, -50%) translate(${geometry.labelPoint.x}px, ${geometry.labelPoint.y}px)`,
+              pointerEvents: 'all',
+            }}
+          >
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitDraft}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') commitDraft();
+                if (e.key === 'Escape') {
+                  setDraft(edge?.label ?? '');
+                  stopEditing();
+                }
+              }}
+              placeholder="标注，如 443/TLS"
+              aria-label="连线标注"
+              className="w-32 rounded border border-[var(--primary)] bg-white px-1 py-0.5 text-center text-[11px] outline-none shadow-sm"
+            />
           </div>
         </EdgeLabelRenderer>
       )}

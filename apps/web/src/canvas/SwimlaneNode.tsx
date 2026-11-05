@@ -124,10 +124,10 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
               <NodeIcon
                 iconKey={resolveIconKey({ nodeType: 'group', extJson: group.extJson })}
                 size={14}
-                className={`${showSubLabel ? 'mt-[3px]' : 'mt-[5px]'} shrink-0 opacity-70`}
+                className={`${showSubLabel ? 'mt-[6px]' : 'mt-[5px]'} shrink-0 opacity-70`}
               />
             )}
-            <div className={`min-w-0 flex-1 ${showSubLabel ? 'pt-[2px]' : 'pt-[4px]'}`}>
+            <div className={`min-w-0 flex-1 ${showSubLabel ? 'pt-[5px]' : 'pt-[4px]'}`}>
               <div
                 className="truncate text-xs font-medium leading-[16px]"
                 onDoubleClick={(e) => {
@@ -137,9 +137,13 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
               >
                 {group.label}
               </div>
-              {/* 副文本：10px 等宽、允许回车换行，固定高度里最多显示两行 */}
+              {/*
+                副文本：10px 等宽，**只显示一行**、超出用省略号（用户 2026-11-05）。
+                标题栏固定 38px（2 上边距 + 16 标题 + 3 间距 + 10 一行），
+                换行内容仍完整存在数据里，属性面板能看到全文。
+              */}
               {showSubLabel && (
-                <div className="mono line-clamp-2 whitespace-pre-line break-words text-[10px] leading-[10px] opacity-60">
+                <div className="mono mt-[3px] truncate text-[10px] leading-[10px] opacity-60">
                   {group.subLabel}
                 </div>
               )}

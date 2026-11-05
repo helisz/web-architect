@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useDiagramStore } from '../store/useDiagramStore.js';
 import { COMPONENT_CATEGORIES, GROUP_PRESETS, STRUCTURE_NODE_SPECS, iconKeyFor } from '@arch/schema';
 import type { ComponentSpec, GroupPreset } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
@@ -89,6 +90,8 @@ function ComponentCard({ item }: { item: ComponentSpec }) {
 /** 左侧组件面板（规格 §3.2 / §3.3）：240px，结构 + 文本 + 分类 + 搜索 */
 export function ComponentPanel() {
   const [keyword, setKeyword] = useState('');
+  // 整栏可隐藏（用户 2026-11-05）：顶栏「组件库」按钮切换，选择记在 localStorage
+  const open = useDiagramStore((s) => s.componentPanelOpen);
 
   const categories = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
@@ -114,14 +117,17 @@ export function ComponentPanel() {
 
   const total = categories.reduce((sum, c) => sum + c.items.length, 0) + presets.length;
 
+  if (!open) return null;
+
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-[var(--panel-border)] bg-[var(--panel-bg)]">
-      <div className="border-b border-[var(--panel-border)] p-2">
+      {/* 搜索框去掉外框（用户 2026-11-05）：只留一条细分隔线，输入时文字本身给反馈 */}
+      <div className="border-b border-[var(--panel-border)] px-2 py-1.5">
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="搜索组件…"
-          className="w-full rounded border border-[var(--panel-border)] px-2 py-1.5 text-xs outline-none placeholder:text-[var(--text-secondary)] focus:border-[var(--primary)]"
+          className="w-full border-0 bg-transparent px-1 py-1 text-xs outline-none placeholder:text-[var(--text-secondary)] focus:outline-none"
         />
       </div>
 

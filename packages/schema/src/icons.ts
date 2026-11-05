@@ -15,7 +15,6 @@ export const ALLOWED_ICON_KEYS = [
   // —— 用户指定的 10 个
   'tabler:shield-lock',
   'tabler:router',
-  'devicon:nginx',
   'devicon:kubernetes',
   'k8s:pod',
   'tabler:database',
@@ -33,7 +32,8 @@ export const ALLOWED_ICON_KEYS = [
   /**
    * 2026-11-04 追加 4 个：
    * - `arch:nginx` / `arch:nginx-mono`：nginx 的「N」方块标记（自绘内联 path，
-   *   不是原来的 NGINX 全称 wordmark）；
+   *   不是原来的 NGINX 全称 wordmark）。**旧的 `devicon:nginx` 已从常用集移除**，
+   *   老数据由 LEGACY_ICON_ALIASES 在渲染层映射成 arch:nginx；
    * - `tabler:letter-n`：纯字母 N，作备选；
    * - `tabler:stack-2`：集群/堆叠，给「集群」分组预设用。
    */
@@ -110,6 +110,23 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   custom: 'tabler:cube',
 };
 
+/**
+ * 历史图标 key 的别名表（用户 2026-11-05：nginx 的「N」标记要完全替换旧的全称 logo）。
+ *
+ * 老数据里 nginx 存的是品牌库的整词 wordmark（`devicon:nginx`），本地图集里已经删掉了它，
+ * 直接渲染会掉回 `tabler:cube`。所以**渲染层**统一先查这张表：
+ * 无论数据里是哪个旧 key，画出来都是手绘的六边形 N。
+ *
+ * 数据侧的彻底清理见 `supabase/patch-nginx-icon.sql`（把 ext_json.iconKey 刷成 arch:nginx）。
+ */
+export const LEGACY_ICON_ALIASES: Readonly<Record<string, IconKey>> = {
+  'devicon:nginx': 'arch:nginx',
+  'logos:nginx': 'arch:nginx',
+  'simple-icons:nginx': 'arch:nginx',
+  'cib:nginx': 'arch:nginx',
+  'fa6-brands:nginx': 'arch:nginx',
+};
+
 const ALLOWED_SET = new Set<string>(ALLOWED_ICON_KEYS);
 
 /**
@@ -149,6 +166,7 @@ export function resolveIconKey(node: {
   extJson?: Record<string, unknown>;
 }): IconKey {
   const stored = node.extJson?.iconKey;
+  if (typeof stored === 'string' && LEGACY_ICON_ALIASES[stored]) return LEGACY_ICON_ALIASES[stored];
   return isIconKey(stored) ? stored : iconKeyFor(node.nodeType);
 }
 

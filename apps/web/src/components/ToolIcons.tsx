@@ -27,7 +27,9 @@ export type ToolIconName =
   | 'pencil'
   | 'copy'
   | 'trash'
-  | 'move';
+  | 'move'
+  | 'hand'
+  | 'panelLeft';
 
 const PATHS: Record<ToolIconName, string> = {
   undo: 'M9 14 5 10l4-4M5 10h11a4 4 0 0 1 0 8h-2',
@@ -55,6 +57,10 @@ const PATHS: Record<ToolIconName, string> = {
   trash: 'M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6',
   // 画布上的「拖动模式」：四向箭头 = 平移
   move: 'M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3',
+  // 抓手 = 平移画布（用户 2026-11-05：拖动模式换成「手」）
+  // 左侧组件库开关：一个矩形左边一条竖线
+  panelLeft: 'M4 4h16v16H4zM9.5 4v16',
+  hand: 'M8 12.5V5.5a1.5 1.5 0 0 1 3 0V11m0-6.5a1.5 1.5 0 0 1 3 0V11m0-5.5a1.5 1.5 0 0 1 3 0V12m0-3.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.6a5 5 0 0 1-3.7-1.7l-3.4-3.8a1.6 1.6 0 0 1 2.3-2.2L8 15',
 };
 
 export function ToolIcon({

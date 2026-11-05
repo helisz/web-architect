@@ -229,6 +229,9 @@ interface DiagramStore {
   setSearchOpen: (open: boolean) => void;
   layerPanelOpen: boolean;
   setLayerPanelOpen: (open: boolean) => void;
+  /** 左侧组件库是否展开（用户 2026-11-05：整栏可隐藏，顶栏按钮唤出） */
+  componentPanelOpen: boolean;
+  setComponentPanelOpen: (open: boolean) => void;
 }
 
 const applyNode = (
@@ -1023,6 +1026,11 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
   searchOpen: false,
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   layerPanelOpen: readPref('layerPanelOpen', false),
+  componentPanelOpen: readPref('componentPanelOpen', true),
+  setComponentPanelOpen: (componentPanelOpen) => {
+    writePref('componentPanelOpen', componentPanelOpen);
+    set({ componentPanelOpen });
+  },
   setLayerPanelOpen: (layerPanelOpen) => {
     writePref('layerPanelOpen', layerPanelOpen);
     set({ layerPanelOpen });

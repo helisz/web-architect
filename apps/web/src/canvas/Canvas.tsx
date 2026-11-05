@@ -50,6 +50,7 @@ import { SwimlaneNode } from './SwimlaneNode.js';
 import { AlignToolbar } from '../components/AlignToolbar.js';
 import { SearchDialog } from '../components/SearchDialog.js';
 import { LayerPanel } from '../components/LayerPanel.js';
+import { useEdgeLabelEdit } from '../store/useEdgeLabelEdit.js';
 import { ArchEdge } from './ArchEdge.js';
 import { ArchConnectionLine } from './ArchConnectionLine.js';
 import { nextZoom, zoomAroundCenter, ZOOM_RESET_EVENT } from './zoom.js';
@@ -134,6 +135,7 @@ const cursorFrame = useRef<number | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [panMode, setPanMode] = useState(false);
   const panActive = panMode || spaceHeld;
+  const startEdgeLabelEdit = useEdgeLabelEdit((s) => s.start);
 
   // 拖动模式下整张图都不可拖（per-node draggable 会覆盖 ReactFlow 的 nodesDraggable）
   const nodes = useMemo(
@@ -681,6 +683,12 @@ const cursorFrame = useRef<number | null>(null);
       onNodeDragStop={onNodeDragStop}
       onMoveEnd={onMoveEnd}
       onPaneClick={() => select(null)}
+      onEdgeDoubleClick={(event, edge) => {
+        // 双击连线 → 就地改标注（用户 2026-11-05）；只读态和拖动模式下不响应
+        event.stopPropagation();
+        if (editLocked || panActive) return;
+        startEdgeLabelEdit(edge.id);
+      }}
       onNodeContextMenu={onNodeContextMenu}
       onEdgeContextMenu={onEdgeContextMenu}
       onPaneContextMenu={onPaneContextMenu}
@@ -723,12 +731,13 @@ const cursorFrame = useRef<number | null>(null);
 }
 
 /**
- * 右上角两个开关（用户 2026-11-05）：
+ * 右上角三个开关（用户 2026-11-05）：
  *
- * - 左：拖动模式（`panMode`）—— 拖空白处平移画布、节点不可拖；等价于"一直按住空格"。
+ * - 左：图层（`layerPanelOpen`）—— 打开右侧树形图层面板；
+ * - 中：拖动模式（`panMode`）—— 拖空白处平移画布、节点不可拖；等价于"一直按住空格"。
  * - 右：锁定编辑 —— 更彻底的只读（连框选/连线都不行），状态随图保存。
  *
- * 两个按钮都只有图标，含义放在 title / aria-label 里。
+ * 三个按钮都只有图标，含义放在 title / aria-label 里。
  */
 function CanvasModeButtons({
   panMode,
@@ -739,21 +748,33 @@ function CanvasModeButtons({
 }) {
   const locked = useDiagramStore((s) => isEditLocked(s.diagram));
   const setEditLocked = useDiagramStore((s) => s.setEditLocked);
+  const layerOpen = useDiagramStore((s) => s.layerPanelOpen);
+  const setLayerPanelOpen = useDiagramStore((s) => s.setLayerPanelOpen);
+  const base = 'grid h-8 w-8 place-items-center rounded-md border shadow-sm';
+  const on = 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]';
+  const off =
+    'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]';
   return (
-    <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+    <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5">
+      <button
+        type="button"
+        aria-pressed={layerOpen}
+        aria-label={layerOpen ? '关闭图层' : '图层'}
+        title="图层：分组层级 + 遮挡顺序"
+        onClick={() => setLayerPanelOpen(!layerOpen)}
+        className={`${base} ${layerOpen ? on : off}`}
+      >
+        <ToolIcon name="layers" size={16} />
+      </button>
       <button
         type="button"
         aria-pressed={panMode}
         aria-label={panMode ? '退出拖动模式' : '拖动模式'}
         title={panMode ? '拖动模式：拖空白处平移画布（再点一下回到编辑）' : '拖动模式：拖空白处平移画布，节点不跟着动'}
         onClick={onTogglePanMode}
-        className={`grid h-8 w-8 place-items-center rounded-md border shadow-sm ${
-          panMode
-            ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
-            : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
-        }`}
+        className={`${base} ${panMode ? on : off}`}
       >
-        <ToolIcon name="move" size={16} />
+        <ToolIcon name="hand" size={16} />
       </button>
       <button
         type="button"
@@ -761,11 +782,7 @@ function CanvasModeButtons({
         aria-label={locked ? '解锁编辑' : '锁定编辑'}
         title={locked ? '已锁定：点一下恢复编辑' : '锁定编辑：防止误改（仍可查看、选中、平移缩放）'}
         onClick={() => setEditLocked(!locked)}
-        className={`grid h-8 w-8 place-items-center rounded-md border shadow-sm ${
-          locked
-            ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
-            : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
-        }`}
+        className={`${base} ${locked ? on : off}`}
       >
         <ToolIcon name={locked ? 'lock' : 'unlock'} size={16} />
       </button>

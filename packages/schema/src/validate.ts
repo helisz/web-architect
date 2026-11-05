@@ -1,7 +1,7 @@
 import { LIMITS, NODE_DEFAULTS, EDGE_DEFAULTS, GROUP_DEFAULTS, TOKENS, CLEAR_COLOR, CLEAR_COLORS } from './constants.js';
 import { NODE_TYPES } from './types.js';
 import { rectContainsRect, rectsIntersect } from './geometry.js';
-import { iconKeyFor, isIconKey, looksLikeEmbeddedImage } from './icons.js';
+import { iconKeyFor, isIconKey, LEGACY_ICON_ALIASES, looksLikeEmbeddedImage } from './icons.js';
 import type {
   ArchitectureDiagram,
   DiagramEdge,
@@ -201,6 +201,17 @@ function enforceIconRule(d: ArchitectureDiagram, ctx: Ctx, repair: boolean): voi
     if (stored !== undefined && looksLikeEmbeddedImage(stored)) {
       warn(ctx, path, 'EMBEDDED_ICON_REJECTED', '不接受 base64 / url 形式的图标，只允许预定义 iconKey');
       if (repair) n.extJson = { ...(n.extJson ?? {}), iconKey: expected };
+      return;
+    }
+
+    /*
+     * 老 key 归一（用户 2026-11-05：nginx 的旧全称 logo 要彻底换掉）。
+     * 静默改写、不报 warning —— 这纯属外观升级，不该在界面上弹提示；
+     * repair 模式落盘一次，库里存的值也就跟着干净了。
+     */
+    const alias = typeof stored === 'string' ? LEGACY_ICON_ALIASES[stored] : undefined;
+    if (alias) {
+      if (repair) n.extJson = { ...(n.extJson ?? {}), iconKey: alias };
       return;
     }
 

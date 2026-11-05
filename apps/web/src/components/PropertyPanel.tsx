@@ -935,10 +935,6 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
           ))}
         </select>
       </Field>
-
-      <p className="mono mt-4 text-[11px] text-[var(--text-secondary)]">
-        {edge.sourceAnchor ?? '自动'} → {edge.targetAnchor ?? '自动'}
-      </p>
     </div>
   );
 }

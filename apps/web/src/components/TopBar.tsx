@@ -106,8 +106,8 @@ export function TopBar() {
     useTransfer();
   const fileRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const layerOpen = useDiagramStore((s) => s.layerPanelOpen);
   const showGrid = useDiagramStore((s) => s.showGrid);
+  const componentPanelOpen = useDiagramStore((s) => s.componentPanelOpen);
   const versionOpen = useDiagramStore((s) => s.versionOpen);
 
   return (
@@ -174,11 +174,12 @@ export function TopBar() {
           }}
         />
         <EdgeSettings />
+        {/* 用户 2026-11-05：图层按钮挪到画布右上角（拖动模式左边），顶栏这里换成组件库开关 */}
         <IconButton
-          icon="layers"
-          label="图层（调整遮挡与上下层级）"
-          active={layerOpen}
-          onClick={() => useDiagramStore.getState().setLayerPanelOpen(!layerOpen)}
+          icon="panelLeft"
+          label={componentPanelOpen ? '隐藏组件库' : '显示组件库'}
+          active={componentPanelOpen}
+          onClick={() => useDiagramStore.getState().setComponentPanelOpen(!componentPanelOpen)}
         />
         <IconButton
           icon="grid"
