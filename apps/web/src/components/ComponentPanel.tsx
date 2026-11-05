@@ -121,9 +121,10 @@ export function ComponentPanel() {
   /**
    * 收起/展开手柄（用户 2026-11-05 定稿）。
    *
-   * 之前试过顶栏图标（找不到）和面板标题栏（占高度、丑），最后按用户要求做成
-   * **贴在面板右边框上的一颗圆角手柄**：半颗压在边框上、半颗悬在画布上，竖着放，
-   * 像抽屉的拉手，扫一眼就知道能收能开。面板收起时不留文字，只留这条窄边 + 手柄。
+   * 贴在面板右边框上的一颗竖向圆角手柄，半颗压在边框上、半颗悬在画布上：
+   * - 平时只有 12px 宽（低调），`hover` 时展开到 24px（好点）；高度固定 56px；
+   * - 垂直位置取整个界面的正中（`top-1/2`），不跟着内容走。
+   * 面板收起后只留窄边 + 同一位置的手柄，不再有任何文字。
    */
   const handle = (nextOpen: boolean, label: string, glyph: string) => (
     <button
@@ -132,7 +133,7 @@ export function ComponentPanel() {
       aria-label={label}
       aria-expanded={!nextOpen}
       onClick={() => setOpen(nextOpen)}
-      className="absolute right-0 top-14 z-10 grid h-14 w-6 translate-x-1/2 place-items-center rounded-full border border-[var(--panel-border)] bg-white text-[13px] leading-none text-[var(--text-secondary)] shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+      className="absolute right-0 top-1/2 z-10 grid h-14 w-3 -translate-y-1/2 translate-x-1/2 place-items-center overflow-hidden rounded-full border border-[var(--panel-border)] bg-white text-[12px] leading-none text-[var(--text-secondary)] shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-[width,color,border-color] duration-150 hover:w-6 hover:border-[var(--primary)] hover:text-[var(--primary)]"
     >
       {glyph}
     </button>
