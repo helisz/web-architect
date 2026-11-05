@@ -43,24 +43,33 @@ export function AccountMenu() {
         {(email[0] ?? '?').toUpperCase()}
       </button>
       {open && (
-        <div
-          role="menu"
-          className="absolute right-0 z-40 mt-1 w-56 rounded-md border border-[var(--panel-border)] bg-white py-1 shadow-md"
-        >
-          <p className="truncate px-3 py-1 text-[11px] text-[var(--text-secondary)]" title={email}>
-            {email || '未登录'}
-          </p>
-          <button
-            type="button"
-            role="menuitem"
-            className="block w-full px-3 py-1.5 text-left text-xs hover:bg-[#F3F4F6]"
-            onClick={() => {
-              setOpen(false);
-              void auth.signOut();
-            }}
+        /*
+         * 关键：外层这个 `pt-1` 是**透明桥接**。
+         * 菜单是绝对定位、不占父盒子的高度，原来按钮和菜单之间有 4px 空隙
+         * 不属于任何元素，鼠标从圆点往下走会先离开 wrapper → 菜单立刻收起
+         * （用户 2026-11-05 实测反馈）。把空隙做成菜单自己的 padding，
+         * 这一段就落在子元素里，一路划过去菜单不会消失。
+         */
+        <div className="absolute right-0 top-full z-40 pt-1">
+          <div
+            role="menu"
+            className="w-56 rounded-md border border-[var(--panel-border)] bg-white py-1 shadow-md"
           >
-            退出登录
-          </button>
+            <p className="truncate px-3 py-1 text-[11px] text-[var(--text-secondary)]" title={email}>
+              {email || '未登录'}
+            </p>
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left text-xs hover:bg-[#F3F4F6]"
+              onClick={() => {
+                setOpen(false);
+                void auth.signOut();
+              }}
+            >
+              退出登录
+            </button>
+          </div>
         </div>
       )}
     </div>

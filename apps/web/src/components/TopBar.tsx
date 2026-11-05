@@ -328,7 +328,8 @@ export function TopBar() {
           )}
         </div>
 
-        {/* 账号挪到最右边（用户 2026-11-05） */}
+        {/* 账号挪到最右边（用户 2026-11-05）；跟导出按钮之间加一条分隔线，别贴着 */}
+        <Divider />
         <AccountMenu />
       </div>
     </header>
