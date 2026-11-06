@@ -299,6 +299,9 @@ function ArchEdgeImpl({
   // 手柄只在"选中 + 可编辑 + 非拖动模式"时出现；缩放时反向缩放，视觉尺寸恒定为 12px
   const showHandles = selected && !editLocked && !panMode && !editing;
   // 线有标注时把"加折点"的小＋挪到 1/4 处，不然正好盖住文字
+  // 标注配色（2026-11-06）：存在 extJson 里，不需要加数据库列
+  const labelColor = (edge?.extJson?.labelColor as string | undefined) ?? 'var(--text-secondary)';
+  const labelBgColor = (edge?.extJson?.labelBgColor as string | undefined) ?? '#FFFFFF';
   const addHandleRatio = edge?.label ? 0.25 : 0.5;
   const addHandlePoint = pointAt(edgeType, geometry.points, addHandleRatio);
   const handleScale = 1 / (zoom || 1);
@@ -345,10 +348,16 @@ function ArchEdgeImpl({
       {showLabel && (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan pointer-events-none absolute rounded bg-white/90 px-1 py-0.5 text-[11px]"
+            className="nodrag nopan pointer-events-none absolute px-1.5 py-0.5 text-[11px]"
             style={{
               transform: `translate(-50%, -50%) translate(${geometry.labelPoint.x}px, ${geometry.labelPoint.y}px)`,
-              color: 'var(--text-secondary)',
+              color: labelColor,
+              background: labelBgColor,
+              border: '1px solid var(--hair)',
+              borderRadius: 2,
+              // 标注必须压在连线之上：以前背景是 90% 白，线会透出来，看着像线盖住了字
+              zIndex: 30,
+              whiteSpace: 'nowrap',
             }}
           >
             {edge?.label}

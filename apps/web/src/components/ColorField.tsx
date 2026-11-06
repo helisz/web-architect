@@ -39,7 +39,7 @@ export const EDGE_COLORS = ['#A9A79E', '#000000', '#CFCEC7', ...SATURATED] as co
 
 export type ColorScope = 'font' | 'bg' | 'line' | 'edge';
 /** 用来决定分组标题里写「节点」还是「分组」 */
-export type ColorKind = 'node' | 'group' | 'edge';
+export type ColorKind = 'node' | 'group' | 'edge' | 'edgeLabel';
 
 export const FLAT_BG = NODE_BG_ROWS.flat();
 export const FLAT_BORDER = NODE_BORDER_ROWS.flat();
@@ -155,6 +155,13 @@ function sectionsFor(kind: ColorKind): Section[] {
       { scope: 'edge', title: '线条颜色', rows: [EDGE_COLORS], mode: 'block', palette: EDGE_COLORS },
     ];
   }
+  // 连线标注（2026-11-06）：文字色 + 背景色，默认白底，保证压在线上也看得清
+  if (kind === 'edgeLabel') {
+    return [
+      { scope: 'bg', title: '标注背景色', rows: NODE_BG_ROWS, mode: 'block', palette: FLAT_BG },
+      { scope: 'font', title: '标注文字颜色', rows: [FONT_COLORS], mode: 'font', palette: FONT_COLORS },
+    ];
+  }
   const prefix = kind === 'group' ? '分组' : '节点';
   return [
     { scope: 'bg', title: `${prefix}背景色`, rows: NODE_BG_ROWS, mode: 'block', palette: FLAT_BG },
@@ -195,7 +202,13 @@ export function ColorField({ targets, kind = 'node' }: { targets: ColorTarget[];
   const preview = targets.find((t) => t.scope === 'bg') ?? targets[0];
   const previewIsClear = !preview || preview.value === 'transparent' || /^#[0-9a-fA-F]{6}00$/.test(preview.value.trim());
   const summary =
-    kind === 'edge' ? '线条颜色' : kind === 'group' ? '标题 / 背景 / 边框' : '文字 / 背景 / 边框';
+    kind === 'edge'
+      ? '线条颜色'
+      : kind === 'edgeLabel'
+        ? '标注 / 底色 / 字色'
+        : kind === 'group'
+          ? '标题 / 背景 / 边框'
+          : '文字 / 背景 / 边框';
 
   return (
     <div className="mb-3" ref={boxRef}>

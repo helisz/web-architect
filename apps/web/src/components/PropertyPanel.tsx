@@ -533,11 +533,31 @@ export function PropertyPanel() {
   }, [diagram.diagramId]);
 
   const anchorRect = useMemo(() => {
+    // 连线（2026-11-06）：取两端元素中心的中点当锚点，属性卡贴在线的中间
+    if (!node && !group && edge) {
+      const centerOf = (id: string): { x: number; y: number } | null => {
+        const endNode = diagram.nodes.find((n) => n.nodeId === id);
+        if (endNode) {
+          const offset = groupOffset(diagram.groups, endNode.groupId ?? null);
+          return { x: offset.x + endNode.x + endNode.width / 2, y: offset.y + endNode.y + endNode.height / 2 };
+        }
+        const endGroup = diagram.groups.find((g) => g.groupId === id);
+        if (endGroup) {
+          const offset = groupOffset(diagram.groups, endGroup.parentGroupId ?? null);
+          return { x: offset.x + endGroup.x + endGroup.width / 2, y: offset.y + endGroup.y + endGroup.height / 2 };
+        }
+        return null;
+      };
+      const from = centerOf(edge.sourceNodeId);
+      const to = centerOf(edge.targetNodeId);
+      if (!from || !to) return null;
+      return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2, w: 0, h: 0 };
+    }
     if (!node && !group) return null;
     const target = node ?? group!;
     const offset = groupOffset(diagram.groups, node ? (node.groupId ?? null) : (group!.parentGroupId ?? null));
     return { x: target.x + offset.x, y: target.y + offset.y, w: target.width, h: target.height };
-  }, [node, group, diagram.groups]);
+  }, [node, group, edge, diagram.groups, diagram.nodes]);
 
   const panelBox = useMemo(() => {
     if (!anchorRect || !canvasBox) return null;
@@ -1192,6 +1212,25 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
           { scope: 'edge', value: edge.strokeColor, onChange: (strokeColor) => patch(edge.edgeId, { strokeColor }) },
         ]}
         kind="edge"
+      />
+
+      {/* 标注配色（2026-11-06）：字色 + 底色，存在 extJson，默认白底保证压在线上也看得清 */}
+      <ColorField
+        kind="edgeLabel"
+        targets={[
+          {
+            scope: 'font',
+            value: (edge.extJson?.labelColor as string | undefined) ?? '#77766F',
+            onChange: (labelColor) =>
+              patch(edge.edgeId, { extJson: { ...(edge.extJson ?? {}), labelColor } }),
+          },
+          {
+            scope: 'bg',
+            value: (edge.extJson?.labelBgColor as string | undefined) ?? '#FFFFFF',
+            onChange: (labelBgColor) =>
+              patch(edge.edgeId, { extJson: { ...(edge.extJson ?? {}), labelBgColor } }),
+          },
+        ]}
       />
 
       <div className="mb-3 flex gap-2">
