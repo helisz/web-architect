@@ -251,10 +251,14 @@ async function main() {
   const state = await evaluate(`(() => {
     const store = window.__archStore;
     const canvas = document.querySelector('.react-flow__viewport');
+  // 画布容器高度塌成 0 时节点照样在 DOM 里但一个都看不见（2026-11-06 踩过：
+  // 外层少了 flex，<main> 的 flex-1 失效）。所以这里必须量高度，不能只看元素在不在。
+  const canvasBox = canvas ? canvas.getBoundingClientRect() : null;
     const diagram = store ? store.getState().diagram : null;
     return {
       hasStore: Boolean(store),
       hasCanvas: Boolean(canvas),
+    canvasHeight: canvasBox ? Math.round(canvasBox.height) : 0,
       nodes: diagram ? diagram.nodes.length : -1,
       edges: diagram ? diagram.edges.length : -1,
       renderedNodes: document.querySelectorAll('.react-flow__node').length,
@@ -277,6 +281,9 @@ async function main() {
     }
     if (stuckAtLogin) failures.push('自动登录失败：SMOKE_EMAIL / SMOKE_PASSWORD 不对，或 RLS 收紧后没权限');
     if (!state.hasCanvas) failures.push('画布没渲染出来（找不到 .react-flow__viewport）');
+  if (state.hasCanvas && state.canvasHeight < 100) {
+    failures.push(`画布高度只有 ${state.canvasHeight}px（应为满屏）—— 外层布局把 flex 弄丢了`);
+  }
     if (state.bootError) failures.push(`启动报错：${state.bootError}`);
     if (state.hasStore) {
       if (state.nodes < 1) failures.push('图里没有节点（载入异常或库是空的）');

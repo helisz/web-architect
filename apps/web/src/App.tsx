@@ -147,7 +147,8 @@ export default function App() {
         viewport 变换，才能算出"贴在选中元素旁边"的位置。
       */}
       <ReactFlowProvider>
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        {/* 必须保留 flex：<main> 靠 flex-1 撑满高度，少了它 ReactFlow 会塌成 0 高，画布一片空白 */}
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
           <Canvas />
           <ComponentPanel />
           {selectedIds.length > 0 ? <PropertyPanel /> : versionOpen && <VersionPanel onClose={() => setVersionOpen(false)} />}
