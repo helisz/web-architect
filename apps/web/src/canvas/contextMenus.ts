@@ -283,6 +283,7 @@ export function buildEdgeMenu(edge: DiagramEdge): MenuNode[] {
       items: EDGE_STROKES.map((color) => ({
         kind: 'item' as const,
         label: color.label,
+        swatch: color.value,
         checked: edge.strokeColor.toLowerCase() === color.value.toLowerCase(),
         onSelect: () => patchEdge(edge.edgeId, { strokeColor: color.value }),
       })),
@@ -360,6 +361,7 @@ export function buildGroupMenu(group: DiagramGroup): MenuNode[] {
       items: GROUP_TINTS.map((tint) => ({
         kind: 'item' as const,
         label: tint.label,
+        swatch: tint.bg,
         onSelect: () =>
           useDiagramStore.getState().patchGroup(group.groupId, {
             bgColor: tint.bg,

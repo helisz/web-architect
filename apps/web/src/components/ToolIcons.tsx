@@ -30,7 +30,19 @@ export type ToolIconName =
   | 'move'
   | 'hand'
   | 'panelLeft'
-  | 'ai';
+  | 'ai'
+  | 'arrowUp'
+  | 'arrowDown'
+  | 'chevronUp'
+  | 'chevronDown'
+  | 'chevronRight'
+  | 'palette'
+  | 'link'
+  | 'unlink'
+  | 'reset'
+  | 'folder'
+  | 'swap'
+  | 'image';
 
 const PATHS: Record<ToolIconName, string> = {
   undo: 'M9 14 5 10l4-4M5 10h11a4 4 0 0 1 0 8h-2',
@@ -64,6 +76,19 @@ const PATHS: Record<ToolIconName, string> = {
   hand: 'M8 12.5V5.5a1.5 1.5 0 0 1 3 0V11m0-6.5a1.5 1.5 0 0 1 3 0V11m0-5.5a1.5 1.5 0 0 1 3 0V12m0-3.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.6a5 5 0 0 1-3.7-1.7l-3.4-3.8a1.6 1.6 0 0 1 2.3-2.2L8 15',
   // AI 设置：一大一小两颗星，和「导入/导出」这类工具图标区分开
   ai: 'M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6zM17.5 14l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z',
+  // 右键菜单用（2026-11-06）：置顶/置底、折叠、着色、连线、解组、复位、分组、导出图片
+  arrowUp: 'M12 19V5M6 11l6-6 6 6',
+  arrowDown: 'M12 5v14M6 13l6 6 6-6',
+  chevronUp: 'M6 15l6-6 6 6',
+  chevronDown: 'M6 9l6 6 6-6',
+  chevronRight: 'M9 6l6 6-6 6',
+  palette: 'M12 3a9 9 0 000 18h2a2.5 2.5 0 000-5 2 2 0 012-2h3a2 2 0 002-2 9 9 0 00-9-9zM8.5 10h.01M8.5 14h.01M12 7h.01',
+  link: 'M9.5 14.5l5-5M8 12l-2 2a3 3 0 004.2 4.2l2-2M16 12l2-2A3 3 0 0013.8 5.8l-2 2',
+  unlink: 'M6.5 6.5l11 11M9.5 9.5a2.5 2.5 0 11-3.5-3.5 2.5 2.5 0 013.5 3.5zM18 18a2.5 2.5 0 11-3.5-3.5A2.5 2.5 0 0118 18z',
+  reset: 'M4 5v5h5M20 19v-5h-5M19.5 9a8 8 0 00-13.9-2.5M4.5 15a8 8 0 0013.9 2.5',
+  folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+  swap: 'M7 8h10l-3-3M17 16H7l3 3',
+  image: 'M4 5h16v14H4zM8.5 10.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM4 16l5-4 4 3 3-2 4 3',
 };
 
 export function ToolIcon({
