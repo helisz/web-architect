@@ -13,10 +13,20 @@ interface CanvasModeState {
   panMode: boolean;
   setPanMode: (on: boolean) => void;
   togglePanMode: () => void;
+  /**
+   * 正在拖一条新连线（2026-11-06）。
+   *
+   * 拖线时鼠标要横跨画布，浮在画布上的属性卡会挡住落点，而且选中态本身也会跟着变，
+   * 属性卡一闪一闪很吵 —— 所以拖线期间把浮动面板整个藏起来，松手再显示。
+   */
+  connecting: boolean;
+  setConnecting: (on: boolean) => void;
 }
 
 export const useCanvasMode = create<CanvasModeState>()((set) => ({
   panMode: false,
   setPanMode: (panMode) => set({ panMode }),
   togglePanMode: () => set((s) => ({ panMode: !s.panMode })),
+  connecting: false,
+  setConnecting: (connecting) => set({ connecting }),
 }));

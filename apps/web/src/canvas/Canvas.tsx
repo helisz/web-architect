@@ -413,12 +413,16 @@ const cursorFrame = useRef<number | null>(null);
     (_event: unknown, params: { nodeId: string | null; handleId?: string | null }) => {
       connectFrom.current = params.nodeId ? { nodeId: params.nodeId, handleId: params.handleId ?? null } : null;
       edgesAtStart.current = useDiagramStore.getState().diagram.edges.length;
+      // 拖线期间藏起浮动属性卡（2026-11-06）：它挡落点，而且选中态会跟着变
+      useCanvasMode.getState().setConnecting(true);
     },
     [],
   );
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent) => {
+      // 不管后面成不成，松手就恢复属性卡
+      useCanvasMode.getState().setConnecting(false);
       const from = connectFrom.current;
       connectFrom.current = null;
       if (!from) return;
