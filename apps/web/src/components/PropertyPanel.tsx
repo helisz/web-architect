@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useStore } from '@xyflow/react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
@@ -7,6 +8,7 @@ import {
   FONT_SIZE_MIN,
   LIMITS,
   dashPresetOf,
+  groupOffset,
   iconKeyFor,
   isGroupLocked,
   isEditLocked,
@@ -36,6 +38,9 @@ import {
   lineInfo,
   readLineData,
 } from '../canvas/lineGeometry.js';
+
+/** 浮动属性卡宽度（用户 2026-11-06 定稿 264px；停靠态仍用 300px 给色板留位置） */
+const PANEL_W = 264;
 
 /** 多选批量改写：按对象类型把字段落到正确的属性上（分组没有独立的文字色，用标题色） */
 function applyMultiField(
@@ -497,8 +502,76 @@ export function PropertyPanel() {
     [diagram.groups, selectedId],
   );
 
+  /*
+   * 浮动属性卡（2026-11-06 第二批）：跟着选中的节点 / 分组走，不再钉在右侧。
+   *
+   * 规则和样张一致：优先贴在元素右侧 → 右侧放不下翻到左侧 → 两边都放不下就贴住画布边缘
+   * 并夹在可视区内；上下居中于元素，靠近底边时上移。选中「连线」或「多选」时没有可贴的
+   * 矩形，退回右侧停靠（那条路径和以前一样）。
+   */
+  const viewport = useStore((s) => s.transform);
+  const panelRef = useRef<HTMLElement>(null);
+  const [canvasBox, setCanvasBox] = useState<{ w: number; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const parent = panelRef.current?.parentElement;
+    if (!parent) return;
+    const measure = (): void => setCanvasBox({ w: parent.clientWidth, h: parent.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [diagram.diagramId]);
+
+  const anchorRect = useMemo(() => {
+    if (!node && !group) return null;
+    const target = node ?? group!;
+    const offset = groupOffset(diagram.groups, node ? (node.groupId ?? null) : (group!.parentGroupId ?? null));
+    return { x: target.x + offset.x, y: target.y + offset.y, w: target.width, h: target.height };
+  }, [node, group, diagram.groups]);
+
+  const panelBox = useMemo(() => {
+    if (!anchorRect || !canvasBox) return null;
+    const [tx, ty, zoom] = viewport;
+    const INSET = 10;
+    const GAP = 14;
+    const screenX = anchorRect.x * zoom + tx;
+    const screenY = anchorRect.y * zoom + ty;
+    const screenW = anchorRect.w * zoom;
+    const screenH = anchorRect.h * zoom;
+    const rightSide = screenX + screenW + GAP;
+    const flipped = rightSide + PANEL_W > canvasBox.w - INSET;
+    const left = Math.max(
+      INSET,
+      Math.min(flipped ? screenX - GAP - PANEL_W : rightSide, canvasBox.w - INSET - PANEL_W),
+    );
+    const centerY = screenY + screenH / 2;
+    const top = Math.max(INSET, Math.min(centerY - 118, canvasBox.h - INSET - 200));
+    return { left, top, flipped, centerY, maxHeight: canvasBox.h - INSET * 2 };
+  }, [anchorRect, canvasBox, viewport]);
+
+  const panelStyle: CSSProperties | undefined = panelBox
+    ? { left: panelBox.left, top: panelBox.top, width: PANEL_W, maxHeight: panelBox.maxHeight }
+    : undefined;
+
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-[var(--panel-border)] bg-[var(--panel-bg)]">
+    <>
+      {panelBox && (
+        <span
+          aria-hidden
+          className={`panel-arrow ${panelBox.flipped ? 'left' : 'right'}`}
+          style={{
+            left: panelBox.flipped ? panelBox.left + PANEL_W : panelBox.left - 7,
+            top: panelBox.centerY - 6,
+          }}
+        />
+      )}
+    <aside
+      ref={panelRef}
+      style={panelStyle}
+      className={`floating-panel flex flex-col overflow-y-auto ${
+        panelBox ? '' : 'right-[var(--panel-inset)] top-[var(--panel-inset)] bottom-[var(--panel-inset)] w-[300px]'
+      }`}
+    >
       <div className="border-b border-[var(--panel-border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
         {node
           ? '节点属性'
@@ -531,6 +604,7 @@ export function PropertyPanel() {
         </div>
       </div>
     </aside>
+    </>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './canvas/Canvas.js';
 import { ComponentPanel } from './components/ComponentPanel.js';
 import { AiConfigDialog } from './components/AiConfigDialog.js';
@@ -140,12 +141,18 @@ export default function App() {
       {guest && <GuestBanner />}
       <TopBar />
       <SaveBanner />
-      {/* relative：组件库收起时那颗手柄要贴在内容区左边缘上（不留白色占位框） */}
-      <div className="relative flex min-h-0 flex-1">
-        <ComponentPanel />
-        <Canvas />
-        {selectedIds.length > 0 ? <PropertyPanel /> : versionOpen && <VersionPanel onClose={() => setVersionOpen(false)} />}
-      </div>
+      {/*
+        2026-11-06 第二批：面板从"三栏 flex"改成"画布满铺 + 面板浮在上面"。
+        所以需要 ReactFlowProvider 包住整个内容区 —— 属性面板要读画布的
+        viewport 变换，才能算出"贴在选中元素旁边"的位置。
+      */}
+      <ReactFlowProvider>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <Canvas />
+          <ComponentPanel />
+          {selectedIds.length > 0 ? <PropertyPanel /> : versionOpen && <VersionPanel onClose={() => setVersionOpen(false)} />}
+        </div>
+      </ReactFlowProvider>
       <DeleteConfirmDialog />
       <AiConfigDialog />
       <ToastHost />

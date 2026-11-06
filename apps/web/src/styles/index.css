@@ -177,3 +177,40 @@ body {
 .arch-hscroll::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* ─────────── 浮动玻璃面板（2026-11-06 第二批） ───────────
+   组件库 / 属性面板 / 版本历史都浮在画布上：离外沿 10px、90° 直角、
+   80% 白 + 高斯模糊、一圈极淡投影。收起态不留白框，只浮一颗手柄。 */
+.floating-panel {
+  position: absolute;
+  z-index: 40;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+
+/* 拖节点 / 拖画布时把模糊降级成纯色：大面积 backdrop-filter 在拖拽时会掉帧 */
+body:has(.react-flow__node.dragging) .floating-panel,
+body:has(.react-flow__pane.dragging) .floating-panel,
+body:has(.react-flow__nodesselection-rect) .floating-panel {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.97);
+}
+
+/* 属性卡指向被选中元素的三角（实心橙，浅色画布上才看得清） */
+.panel-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  z-index: 41;
+  pointer-events: none;
+}
+.panel-arrow.right { border-right: 7px solid var(--accent-500); }
+.panel-arrow.left { border-left: 7px solid var(--accent-500); }

@@ -79,7 +79,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col border-l border-[var(--panel-border)] bg-[var(--panel-bg)]">
+    <aside className="floating-panel right-[var(--panel-inset)] top-[var(--panel-inset)] bottom-[var(--panel-inset)] flex w-[300px] flex-col">
       <div className="flex items-start justify-between border-b border-[var(--panel-border)] px-3 py-2">
         <div className="min-w-0">
           <h2 className="text-[13px] font-medium">版本历史</h2>

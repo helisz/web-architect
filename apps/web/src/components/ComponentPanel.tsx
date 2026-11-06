@@ -136,7 +136,7 @@ export function ComponentPanel() {
       aria-label="展开组件库"
       aria-expanded={false}
       onClick={() => setOpen(true)}
-      className={`absolute left-0 top-1/2 z-20 -translate-y-1/2 rounded-r-full border border-l-0 border-[var(--panel-border)] ${handleClass}`}
+      className={`absolute left-[var(--panel-inset)] top-1/2 z-20 -translate-y-1/2 rounded-r-full border border-l-0 border-[var(--panel-border)] ${handleClass}`}
     >
       ›
     </button>
@@ -148,7 +148,7 @@ export function ComponentPanel() {
   }
 
   return (
-    <aside className="relative flex w-60 shrink-0 flex-col border-r border-[var(--panel-border)] bg-[var(--panel-bg)]">
+    <aside className="floating-panel left-[var(--panel-inset)] top-[var(--panel-inset)] bottom-[var(--panel-inset)] flex w-60 flex-col">
       <button
         type="button"
         title="收起组件库"

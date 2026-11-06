@@ -7,7 +7,6 @@ import {
   Controls,
   MiniMap,
   ReactFlow,
-  ReactFlowProvider,
   SelectionMode,
   useReactFlow,
   type Connection,
@@ -883,9 +882,8 @@ function CanvasModeButtons() {
 export function Canvas() {
   return (
     <main className="relative min-w-0 flex-1 bg-[var(--canvas-bg)]">
-      <ReactFlowProvider>
-        <CanvasInner />
-      </ReactFlowProvider>
+      {/* Provider 提到 App 层（2026-11-06 第二批）：属性面板要共用同一个 viewport store */}
+      <CanvasInner />
       <AlignToolbar />
       <LayerPanel />
       <CanvasStatus />
