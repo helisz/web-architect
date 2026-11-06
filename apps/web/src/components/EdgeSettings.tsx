@@ -42,8 +42,8 @@ export function EdgeSettings() {
         aria-label="连线全局配置"
         className={`grid h-8 w-8 place-items-center rounded ${
           open
-            ? 'bg-[#EFF6FF] text-[var(--primary)]'
-            : 'text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)]'
+            ? 'bg-[var(--accent-50)] text-[var(--primary)]'
+            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
         }`}
       >
         <ToolIcon name="sliders" size={17} />
@@ -86,12 +86,12 @@ export function EdgeSettings() {
               applyAll();
               setOpen(false);
             }}
-            className="w-full rounded border border-[var(--panel-border)] px-2 py-1 text-[11px] hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full rounded border border-[var(--panel-border)] px-2 py-1 text-[11px] hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             应用到全部 {edgeCount} 条连线
           </button>
           <p className="mt-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">
-            默认：灰 #6B7280 / {EDGE_DEFAULTS.strokeWidth}px / 无箭头
+            默认：暖灰 #AFACA2 / {EDGE_DEFAULTS.strokeWidth}px / 无箭头
           </p>
         </div>
       )}

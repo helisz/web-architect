@@ -35,7 +35,7 @@ function StructureCard({
         dashed ? 'border-dashed border-[var(--panel-border)]' : 'border-[var(--panel-border)]'
       }`}
     >
-      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-[#F3F4F6] text-[var(--text-secondary)] group-hover:bg-[#EFF6FF] group-hover:text-[var(--primary)]">
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] group-hover:bg-[var(--accent-50)] group-hover:text-[var(--primary)]">
         <NodeIcon iconKey={iconKey} size={14} />
       </span>
       <span className="truncate text-xs text-[var(--text-primary)]">{label}</span>
@@ -79,7 +79,7 @@ function ComponentCard({ item }: { item: ComponentSpec }) {
       title={`拖到画布创建「${item.label}」（${item.width}×${item.height}）`}
       className="group flex h-8 min-w-0 cursor-grab items-center gap-1.5 rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-1.5 hover:border-[var(--primary)] active:cursor-grabbing"
     >
-      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-[#F3F4F6] text-[var(--text-secondary)] group-hover:bg-[#EFF6FF] group-hover:text-[var(--primary)]">
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] group-hover:bg-[var(--accent-50)] group-hover:text-[var(--primary)]">
         <NodeIcon iconKey={iconKeyFor(item.nodeType)} size={14} />
       </span>
       <span className="truncate text-xs text-[var(--text-primary)]">{item.label}</span>

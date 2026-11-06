@@ -45,7 +45,7 @@ export function NewDiagramDialog({
             type="button"
             autoFocus
             onClick={() => onChoose('blank')}
-            className="group rounded-lg border border-[var(--panel-border)] p-3 text-left hover:border-[var(--primary)] hover:bg-[#F8FAFF]"
+            className="group rounded-lg border border-[var(--panel-border)] p-3 text-left hover:border-[var(--primary)] hover:bg-[var(--accent-50)]"
           >
             <span className="mb-1.5 grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] group-hover:border-[var(--primary)] group-hover:text-[var(--primary)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -62,7 +62,7 @@ export function NewDiagramDialog({
           <button
             type="button"
             onClick={() => onChoose('ai')}
-            className="group rounded-lg border border-[var(--panel-border)] p-3 text-left hover:border-[var(--primary)] hover:bg-[#F8FAFF]"
+            className="group rounded-lg border border-[var(--panel-border)] p-3 text-left hover:border-[var(--primary)] hover:bg-[var(--accent-50)]"
           >
             <span className="mb-1.5 grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] group-hover:border-[var(--primary)] group-hover:text-[var(--primary)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
@@ -81,7 +81,7 @@ export function NewDiagramDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[#F9FAFB]"
+            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[var(--bg-hover)]"
           >
             取消
           </button>

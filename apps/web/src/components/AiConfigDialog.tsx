@@ -25,7 +25,7 @@ import { readVault } from '../ai/vault.js';
 import { useAiStore } from '../store/useAiStore.js';
 
 const inputClass =
-  'w-full rounded border border-[#D1D5DB] bg-white px-2 py-1 text-[13px] outline-none focus:border-[var(--primary)] disabled:bg-[#F9FAFB] disabled:text-[var(--text-secondary)]';
+  'w-full rounded border border-[var(--hair-strong)] bg-white px-2 py-1 text-[13px] outline-none focus:border-[var(--primary)] disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-secondary)]';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -209,7 +209,7 @@ export function AiConfigDialog() {
             aria-label="关闭"
             title="关闭"
             onClick={close}
-            className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[#F3F4F6]"
+            className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           >
             ✕
           </button>
@@ -303,7 +303,7 @@ export function AiConfigDialog() {
                   <button
                     type="button"
                     onClick={() => setWipeArmed(true)}
-                    className="rounded border border-[var(--panel-border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[#F9FAFB]"
+                    className="rounded border border-[var(--panel-border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                   >
                     忘记口令了
                   </button>
@@ -344,7 +344,7 @@ export function AiConfigDialog() {
                         onClick={() => selectProfile(profile)}
                         className={`block w-full rounded border px-2 py-1.5 text-left text-[11px] ${
                           isEditing
-                            ? 'border-[var(--primary)] bg-[#EFF6FF]'
+                            ? 'border-[var(--primary)] bg-[var(--accent-50)]'
                             : 'border-[var(--panel-border)] hover:border-[var(--primary)]'
                         }`}
                       >
@@ -481,7 +481,7 @@ export function AiConfigDialog() {
                         type="button"
                         onClick={() => void doTest()}
                         disabled={busy}
-                        className="rounded border border-[var(--panel-border)] px-3 py-1.5 text-xs hover:bg-[#F9FAFB] disabled:opacity-60"
+                        className="rounded border border-[var(--panel-border)] px-3 py-1.5 text-xs hover:bg-[var(--bg-hover)] disabled:opacity-60"
                       >
                         测试连接
                       </button>
@@ -518,7 +518,7 @@ export function AiConfigDialog() {
             </p>
           )}
           {toast && (
-            <p role="status" className="mt-3 rounded border border-[var(--panel-border)] bg-[#F9FAFB] px-2 py-1.5 text-[11px]">
+            <p role="status" className="mt-3 rounded border border-[var(--panel-border)] bg-[var(--bg-hover)] px-2 py-1.5 text-[11px]">
               {toast}
             </p>
           )}
@@ -531,7 +531,7 @@ export function AiConfigDialog() {
                 <button
                   type="button"
                   onClick={() => lock()}
-                  className="rounded border border-[var(--panel-border)] px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:bg-[#F9FAFB]"
+                  className="rounded border border-[var(--panel-border)] px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                 >
                   锁定
                 </button>
@@ -558,7 +558,7 @@ export function AiConfigDialog() {
           <button
             type="button"
             onClick={close}
-            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[#F9FAFB]"
+            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[var(--bg-hover)]"
           >
             关闭
           </button>

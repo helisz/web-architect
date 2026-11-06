@@ -43,7 +43,7 @@ export function StartupError({ title, detail, hint, backToGallery }: StartupErro
           <ol className="mt-4 space-y-2 text-sm text-[var(--text-primary)]">
             <li>
               <span className="font-medium">1.</span> 在项目根目录执行{' '}
-              <code className="mono rounded bg-[#F3F4F6] px-1.5 py-0.5">copy .env.example .env.local</code>
+              <code className="mono rounded bg-[var(--bg-hover)] px-1.5 py-0.5">copy .env.example .env.local</code>
             </li>
             <li>
               <span className="font-medium">2.</span> 填入 Supabase Dashboard →{' '}
@@ -71,7 +71,7 @@ export function StartupError({ title, detail, hint, backToGallery }: StartupErro
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="rounded border border-[#D1D5DB] px-3 py-1.5 text-sm hover:bg-[#F9FAFB]"
+            className="rounded border border-[var(--hair-strong)] px-3 py-1.5 text-sm hover:bg-[var(--bg-hover)]"
           >
             重新加载
           </button>

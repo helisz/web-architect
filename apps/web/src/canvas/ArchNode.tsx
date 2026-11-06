@@ -121,12 +121,12 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
         isTitle
           ? 'px-1'
           : isSticky
-            ? 'overflow-hidden rounded-sm px-2.5 py-2'
+            ? 'overflow-hidden rounded-[var(--radius-node)] px-2.5 py-2'
             : isAnnotation
-              ? 'rounded-lg px-2.5 py-2'
+              ? 'rounded-[var(--radius-node)] px-2.5 py-2'
               : isPlainText
                 ? 'px-2'
-                : 'gap-0.5 rounded-lg border px-2'
+                 : 'gap-0.5 rounded-[var(--radius-node)] border px-2'
       }`}
       style={{
         background: node.bgColor,

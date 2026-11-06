@@ -38,7 +38,7 @@ export function AccountMenu() {
         aria-label="账号"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="grid h-7 w-7 place-items-center rounded-full bg-[#EEF1F4] text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[#E5E9EE] hover:text-[var(--text-primary)]"
+        className="grid h-7 w-7 place-items-center rounded-full bg-[var(--bg-sunken)] text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[#E5E9EE] hover:text-[var(--text-primary)]"
       >
         {(email[0] ?? '?').toUpperCase()}
       </button>
@@ -61,7 +61,7 @@ export function AccountMenu() {
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-1.5 text-left text-xs hover:bg-[#F3F4F6]"
+              className="block w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-hover)]"
               onClick={() => {
                 setOpen(false);
                 void auth.signOut();

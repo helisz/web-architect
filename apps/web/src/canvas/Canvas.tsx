@@ -810,7 +810,7 @@ const cursorFrame = useRef<number | null>(null);
       <MiniMap
         pannable
         zoomable
-        nodeColor={(n) => (n.type === 'archNode' ? '#D1D5DB' : '#EEF1F4')}
+        nodeColor={(n) => (n.type === 'archNode' ? 'var(--hair-strong)' : 'var(--bg-sunken)')}
         maskColor="rgba(250,250,250,0.7)"
         style={{ width: 160, height: 110 }}
       />
@@ -840,7 +840,7 @@ function CanvasModeButtons() {
   const layerOpen = useDiagramStore((s) => s.layerPanelOpen);
   const setLayerPanelOpen = useDiagramStore((s) => s.setLayerPanelOpen);
   const base = 'grid h-8 w-8 place-items-center rounded-md border shadow-sm';
-  const on = 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]';
+  const on = 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]';
   const off =
     'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]';
   return (

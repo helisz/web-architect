@@ -65,7 +65,7 @@ export function GuestImportDialog({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={dismiss}
             disabled={busy}
-            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[#F9FAFB] disabled:opacity-60"
+            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[var(--bg-hover)] disabled:opacity-60"
           >
             先不了
           </button>

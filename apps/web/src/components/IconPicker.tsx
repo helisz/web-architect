@@ -93,7 +93,7 @@ export function IconPicker({ value, onSelect, onClose }: IconPickerProps) {
           <button
             type="button"
             onClick={onClose}
-            className="ml-auto rounded px-2 py-0.5 text-xs text-[var(--text-secondary)] hover:bg-[#F3F4F6]"
+            className="ml-auto rounded px-2 py-0.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           >
             关闭
           </button>
@@ -116,7 +116,7 @@ export function IconPicker({ value, onSelect, onClose }: IconPickerProps) {
                 className={`rounded px-2 py-1 text-[11px] ${
                   prefix === item.value
                     ? 'bg-[var(--primary)] text-white'
-                    : 'border border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[#F9FAFB]'
+                    : 'border border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
                 }`}
               >
                 {item.label}
@@ -186,8 +186,8 @@ function IconCell({
       onClick={() => onSelect(iconKey)}
       className={`grid h-9 place-items-center rounded border ${
         active
-          ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
-          : 'border-transparent text-[var(--text-primary)] hover:border-[var(--primary)] hover:bg-[#F9FAFB]'
+          ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
+          : 'border-transparent text-[var(--text-primary)] hover:border-[var(--primary)] hover:bg-[var(--bg-hover)]'
       }`}
     >
       <Icon icon={iconKey} width={20} height={20} />

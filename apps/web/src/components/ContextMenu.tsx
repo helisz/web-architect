@@ -67,7 +67,7 @@ function MenuList({
               <button
                 type="button"
                 disabled={item.disabled}
-                className="flex w-full items-center justify-between gap-6 px-3 py-1.5 text-left text-[13px] hover:bg-[#F3F4F6] disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex w-full items-center justify-between gap-6 px-3 py-1.5 text-left text-[13px] hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => setOpenIndex(open ? null : index)}
               >
                 <span>{item.label}</span>
@@ -90,7 +90,7 @@ function MenuList({
                 item.onSelect();
                 onClose();
               }}
-              className={`flex w-full items-center justify-between gap-6 px-3 py-1.5 text-left text-[13px] hover:bg-[#F3F4F6] disabled:cursor-not-allowed disabled:opacity-40 ${
+              className={`flex w-full items-center justify-between gap-6 px-3 py-1.5 text-left text-[13px] hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40 ${
                 item.danger ? 'text-[#D83931]' : ''
               }`}
             >

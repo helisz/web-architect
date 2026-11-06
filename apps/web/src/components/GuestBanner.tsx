@@ -17,8 +17,8 @@ export function GuestBanner() {
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <div className="flex h-8 shrink-0 items-center gap-2 border-b border-[#FDE68A] bg-[#FFFBEB] px-3 text-[11px] text-[#92400E]">
-      <span className="rounded bg-[#FDE68A] px-1.5 py-0.5 font-medium text-[#78350F]">游客模式</span>
+    <div className="flex h-8 shrink-0 items-center gap-2 border-b border-[var(--accent-200)] bg-[var(--accent-50)] px-3 text-[11px] text-[var(--accent-700)]">
+      <span className="rounded-[var(--radius-ctl)] bg-[var(--accent-200)] px-1.5 py-0.5 font-medium text-[#5C1E06]">游客模式</span>
       <span>数据只保存在这台电脑的浏览器里 · 换设备 / 清缓存就没了 · 本机 {count} 张图</span>
       <div className="ml-auto flex items-center gap-1">
         {count > 0 && (
@@ -35,7 +35,7 @@ export function GuestBanner() {
               pushToast('已清空本机游客数据', 'info');
             }}
             onBlur={() => setConfirming(false)}
-            className="rounded px-1.5 py-0.5 hover:bg-[#FDE68A]"
+            className="rounded px-1.5 py-0.5 hover:bg-[var(--accent-100)]"
             title="只删本机浏览器里的游客数据，不影响任何账号里的图"
           >
             {confirming ? '再点一次确认清空' : '清空本机数据'}
@@ -44,7 +44,7 @@ export function GuestBanner() {
         <button
           type="button"
           onClick={() => exitGuest()}
-          className="rounded bg-[#B45309] px-2 py-0.5 font-medium text-white hover:bg-[#92400E]"
+          className="rounded-[var(--radius-ctl)] bg-[var(--accent-600)] px-2 py-0.5 font-medium text-white hover:bg-[var(--accent-700)]"
           title="回到登录页；本机游客数据会保留，登录后可以导入账号"
         >
           登录以保存到云端

@@ -5,6 +5,7 @@ import {
   deleteDiagram,
   duplicateDiagram,
   listAllTags,
+  listDiagramPreviews,
   listDiagrams,
   renameDiagram,
   saveDiagram,
@@ -19,6 +20,7 @@ import { GuestAccount } from './GuestAccount.js';
 import { useGuestSession } from '../data/guestSession.js';
 import { NewDiagramDialog, type NewDiagramChoice } from './NewDiagramDialog.js';
 import { AiParseDialog } from './AiParseDialog.js';
+import { thumbnailDataUrl, type ThumbnailPayload } from '../export/thumbnail.js';
 
 type SortKey = 'updated' | 'name' | 'version';
 
@@ -88,6 +90,27 @@ export function Gallery() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // 卡片预览：按当前页的 id 批量取几何，失败就留空预览框（不打断图库）
+  const [previews, setPreviews] = useState<Record<string, ThumbnailPayload>>({});
+  const previewKey = rows === null ? '' : rows.map((row) => row.diagramId).join(',');
+  useEffect(() => {
+    let cancelled = false;
+    if (!previewKey) {
+      setPreviews({});
+      return;
+    }
+    void listDiagramPreviews(previewKey.split(','))
+      .then((map) => {
+        if (!cancelled) setPreviews(map as Record<string, ThumbnailPayload>);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviews({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [previewKey]);
 
   useEffect(() => {
     void listAllTags()
@@ -237,8 +260,8 @@ export function Gallery() {
               type="button"
               className={`rounded-full border px-2 py-0.5 text-[11px] ${
                 tag === item
-                  ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
-                  : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[#F9FAFB]'
+                  ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
+                  : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
               }`}
               onClick={() => {
                 setTag(tag === item ? null : item);
@@ -273,12 +296,12 @@ export function Gallery() {
             {activeFilter ? '没有符合条件的架构图，换个关键词或清掉标签筛选。' : '还没有架构图。图库只显示你自己创建的图，点右上角「新建架构图」开始。'}
           </p>
         ) : (
-          // 固定列宽（用户 2026-11-05：卡片太宽）：320px 一列，宽屏自然排到 4~5 列
-          <ul className="grid justify-start gap-3 [grid-template-columns:repeat(auto-fill,320px)]">
+          // 2026-11-06：1080p 六列，窄屏自动回落（2 → 3 → 4 → 5 → 6）
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {rows.map((row) => (
               <li
                 key={row.diagramId}
-                className={`group relative flex h-full flex-col rounded-lg border bg-white p-3 transition-colors ${
+                className={`group relative flex h-full flex-col overflow-hidden rounded-[3px] border bg-white p-3 transition-colors ${
                   row.diagramId === currentId
                     ? 'border-[var(--primary)]'
                     : 'border-[var(--panel-border)] hover:border-[var(--primary)]'
@@ -292,6 +315,21 @@ export function Gallery() {
                   onClick={() => void open(row.diagramId)}
                   disabled={busy !== null}
                 />
+                <div className="-mx-3 -mt-3 mb-2 aspect-[3/2] overflow-hidden border-b border-[var(--hair)] bg-white">
+                  {previews[row.diagramId] ? (
+                    <img
+                      src={thumbnailDataUrl(previews[row.diagramId]!, 340)}
+                      alt=""
+                      className="h-full w-full object-contain"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center bg-[var(--bg-canvas)]">
+                      <span className="mono text-[10px] text-[var(--text-tertiary)]">无预览</span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="pointer-events-none relative z-10 mb-1 flex items-start justify-between gap-2">
                   {renaming?.id === row.diagramId ? (
                     <input
@@ -311,7 +349,7 @@ export function Gallery() {
                     </span>
                   )}
                   {row.diagramId === currentId && (
-                    <span className="shrink-0 rounded bg-[#EFF6FF] px-1 text-[10px] text-[var(--primary)]">当前</span>
+                    <span className="shrink-0 rounded bg-[var(--accent-50)] px-1 text-[10px] text-[var(--primary)]">当前</span>
                   )}
                 </div>
 
@@ -336,7 +374,7 @@ export function Gallery() {
                   <div className="relative z-10 mb-2 flex min-h-[18px] flex-wrap items-center gap-1">
                     {row.tags.length > 0 ? (
                       row.tags.map((item) => (
-                        <span key={item} className="rounded bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] text-[#4B5563]">
+                        <span key={item} className="rounded bg-[var(--bg-hover)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
                           {item}
                         </span>
                       ))
@@ -353,8 +391,8 @@ export function Gallery() {
                   </div>
                 )}
 
-                {/* 动作图标（用户 2026-11-05：只留图标 + tooltip，整卡点击即打开） */}
-                <div className="relative z-10 mt-auto flex items-center justify-end gap-1">
+                {/* 动作图标（2026-11-06：无上边框，与标题留 12px，悬停才显形） */}
+                <div className="relative z-10 mt-3 flex items-center justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                   <CardAction
                     icon="pencil"
                     label="改名"
@@ -451,7 +489,7 @@ function CardAction({
         event.stopPropagation();
         onClick();
       }}
-      className={`grid h-7 w-7 place-items-center rounded border border-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--panel-border)] hover:bg-[#F9FAFB] disabled:opacity-40 ${
+      className={`grid h-7 w-7 place-items-center rounded border border-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--panel-border)] hover:bg-[var(--bg-hover)] disabled:opacity-40 ${
         danger ? 'hover:text-[#B91C1C]' : 'hover:text-[var(--primary)]'
       }`}
     >

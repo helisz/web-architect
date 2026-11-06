@@ -72,7 +72,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
 
   return (
     <div
-      className="h-full w-full rounded-lg border"
+      className="h-full w-full rounded-[var(--radius-node)] border"
       style={{
         background: group.bgColor,
         borderColor: selected ? 'var(--primary)' : group.borderColor,
@@ -95,7 +95,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           高度：带副文本 38px（上边距 2 + 标题 16 + 副文本两行 2×10），
           不带副文本的通用分组 24px。 */}
       <div
-        className="flex items-start gap-1.5 rounded-t-lg px-2"
+        className="flex items-start gap-1.5 rounded-t-[var(--radius-node)] px-2"
         style={{
           height: groupHeaderHeight(group),
           color: group.titleColor,

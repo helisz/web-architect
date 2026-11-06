@@ -79,7 +79,7 @@ export function LayerPanel() {
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded px-1 text-[var(--text-secondary)] hover:bg-[#F3F4F6]"
+          className="rounded px-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           title="关闭"
         >
           ✕
@@ -110,7 +110,7 @@ export function LayerPanel() {
                 drop(row.id);
               }}
               className={`flex items-center gap-1 pr-1.5 text-[12px] ${
-                selectedIds.includes(row.id) ? 'bg-[#EFF6FF]' : 'hover:bg-[#F9FAFB]'
+                selectedIds.includes(row.id) ? 'bg-[var(--accent-50)]' : 'hover:bg-[var(--bg-hover)]'
               } ${dragging?.id === row.id ? 'opacity-50' : ''} ${
                 isDropTarget ? 'outline outline-1 -outline-offset-1 outline-[var(--primary)]' : ''
               }`}
@@ -165,7 +165,7 @@ export function LayerPanel() {
                 aria-label={row.locked ? '解锁' : '锁定'}
                 aria-pressed={row.locked}
                 onClick={() => toggleLock([row.id])}
-                className={`shrink-0 rounded px-0.5 text-[10px] hover:bg-[#F3F4F6] ${
+                className={`shrink-0 rounded px-0.5 text-[10px] hover:bg-[var(--bg-hover)] ${
                   row.locked ? 'text-[var(--text-secondary)]' : 'text-transparent hover:text-[var(--text-secondary)]'
                 }`}
               >
@@ -175,7 +175,7 @@ export function LayerPanel() {
                 <button
                   type="button"
                   title="置顶"
-                  className="rounded px-0.5 text-[10px] text-[var(--text-secondary)] hover:bg-[#F3F4F6]"
+                  className="rounded px-0.5 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                   onClick={() => bringToFront([row.id])}
                 >
                   ↑
@@ -183,7 +183,7 @@ export function LayerPanel() {
                 <button
                   type="button"
                   title="置底"
-                  className="rounded px-0.5 text-[10px] text-[var(--text-secondary)] hover:bg-[#F3F4F6]"
+                  className="rounded px-0.5 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                   onClick={() => sendToBack([row.id])}
                 >
                   ↓
@@ -207,7 +207,7 @@ export function LayerPanel() {
           }}
           className={`mx-1.5 my-1 rounded border border-dashed px-2 py-1 text-center text-[11px] ${
             dropTarget === '__root__'
-              ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+              ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
               : 'border-[var(--panel-border)] text-[var(--text-secondary)]'
           }`}
         >

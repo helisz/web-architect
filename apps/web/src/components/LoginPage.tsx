@@ -89,7 +89,7 @@ export function LoginPage({ auth }: { auth: AuthState }) {
               enterGuest();
               navigateToGallery();
             }}
-            className="w-full rounded border border-[var(--panel-border)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[#F9FAFB]"
+            className="w-full rounded border border-[var(--panel-border)] bg-white px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
           >
             不登录，先试用
           </button>

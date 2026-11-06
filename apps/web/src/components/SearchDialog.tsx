@@ -103,7 +103,7 @@ export function SearchDialog() {
       </div>
 
       {/* D2：类型 / 分组筛选（选了任一项就只搜节点） */}
-      <div className="flex items-center gap-2 border-b border-[var(--panel-border)] bg-[#F9FAFB] px-3 py-1.5 text-[11px]">
+      <div className="flex items-center gap-2 border-b border-[var(--panel-border)] bg-[var(--bg-hover)] px-3 py-1.5 text-[11px]">
         <select
           aria-label="按节点类型筛选"
           className="rounded border border-[var(--panel-border)] bg-white px-1 py-0.5"
@@ -157,7 +157,7 @@ export function SearchDialog() {
                   onMouseEnter={() => setActive(index)}
                   onClick={() => goto(hit)}
                   className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] ${
-                    index === active ? 'bg-[#EFF6FF]' : 'hover:bg-[#F9FAFB]'
+                    index === active ? 'bg-[var(--accent-50)]' : 'hover:bg-[var(--bg-hover)]'
                   }`}
                 >
                   <span className="rounded border border-[var(--panel-border)] px-1 text-[10px] text-[var(--text-secondary)]">

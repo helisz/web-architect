@@ -13,7 +13,7 @@ export function GuestAccount() {
   return (
     <div className="flex shrink-0 items-center gap-1.5">
       <span
-        className="flex items-center gap-1 rounded-full bg-[#FFFBEB] px-2 py-0.5 text-[11px] font-medium text-[#92400E]"
+        className="flex items-center gap-1 rounded-[var(--radius-ctl)] border border-[var(--accent-200)] bg-[var(--accent-50)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent-700)]"
         title="游客模式：数据只保存在这台电脑的浏览器里，不会写进任何账号或数据库"
       >
         <ToolIcon name="database" size={12} />
@@ -22,7 +22,7 @@ export function GuestAccount() {
       <button
         type="button"
         onClick={() => exitGuest()}
-        className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:bg-[#F9FAFB]"
+        className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:bg-[var(--bg-hover)]"
         title="回到登录页；本机游客数据会保留，登录后可以导入账号"
       >
         登录

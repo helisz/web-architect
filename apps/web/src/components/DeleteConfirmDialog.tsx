@@ -65,7 +65,7 @@ export function DeleteConfirmDialog() {
           <button
             type="button"
             onClick={cancelDelete}
-            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[#F9FAFB]"
+            className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[var(--bg-hover)]"
           >
             取消
           </button>

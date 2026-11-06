@@ -144,7 +144,7 @@ function AlignButtons({
   const cls = (active: boolean): string =>
     `grid h-6 w-7 shrink-0 place-items-center rounded border text-[11px] ${
       active
-        ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+        ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
         : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
     }`;
   return (
@@ -400,7 +400,7 @@ function MultiForm() {
                     onClick={() => apply('strokeDasharray', preset.key)}
                     className={`flex-1 rounded border px-1.5 py-1 text-[11px] ${
                       active
-                        ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                        ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                         : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
                     }`}
                   >
@@ -425,7 +425,7 @@ function MultiForm() {
                   }
                   className={`grid h-7 w-7 shrink-0 place-items-center rounded border text-[11px] ${
                     find('iconHidden')!.value === 'hidden'
-                      ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                      ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                       : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
                   }`}
                 >
@@ -440,7 +440,7 @@ function MultiForm() {
                   onClick={() => apply('iconKey', key)}
                   className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
                     find('iconKey')!.value === key
-                      ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                      ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                       : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
                   }`}
                 >
@@ -513,7 +513,7 @@ export function PropertyPanel() {
       <div className="flex-1 p-3">
         {/* 全局锁定（用户 2026-11-04 第二批）：面板照常能看，但所有控件都禁用 */}
         {locked && (
-          <div className="mb-2 flex items-start gap-1.5 rounded border border-[var(--panel-border)] bg-[#F9FAFB] px-2 py-1.5 text-[11px] text-[var(--text-secondary)]">
+          <div className="mb-2 flex items-start gap-1.5 rounded border border-[var(--panel-border)] bg-[var(--bg-hover)] px-2 py-1.5 text-[11px] text-[var(--text-secondary)]">
             <span aria-hidden>🔒</span>
             <span>
               已锁定编辑，属性只能查看。点画布右上角「已锁定」解锁。
@@ -599,7 +599,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
   if (locked) {
     return (
       <div>
-        <p className="mb-3 rounded border border-[var(--panel-border)] bg-[#F9FAFB] px-2 py-2 text-[12px] text-[var(--text-secondary)]">
+        <p className="mb-3 rounded border border-[var(--panel-border)] bg-[var(--bg-hover)] px-2 py-2 text-[12px] text-[var(--text-secondary)]">
           分组「{group.label}」已锁定：不能拖动、缩放、改名、折叠，也不能改颜色和图标。
           仍然可以选中、可以往里放节点。
         </p>
@@ -607,7 +607,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
           type="button"
           onClick={toggleLock}
           aria-pressed
-          className="flex w-full items-center justify-center gap-1.5 rounded border border-[var(--primary)] bg-[#EFF6FF] px-2 py-1.5 text-xs text-[var(--primary)] hover:bg-[#DBEAFE]"
+          className="flex w-full items-center justify-center gap-1.5 rounded border border-[var(--primary)] bg-[var(--accent-50)] px-2 py-1.5 text-xs text-[var(--primary)] hover:bg-[var(--accent-100)]"
         >
           <ToolIcon name="unlock" size={16} />
           <span>解锁分组</span>
@@ -660,7 +660,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
             onClick={() => patchGroupIcon({ iconHidden: !isIconHidden(group) })}
             className={`grid h-7 w-7 shrink-0 place-items-center rounded border text-[11px] ${
               isIconHidden(group)
-                ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                 : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
             }`}
           >
@@ -674,7 +674,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
               onClick={() => setIcon(key)}
               className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
                 key === iconKey
-                  ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                  ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                   : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
               }`}
             >
@@ -766,7 +766,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputClass =
-  'w-full rounded border border-[#D1D5DB] bg-white px-2 py-1 text-[13px] outline-none focus:border-[var(--primary)]';
+  'w-full rounded border border-[var(--hair-strong)] bg-white px-2 py-1 text-[13px] outline-none focus:border-[var(--primary)]';
 
 /* ------------------------------------------------------------------ */
 /* 节点表单                                                            */
@@ -833,7 +833,7 @@ function LineForm({ node }: { node: DiagramNode }) {
                   onClick={() => setLine({ width: preset })}
                   className={`h-6 min-w-7 rounded border px-1 text-[11px] leading-none ${
                     active
-                      ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                      ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                       : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
                   }`}
                 >
@@ -858,7 +858,7 @@ function LineForm({ node }: { node: DiagramNode }) {
                 onClick={() => setLine({ dash: preset.value })}
                 className={`flex h-7 flex-1 items-center justify-center gap-1 rounded border text-[11px] ${
                   active
-                    ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                    ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                     : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
                 }`}
               >
@@ -954,7 +954,7 @@ function NodeForm({ node }: { node: DiagramNode }) {
                 onClick={() => setTextStyle({ [key]: !textStyle[key] })}
                 className={`grid h-7 w-7 place-items-center rounded border text-[12px] ${cls} ${
                   textStyle[key]
-                    ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                    ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                     : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
                 }`}
               >
@@ -1006,7 +1006,7 @@ function NodeForm({ node }: { node: DiagramNode }) {
             }
             className={`grid h-7 w-7 shrink-0 place-items-center rounded border text-[11px] ${
               isIconHidden(node)
-                ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                 : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
             }`}
           >
@@ -1022,7 +1022,7 @@ function NodeForm({ node }: { node: DiagramNode }) {
               }
               className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
                 key === iconKey
-                  ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+                  ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                   : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
               }`}
             >
@@ -1053,7 +1053,7 @@ function NodeForm({ node }: { node: DiagramNode }) {
           aria-label={node.locked ? '解锁' : '锁定'}
           className={`grid h-8 w-8 place-items-center rounded border ${
             node.locked
-              ? 'border-[var(--primary)] bg-[#EFF6FF] text-[var(--primary)]'
+              ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
               : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
           }`}
         >
@@ -1136,13 +1136,13 @@ function EdgeForm({ edge }: { edge: DiagramEdge }) {
                   onClick={() => patch(edge.edgeId, { strokeDasharray: preset.value })}
                   className={`grid h-7 flex-1 place-items-center rounded border ${
                     active
-                      ? 'border-[var(--primary)] bg-[#EFF6FF]'
+                      ? 'border-[var(--primary)] bg-[var(--accent-50)]'
                       : 'border-[var(--panel-border)] hover:border-[var(--primary)]'
                   }`}
                 >
                   <DashSample
                     dasharray={preset.value}
-                    color={active ? 'var(--primary)' : '#6B7280'}
+                    color={active ? 'var(--primary)' : 'var(--text-secondary)'}
                   />
                 </button>
               );

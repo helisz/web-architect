@@ -97,9 +97,97 @@ export async function listDiagrams(options: ListOptions = {}): Promise<DiagramPa
   };
 }
 
+/**
+ * 图库卡片的 3:2 预览数据（2026-11-06 视觉改版）。
+ *
+ * 为什么不存缩略图文件：列表里存图会让每次保存都多写一份二进制；
+ * 这里按当前页的 12–18 张图，用三条 `in (...)` 查询把几何取回来，
+ * 交给 `thumbnailDataUrl` 现拼一张极简 SVG —— 老图不用迁移，游客模式直接读本机。
+ *
+ * 失败不算错误：卡片降级成空预览框，图库照常能用。
+ */
+export async function listDiagramPreviews(
+  ids: string[],
+): Promise<Record<string, { nodes: unknown[]; groups: unknown[]; edges: unknown[] }>> {
+  const wanted = [...new Set(ids)].filter(Boolean);
+  if (wanted.length === 0) return {};
+
+  const result: Record<string, { nodes: unknown[]; groups: unknown[]; edges: unknown[] }> = {};
+  const ensure = (id: string) => {
+    result[id] ??= { nodes: [], groups: [], edges: [] };
+    return result[id]!;
+  };
+
+  if (isGuestMode()) {
+    for (const diagram of guest.loadAllGuestDiagrams()) {
+      if (!wanted.includes(diagram.diagramId)) continue;
+      result[diagram.diagramId] = {
+        nodes: diagram.nodes,
+        groups: diagram.groups,
+        edges: diagram.edges,
+      };
+    }
+    return result;
+  }
+
+  const db = client();
+  const [nodeRes, groupRes, edgeRes] = await Promise.all([
+    db
+      .from(TABLES.node)
+      .select('diagram_id,node_id,x,y,width,height,bg_color,border_color,group_id')
+      .in('diagram_id', wanted)
+      .eq('is_deleted', false),
+    db
+      .from(TABLES.group)
+      .select('diagram_id,group_id,parent_group_id,x,y,width,height,bg_color,border_color')
+      .in('diagram_id', wanted)
+      .eq('is_deleted', false),
+    db
+      .from(TABLES.edge)
+      .select('diagram_id,source_node_id,target_node_id,stroke_color,stroke_width')
+      .in('diagram_id', wanted)
+      .eq('is_deleted', false),
+  ]);
+  // 任何一条失败就整体降级：没有缩略图不影响打开图
+  if (nodeRes.error || groupRes.error || edgeRes.error) return {};
+
+  for (const row of nodeRes.data ?? []) {
+    ensure(row.diagram_id as string).nodes.push({
+      nodeId: row.node_id,
+      x: row.x,
+      y: row.y,
+      width: row.width,
+      height: row.height,
+      bgColor: row.bg_color,
+      borderColor: row.border_color,
+      groupId: row.group_id,
+    });
+  }
+  for (const row of groupRes.data ?? []) {
+    ensure(row.diagram_id as string).groups.push({
+      groupId: row.group_id,
+      parentGroupId: row.parent_group_id,
+      x: row.x,
+      y: row.y,
+      width: row.width,
+      height: row.height,
+      bgColor: row.bg_color,
+      borderColor: row.border_color,
+    });
+  }
+  for (const row of edgeRes.data ?? []) {
+    ensure(row.diagram_id as string).edges.push({
+      sourceNodeId: row.source_node_id,
+      targetNodeId: row.target_node_id,
+      strokeColor: row.stroke_color,
+      strokeWidth: row.stroke_width,
+    });
+  }
+  return result;
+}
+
 /** 图库里出现过的所有标签（去重后按字面排序） */
-export async function listAllTags(): Promise<string[]> {
-  if (isGuestMode()) return guest.listAllTags();
+export async function listAllTags(): Promise<string[]> {  if (isGuestMode()) return guest.listAllTags();
   const { data, error } = await client().from(TABLES.diagram).select('tags').eq('is_deleted', false);
   if (error) fail('读取标签失败', error);
 

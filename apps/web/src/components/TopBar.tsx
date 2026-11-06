@@ -37,7 +37,7 @@ function DbStatus() {
 
   const { color, title } =
     state.kind === 'checking'
-      ? { color: '#9CA3AF', title: '正在探测 Supabase…' }
+      ? { color: 'var(--text-tertiary)', title: '正在探测 Supabase…' }
       : state.kind === 'up'
         ? { color: '#10B981', title: `数据库正常 · ${state.latencyMs}ms（PostgREST 可达，arch_diagram 可读）` }
         : { color: '#DC2626', title: `数据库不可用：${state.message}` };
@@ -73,8 +73,8 @@ function IconButton({
       onClick={onClick}
       className={`grid h-8 w-8 shrink-0 place-items-center rounded ${
         active
-          ? 'bg-[#EFF6FF] text-[var(--primary)]'
-          : 'text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)]'
+          ? 'bg-[var(--accent-50)] text-[var(--primary)]'
+          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
       } disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent`}
     >
       <ToolIcon name={icon} size={17} />
@@ -125,7 +125,7 @@ export function TopBar() {
           onClick={() => void goToGallery()}
           title="返回图库"
           aria-label="返回图库"
-          className="-ml-1 grid h-8 w-8 shrink-0 place-items-center rounded text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)]"
+          className="-ml-1 grid h-8 w-8 shrink-0 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
         >
           <ToolIcon name="chevronLeft" size={18} />
         </button>
@@ -215,15 +215,11 @@ export function TopBar() {
           onClick={() => useDiagramStore.getState().setSearchOpen(true)}
         />
 
-        <button
-          type="button"
+        <IconButton
+          icon="import"
+          label="导入 JSON（会作为一个新图打开，原有图不受影响）"
           onClick={() => fileRef.current?.click()}
-          title="导入 JSON（会作为一个新图打开，原有图不受影响）"
-          className="ml-1 flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-xs text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)]"
-        >
-          <ToolIcon name="import" size={15} />
-          导入
-        </button>
+        />
         <input
           ref={fileRef}
           type="file"
@@ -241,10 +237,12 @@ export function TopBar() {
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
             title="导出为 JSON / PNG / SVG / PDF / CSV"
-            className="flex shrink-0 items-center gap-1 rounded bg-[var(--primary)] px-2 py-1 text-xs font-medium text-white hover:bg-[var(--primary-hover,#1D4ED8)]"
+            aria-label="导出"
+            aria-expanded={menuOpen}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--radius-ctl)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] data-[open=true]:bg-[var(--accent-50)] data-[open=true]:text-[var(--accent-600)]"
+            data-open={menuOpen}
           >
-            <ToolIcon name="export" size={15} />
-            导出 ▾
+            <ToolIcon name="export" size={17} />
           </button>
           {menuOpen && (
             <div
@@ -371,7 +369,7 @@ function MenuItem({ children, onClick }: { children: React.ReactNode; onClick: (
   return (
     <button
       type="button"
-      className="block w-full px-3 py-1.5 text-left text-xs hover:bg-[#F3F4F6]"
+      className="block w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-hover)]"
       onClick={onClick}
     >
       {children}

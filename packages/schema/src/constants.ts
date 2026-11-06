@@ -38,8 +38,8 @@ export const TOKENS = {
   textPrimary: '#111827',
   textSecondary: '#6B7280',
   nodeBg: '#FFFFFF',
-  nodeBorder: '#D1D5DB',
-  radiusNode: 8,
+  nodeBorder: '#D6D5CF',
+  radiusNode: 4,
   fontUi: 'Inter, system-ui, sans-serif',
   fontMono: 'JetBrains Mono, ui-monospace, monospace',
 } as const;
@@ -62,28 +62,28 @@ export const SEMANTIC_EDGES: Record<SemanticEdgeKind, SemanticEdgeStyle> = {
   external: {
     kind: 'external',
     label: '外网 / 互联网流量',
-    strokeColor: '#F59E0B',
+    strokeColor: '#C97A12',
     strokeWidth: 2,
     strokeDasharray: null,
   },
   internal: {
     kind: 'internal',
     label: '内部服务调用',
-    strokeColor: '#8B5CF6',
+    strokeColor: '#8F4FBF',
     strokeWidth: 1.5,
     strokeDasharray: null,
   },
   cluster: {
     kind: 'cluster',
     label: '集群内部流量',
-    strokeColor: '#10B981',
+    strokeColor: '#4F9A46',
     strokeWidth: 1.5,
     strokeDasharray: null,
   },
   management: {
     kind: 'management',
     label: '管理 / 运维通道',
-    strokeColor: '#64748B',
+    strokeColor: '#6E6A62',
     strokeWidth: 1,
     strokeDasharray: '4,4',
   },
@@ -99,9 +99,9 @@ export interface ZonePalette {
 }
 
 export const ZONE_PALETTES: ZonePalette[] = [
-  { key: 'dmz', label: 'DMZ ZONE', bgColor: '#F1F3F5', borderColor: '#D6D9DD', titleColor: '#374151' },
-  { key: 'intranet', label: 'INTRANET', bgColor: '#EFF6FF', borderColor: '#BFDBFE', titleColor: '#1E3A8A' },
-  { key: 'external', label: 'EXTERNAL', bgColor: '#FFF7ED', borderColor: '#FED7AA', titleColor: '#9A3412' },
+  { key: 'dmz', label: 'DMZ ZONE', bgColor: '#F2F1EC', borderColor: '#D6D5CF', titleColor: '#4A4A46' },
+  { key: 'intranet', label: 'INTRANET', bgColor: '#FFF2EC', borderColor: '#FFC0A4', titleColor: '#B23A0B' },
+  { key: 'external', label: 'EXTERNAL', bgColor: '#FDF3E7', borderColor: '#E8C79A', titleColor: '#8A5320' },
 ];
 
 /**
@@ -118,7 +118,7 @@ export const CLEAR_COLORS = ['transparent', 'none', 'clear'];
 export const EDGE_DEFAULTS = {
   edgeType: 'ortho' as const,
   /** 默认灰色：中性、不抢节点的视线；需要语义色时在面板里单独改 */
-  strokeColor: '#6B7280',
+  strokeColor: '#AFACA2',
   strokeWidth: 2,
   strokeDasharray: null,
   /**
@@ -220,8 +220,8 @@ export const GROUP_PRESETS: GroupPreset[] = [
     iconKey: 'arch:nginx',
     width: 420,
     height: 300,
-    bgColor: '#F7FBF8',
-    borderColor: '#B7DCC4',
+    bgColor: '#F3F1E9',
+    borderColor: '#CFCBB8',
     titleColor: '#1F7A44',
   },
 ];

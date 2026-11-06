@@ -89,7 +89,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
         </div>
         <button
           type="button"
-          className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded text-[var(--text-secondary)] hover:bg-[#F3F4F6]"
+          className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           onClick={onClose}
           title="关闭版本栏"
           aria-label="关闭版本栏"
@@ -99,7 +99,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* 手动快照：把当前版本命名存下来，和自动快照一起进列表 */}
-      <div className="flex items-center gap-1.5 border-b border-[var(--panel-border)] bg-[#F9FAFB] px-3 py-2">
+      <div className="flex items-center gap-1.5 border-b border-[var(--panel-border)] bg-[var(--bg-hover)] px-3 py-2">
         <input
           className="min-w-0 flex-1 rounded border border-[var(--panel-border)] px-2 py-1 text-[12px] outline-none focus:border-[var(--primary)]"
           placeholder="给这版起个名字"
@@ -160,7 +160,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
                 <div className="mt-1.5 flex justify-end">
                   <button
                     type="button"
-                    className="rounded border border-[var(--panel-border)] px-1.5 py-0.5 text-[11px] hover:bg-[#F9FAFB]"
+                    className="rounded border border-[var(--panel-border)] px-1.5 py-0.5 text-[11px] hover:bg-[var(--bg-hover)]"
                     disabled={busy !== null}
                     onClick={() => setConfirming(row)}
                   >

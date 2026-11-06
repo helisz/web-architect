@@ -6,6 +6,9 @@ import { CLEAR_COLOR } from '@arch/schema';
  *
  * 结构按产品给的"思维导图节点色板"执行，顺序和色值都不要随意调整：
  * 1. 节点背景色：3 行 × 6 格（中性 → 饱和 → 浅马卡龙）；
+ *
+ * 2026-11-06 改版：整板暖化。饱和行换成同暖度/同饱和度的 6 色（紫/青蓝/橄榄绿/赭黄/橙/砖红），
+ * 浅色行是对应的 12% 淡色；中性行也换成暖灰。旧图里存的颜色不改，只是新选色从这里取。
  * 2. 节点边框色：2 行 × 6 格（中性 → 饱和）；
  * 3. 文字颜色：1 行 9 格，色块里带字母 A；
  * 4. 连线颜色：沿用饱和 + 中性，供线条用。
@@ -15,29 +18,24 @@ import { CLEAR_COLOR } from '@arch/schema';
  */
 
 /** 第 1 行：透明 + 黑白灰 */
-const NEUTRALS = ['transparent', '#000000', '#55575C', '#D2D3D6', '#F2F3F5', '#FFFFFF'] as const;
+const NEUTRALS = ['transparent', '#000000', '#4A4A46', '#CFCEC7', '#F2F1EC', '#FFFFFF'] as const;
 /** 第 2 行：饱和色 */
-const SATURATED = ['#924BED', '#2563EB', '#22C55E', '#FFE033', '#FF8A29', '#F44336'] as const;
+const SATURATED = ['#8F4FBF', '#3C6E9E', '#4F9A46', '#D9A21B', '#FC5D20', '#C4342B'] as const;
 /** 第 3 行：浅马卡龙 */
-const MACARON = ['#E9DDFF', '#DBE8FF', '#D7F5D9', '#FFFACD', '#FFE9D6', '#FFDDDD'] as const;
+const MACARON = ['#F0E4F7', '#E4ECF5', '#E7F2E4', '#FAF0D8', '#FDE6DB', '#F7E3E1'] as const;
 
 export const NODE_BG_ROWS: readonly (readonly string[])[] = [NEUTRALS, SATURATED, MACARON];
 export const NODE_BORDER_ROWS: readonly (readonly string[])[] = [NEUTRALS, SATURATED];
 
 export const FONT_COLORS = [
-  '#000000',
-  '#868686',
-  '#B0B1B5',
-  '#924BED',
-  '#2563EB',
-  '#22C55E',
-  '#FFD000',
-  '#FF8A29',
-  '#F44336',
+  '#1A1A18',
+  '#77766F',
+  '#A3A29A',
+  ...SATURATED,
 ] as const;
 
 /** 连线不分深浅底，只用能看清的两种中性 + 饱和色 */
-export const EDGE_COLORS = ['#55575C', '#000000', '#D2D3D6', ...SATURATED] as const;
+export const EDGE_COLORS = ['#A9A79E', '#000000', '#CFCEC7', ...SATURATED] as const;
 
 export type ColorScope = 'font' | 'bg' | 'line' | 'edge';
 /** 用来决定分组标题里写「节点」还是「分组」 */
@@ -100,7 +98,7 @@ export function colorToStore(color: string): string {
 
 /** 透明格：浅灰棋盘 + 一道斜杠，一眼看出是"清除" */
 const CLEAR_BG =
-  'repeating-conic-gradient(#FFFFFF 0% 25%, #E5E7EB 0% 50%) 0 0 / 7px 7px, linear-gradient(135deg, transparent 44%, #9CA3AF 44% 56%, transparent 56%)';
+  'repeating-conic-gradient(#FFFFFF 0% 25%, #E7E6E1 0% 50%) 0 0 / 7px 7px, linear-gradient(135deg, transparent 44%, #A3A29A 44% 56%, transparent 56%)';
 
 function Swatch({
   color,
@@ -125,7 +123,7 @@ function Swatch({
       onClick={onPick}
       className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold leading-none transition ${
         active
-          ? 'ring-2 ring-[#2563EB] ring-offset-1'
+          ? 'ring-2 ring-[var(--primary)] ring-offset-1'
           : 'ring-1 ring-black/15 hover:ring-2 hover:ring-black/25'
       }`}
       style={{

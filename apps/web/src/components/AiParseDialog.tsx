@@ -207,14 +207,14 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
             aria-label="关闭"
             onClick={onClose}
             disabled={busy}
-            className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[#F3F4F6] disabled:opacity-40"
+            className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] disabled:opacity-40"
           >
             ✕
           </button>
         </div>
 
         {/* 模型状态 */}
-        <div className="mt-3 flex items-center justify-between rounded border border-[var(--panel-border)] bg-[#F9FAFB] px-2 py-1.5">
+        <div className="mt-3 flex items-center justify-between rounded border border-[var(--panel-border)] bg-[var(--bg-hover)] px-2 py-1.5">
           <span className="text-[11px] text-[var(--text-secondary)]">
             {problem ? (
               <span className="text-[#B45309]">{problem}</span>
@@ -241,7 +241,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
             onClick={() => fileRef.current?.click()}
             disabled={busy}
             className={`mt-3 flex h-[190px] w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed text-center ${
-              dragging ? 'border-[var(--primary)] bg-[#EFF6FF]' : 'border-[#D1D5DB] hover:border-[var(--primary)] hover:bg-[#F8FAFF]'
+              dragging ? 'border-[var(--primary)] bg-[var(--accent-50)]' : 'border-[var(--hair-strong)] hover:border-[var(--primary)] hover:bg-[var(--accent-50)]'
             }`}
           >
             <span className="text-[13px] font-medium">点这里选图，或把图片拖进这个窗口</span>
@@ -273,7 +273,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
                     type="button"
                     onClick={() => fileRef.current?.click()}
                     disabled={busy}
-                    className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:bg-[#F9FAFB] disabled:opacity-50"
+                    className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:bg-[var(--bg-hover)] disabled:opacity-50"
                   >
                     重新选图
                   </button>
@@ -298,14 +298,14 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
 
         {/* 进度 */}
         {phase === 'running' && (
-          <div className="mt-3 rounded border border-[#BFDBFE] bg-[#EFF6FF] px-2 py-1.5 text-[11px] text-[#1E3A8A]">
+          <div className="mt-3 rounded border border-[var(--accent-200)] bg-[var(--accent-50)] px-2 py-1.5 text-[11px] text-[var(--accent-700)]">
             <span>{stage}</span>
             <span className="ml-2 tabular-nums text-[var(--text-secondary)]">{elapsed}s</span>
             <span className="ml-2 text-[var(--text-secondary)]">（超过 90 秒会失败，可取消）</span>
           </div>
         )}
         {phase === 'creating' && (
-          <div className="mt-3 rounded border border-[var(--panel-border)] bg-[#F9FAFB] px-2 py-1.5 text-[11px]">
+          <div className="mt-3 rounded border border-[var(--panel-border)] bg-[var(--bg-hover)] px-2 py-1.5 text-[11px]">
             {stage}
           </div>
         )}
@@ -331,7 +331,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 onClick={cancel}
-                className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[#F9FAFB]"
+                className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[var(--bg-hover)]"
               >
                 取消
               </button>
@@ -340,7 +340,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
                 type="button"
                 onClick={onClose}
                 disabled={busy}
-                className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[#F9FAFB] disabled:opacity-50"
+                className="rounded border border-[var(--panel-border)] px-3 py-1 text-xs hover:bg-[var(--bg-hover)] disabled:opacity-50"
               >
                 取消
               </button>

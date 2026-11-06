@@ -97,7 +97,7 @@ export function AlignToolbar() {
           title={label}
           aria-label={label}
           onClick={() => alignSelection(mode)}
-          className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)]"
+          className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
             {icon}
@@ -111,7 +111,7 @@ export function AlignToolbar() {
         aria-label="水平等距分布"
         disabled={count < 3}
         onClick={() => distributeSelection('horizontal')}
-        className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-30"
+        className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-30"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M3 4v16M21 4v16" />
@@ -125,7 +125,7 @@ export function AlignToolbar() {
         aria-label="垂直等距分布"
         disabled={count < 3}
         onClick={() => distributeSelection('vertical')}
-        className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[#F3F4F6] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-30"
+        className="grid h-7 w-7 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-30"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M4 3h16M4 21h16" />

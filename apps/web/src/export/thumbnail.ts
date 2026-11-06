@@ -79,7 +79,7 @@ export function snapshotThumbnail(payload: ThumbnailPayload, width = 96, padding
       y: g.y,
       width: g.width,
       height: g.height,
-      fill: g.bgColor || '#F1F3F5',
+      fill: g.bgColor || '#F2F1EC',
       stroke: g.borderColor || '#D6D9DD',
     })),
     ...nodes.map((n) => ({
@@ -122,7 +122,7 @@ export function snapshotThumbnail(payload: ThumbnailPayload, width = 96, padding
       const y2 = (target.y + target.height / 2 - minY) * scale + padding;
       return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(
         1,
-      )}" stroke="${escapeXml(edge.strokeColor || '#9CA3AF')}" stroke-width="1"/>`;
+      )}" stroke="${escapeXml(edge.strokeColor || '#AFACA2')}" stroke-width="1"/>`;
     })
     .join('');
 

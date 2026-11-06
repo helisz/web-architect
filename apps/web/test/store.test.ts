@@ -137,12 +137,12 @@ describe('撤销栈与服务端版本', () => {
 });
 
 describe('连线全局配置', () => {
-  it('默认：灰色 #6B7280 / 2px / 无箭头（规格 §5.2 规则 3）', () => {
+  it('默认：暖灰 #AFACA2 / 2px / 带箭头（2026-11-06 视觉改版）', () => {
     const a = store().addNode('waf', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 300, y: 0 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
     const edge = store().diagram.edges[0]!;
-    expect(edge.strokeColor).toBe('#6B7280');
+    expect(edge.strokeColor).toBe('#AFACA2');
     expect(edge.strokeWidth).toBe(2);
     expect(edge.arrow).toBe('forward');
   });
