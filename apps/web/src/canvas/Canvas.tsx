@@ -120,6 +120,11 @@ function CanvasInner() {
 
   const { screenToFlowPosition, getViewport, setViewport: applyViewport, fitView, getNodes } = useReactFlow();
   const componentPanelOpen = useDiagramStore((s) => s.componentPanelOpen);
+  // 缩放控件贴左下角；组件库打开时要让开面板（2026-11-06）
+  // 注意 React Flow 的 .react-flow__panel 自带 margin:15px，所以这里减掉它，
+  // 让 controlsLeft 就等于"控件真实左边缘"，状态条才能用同一个基准算位置。
+  const controlsLeft = componentPanelOpen ? 240 + 18 : 16;
+  const PANEL_MARGIN = 15;
   // ReactFlow 自己量的画布尺寸（等于 <main> 的可用区域）
   const flowWidth = useStore((s) => s.width);
   const flowHeight = useStore((s) => s.height);
@@ -815,7 +820,7 @@ const cursorFrame = useRef<number | null>(null);
         showZoom={false}
         showFitView={false}
         showInteractive={false}
-        style={{ left: componentPanelOpen ? 240 + 18 : 16 }}
+        style={{ left: controlsLeft - PANEL_MARGIN }}
       >
         <ControlButton onClick={() => stepZoom(1)} title="放大（+20%）" aria-label="放大">
           <ToolIcon name="plus" />
@@ -917,19 +922,26 @@ export function Canvas() {
 }
 
 /**
- * 左下角状态条（用户 2026-11-04：去掉底部整条，内容塞到 Fit view 右边，
+ * 左下角状态条（用户 2026-11-04：去掉底部整条，内容塞到缩放控件右边，
  * 无背景、小灰字、全部左对齐，不再左右分栏）。
  *
- * ReactFlow 的 Controls 贴左下角，宽约 32px，所以这里从 46px 处开始排。
+ * 2026-11-06：位置不再写死 —— 缩放控件会跟着组件库开合左右移动，
+ * 状态条用同一套偏移量跟过去（控件宽 26 + 间隙 12），否则组件库展开时会被盖住。
  */
+export const STATUS_BAR_OFFSET = 26 + 12;
+
 function CanvasStatus() {
   const zoom = useDiagramStore((s) => s.diagram.viewport.zoom);
   const schemaVersion = useDiagramStore((s) => s.diagram.schemaVersion);
   const cursor = useDiagramStore((s) => s.cursor);
   const stats = useDiagramStats();
+  const componentPanelOpen = useDiagramStore((s) => s.componentPanelOpen);
 
   return (
-    <div className="pointer-events-none absolute bottom-1 left-[76px] z-10 flex items-center gap-3 text-[11px] leading-4 text-[var(--text-secondary)]">
+    <div
+      className="pointer-events-none absolute bottom-1 z-10 flex items-center gap-3 text-[11px] leading-4 text-[var(--text-secondary)]"
+      style={{ left: (componentPanelOpen ? 240 + 18 : 16) + STATUS_BAR_OFFSET }}
+    >
       <button
         type="button"
         // 真的把画布缩放到 1:1（以前只改了 store 里的副本，画面动都不动）

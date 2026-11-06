@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -302,6 +302,29 @@ function ArchEdgeImpl({
   // 标注配色（2026-11-06）：存在 extJson 里，不需要加数据库列
   const labelColor = (edge?.extJson?.labelColor as string | undefined) ?? 'var(--text-secondary)';
   const labelBgColor = (edge?.extJson?.labelBgColor as string | undefined) ?? '#FFFFFF';
+  /*
+   * 标注位置（2026-11-06）：labelAt = 沿线长度比例 0..1，默认 0.5（线中点）。
+   * 用一条隐藏 path 做量尺，getPointAtLength 取点 —— 这样贝塞尔曲线也能精确落点，
+   * 不像按折线插值那样在曲线上飘。
+   */
+  const labelAt = clampRatio(edge?.extJson?.labelAt as number | undefined);
+  const measureRef = useRef<SVGPathElement | null>(null);
+  const [labelPoint, setLabelPoint] = useState<Pt>(geometry.labelPoint);
+  const [labelDragging, setLabelDragging] = useState(false);
+  const labelAtRef = useRef(labelAt);
+  // 换一条线 / 别处改了标注位置时同步进 ref（拖动过程中只用 ref，不写库）
+  useEffect(() => {
+    labelAtRef.current = labelAt;
+  }, [labelAt]);
+  useLayoutEffect(() => {
+    const path = measureRef.current;
+    if (!path || !showLabel) return;
+    const total = path.getTotalLength();
+    if (!Number.isFinite(total) || total <= 0) return;
+    const at = path.getPointAtLength(total * labelAt);
+    setLabelPoint({ x: at.x, y: at.y });
+  }, [geometry.d, labelAt, showLabel, zoom]);
+
   const addHandleRatio = edge?.label ? 0.25 : 0.5;
   const addHandlePoint = pointAt(edgeType, geometry.points, addHandleRatio);
   const handleScale = 1 / (zoom || 1);
@@ -345,19 +368,63 @@ function ArchEdgeImpl({
         }}
         interactionWidth={12}
       />
+      {/* 隐藏量尺：只用来算标注位置，不参与绘制 */}
+      <path ref={measureRef} d={geometry.d} fill="none" stroke="none" style={{ pointerEvents: 'none' }} />
       {showLabel && (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan pointer-events-none absolute px-1.5 py-0.5 text-[11px]"
+            className="nodrag nopan absolute px-1.5 py-0.5 text-[11px]"
+            onPointerDown={(event) => {
+              // 锁定编辑 / 拖动模式下不给拖标注
+              if (editLocked || panMode) return;
+              event.stopPropagation();
+              event.preventDefault();
+              (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+              setLabelDragging(true);
+            }}
+            onPointerMove={(event) => {
+              if (!labelDragging) return;
+              const path = measureRef.current;
+              if (!path) return;
+              const total = path.getTotalLength();
+              if (!Number.isFinite(total) || total <= 0) return;
+              const pointer = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+              // 沿路径采样找最近点（48 段足够，拖起来没有顿挫感）
+              const STEPS = 48;
+              let bestRatio = labelAtRef.current;
+              let bestDistance = Number.POSITIVE_INFINITY;
+              for (let i = 0; i <= STEPS; i += 1) {
+                const at = path.getPointAtLength((total * i) / STEPS);
+                const distance = (at.x - pointer.x) ** 2 + (at.y - pointer.y) ** 2;
+                if (distance < bestDistance) {
+                  bestDistance = distance;
+                  bestRatio = i / STEPS;
+                }
+              }
+              labelAtRef.current = bestRatio;
+              const at = path.getPointAtLength(total * bestRatio);
+              setLabelPoint({ x: at.x, y: at.y });
+            }}
+            onPointerUp={(event) => {
+              if (!labelDragging) return;
+              setLabelDragging(false);
+              (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+              // 松手才写库：拖动过程里只更新本地坐标，避免刷出一堆历史记录
+              patchEdgeNow(id, {
+                extJson: { ...(edge?.extJson ?? {}), labelAt: labelAtRef.current },
+              });
+            }}
             style={{
-              transform: `translate(-50%, -50%) translate(${geometry.labelPoint.x}px, ${geometry.labelPoint.y}px)`,
+              transform: `translate(-50%, -50%) translate(${labelPoint.x}px, ${labelPoint.y}px)`,
               color: labelColor,
               background: labelBgColor,
-              border: '1px solid var(--hair)',
               borderRadius: 2,
               // 标注必须压在连线之上：以前背景是 90% 白，线会透出来，看着像线盖住了字
               zIndex: 30,
               whiteSpace: 'nowrap',
+              cursor: editLocked || panMode ? 'default' : labelDragging ? 'grabbing' : 'grab',
+              pointerEvents: 'all',
+              userSelect: 'none',
             }}
           >
             {edge?.label}
@@ -433,7 +500,7 @@ function ArchEdgeImpl({
           <div
             className="nodrag nopan absolute"
             style={{
-              transform: `translate(-50%, -50%) translate(${geometry.labelPoint.x}px, ${geometry.labelPoint.y}px)`,
+              transform: `translate(-50%, -50%) translate(${labelPoint.x}px, ${labelPoint.y}px)`,
               pointerEvents: 'all',
             }}
           >
@@ -459,6 +526,12 @@ function ArchEdgeImpl({
       )}
     </>
   );
+}
+
+/** 标注位置比例夹到 0..1，脏数据不至于把字甩出线外 */
+function clampRatio(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0.5;
+  return Math.min(1, Math.max(0, value));
 }
 
 export const ArchEdge = memo(ArchEdgeImpl);
