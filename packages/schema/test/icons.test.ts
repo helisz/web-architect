@@ -59,7 +59,7 @@ describe('图标规则：nodeType → iconKey', () => {
     expect(new Set([iconKeyFor('server'), iconKeyFor('vm'), iconKeyFor('container')]).size).toBe(3);
   });
 
-  it('32 个节点类型全部有显式映射，不留隐形兜底', () => {
+  it('49 个节点类型全部有显式映射，不留隐形兜底', () => {
     for (const nodeType of NODE_TYPES) {
       expect(ICON_KEY_BY_NODE_TYPE[nodeType], `${nodeType} 缺少映射`).toBeTypeOf('string');
       expect(isIconKey(ICON_KEY_BY_NODE_TYPE[nodeType])).toBe(true);
@@ -76,8 +76,8 @@ describe('图标规则：nodeType → iconKey', () => {
     }
   });
 
-  it('允许集合 = 用户 10 个 + 方案 (a) 6 个 + nginx/集群/文本 4 个，减去并掉的 devicon:nginx', () => {
-    expect(ALLOWED_ICON_KEYS).toHaveLength(19);
+  it('允许集合 = 原有 19 个 + 形状/流程图 14 个', () => {
+    expect(ALLOWED_ICON_KEYS).toHaveLength(33);
     // 用户 2026-11-05：旧的 nginx 全称 logo 从常用集里彻底移除，只留自绘的方框 N
     expect(ALLOWED_ICON_KEYS).not.toContain('devicon:nginx');
     for (const key of Object.values(USER_DECIDED)) expect(ALLOWED_ICON_KEYS).toContain(key);
@@ -93,6 +93,21 @@ describe('图标规则：nodeType → iconKey', () => {
       'arch:nginx-mono',
       'tabler:letter-n',
       'tabler:stack-2',
+      // 2026-11-06 追加：形状 / 流程图节点用到的几何与流程符号
+      'tabler:rectangle',
+      'tabler:square-rounded',
+      'tabler:circle',
+      'tabler:diamond',
+      'tabler:triangle',
+      'tabler:hexagon',
+      'tabler:cylinder',
+      'tabler:shape',
+      'tabler:file-text',
+      'tabler:arrow-big-right',
+      'tabler:player-play',
+      'tabler:git-branch',
+      'tabler:settings',
+      'tabler:circle-dot',
     ]) {
       expect(ALLOWED_ICON_KEYS).toContain(extra);
     }

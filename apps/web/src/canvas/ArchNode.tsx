@@ -16,6 +16,7 @@ import { NodeIcon } from '../icons/index.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import type { ArchFlowNode } from './flowMapping.js';
 import { ArchLine } from './ArchLine.js';
+import { handleOffsets, isShapeNodeType, shapePath } from './shapePath.js';
 import { angleFromOffset, tailAngleOf, tailGeometry } from './tail.js';
 
 const POSITION: Record<Anchor, Position> = {
@@ -42,6 +43,13 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
   const isAnnotation = kind === 'annotation';
   const isPlainText = kind === 'text';
   const isTextLike = isTitle || isSticky || isAnnotation || isPlainText;
+  /*
+   * 形状 / 流程图（2026-11-06）：同一套轮廓渲染。
+   * 这些节点不用 div 边框画外形 —— div 只能画矩形，而且要保住四边 Handle 的命中区；
+   * 改成铺满节点的 SVG，轮廓和文字各管各的。
+   */
+  const isShape = isShapeNodeType(kind);
+  const outline = isShape ? shapePath(kind, node.width, node.height) : null;
   // 文字样式（字号 / 加粗 / 斜体 / 下划线）：extJson 覆盖 > 按类型的默认（标题 28px 加粗）
   const textStyle = textStyleOf(kind, node.extJson);
   // 全局锁定编辑时不给改名（双击也只是选中）
@@ -49,7 +57,8 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
 
   // 小节点里图标要让位给文字，按高度自适应；太矮就干脆不画，免得挤压标签。
   // 另外节点可以主动关图标（extJson.iconHidden，属性面板里的「无」）。
-  const showIcon = node.height >= 52 && !isTextLike && !isIconHidden(node);
+  // 形状节点一律不画图标：轮廓本身已经是视觉主体，再塞图标会盖住文字。
+  const showIcon = node.height >= 52 && !isTextLike && !isShape && !isIconHidden(node);
   const iconSize = Math.max(14, Math.min(22, Math.round(node.height * 0.28)));
   const patchNode = useDiagramStore((s) => s.patchNode);
   // 右键菜单「编辑名称」通过 store 请求进入行内编辑
@@ -114,24 +123,39 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
     window.addEventListener('pointerup', up);
   };
 
+  // 形状节点的斜边手柄要贴着轮廓（2026-11-06）：查表拿到百分比，改写成绝对定位
+  const offsets = isShape ? handleOffsets(node.nodeType, node.width, node.height) : null;
+  const handleStyleFor = (anchor: 'top' | 'right' | 'bottom' | 'left'): React.CSSProperties | undefined => {
+    const at = offsets?.[anchor];
+    if (!at) return undefined;
+    const horizontal = anchor === 'top' || anchor === 'bottom';
+    return horizontal
+      ? { left: `${at.left}%`, top: `${at.top}%`, right: 'auto', bottom: 'auto', transform: 'translate(-50%, -50%)' }
+      : { left: `${at.left}%`, top: `${at.top}%`, right: 'auto', bottom: 'auto', transform: 'translate(-50%, -50%)' };
+  };
+
   return (
     <div
       ref={boxRef}
       className={`relative flex h-full w-full flex-col ${
-        isTitle
-          ? 'px-1'
-          : isSticky
-            ? 'overflow-hidden rounded-[var(--radius-node)] px-2.5 py-2'
-            : isAnnotation
-              ? 'rounded-[var(--radius-node)] px-2.5 py-2'
-              : isPlainText
-                ? 'px-2'
-                 : 'gap-0.5 rounded-[var(--radius-node)] border px-2'
+        isShape
+          ? 'gap-0.5 px-3'
+          : isTitle
+            ? 'px-1'
+            : isSticky
+              ? 'overflow-hidden rounded-[var(--radius-node)] px-2.5 py-2'
+              : isAnnotation
+                ? 'rounded-[var(--radius-node)] px-2.5 py-2'
+                : isPlainText
+                  ? 'px-2'
+                  : 'gap-0.5 rounded-[var(--radius-node)] border px-2'
       }`}
       style={{
-        background: node.bgColor,
+        // 形状的底色由 SVG path 填充，div 必须透明，否则矩形底会从图形外面露出来
+        background: isShape ? 'transparent' : node.bgColor,
+        // 形状的描边也在 path 上（选中 2px / 常态 1.2px），div 不再画边框
         borderColor: selected ? 'var(--primary)' : node.borderColor,
-        borderWidth: isTitle || isPlainText ? 0 : selected || highlighted ? 2 : 1,
+        borderWidth: isShape || isTitle || isPlainText ? 0 : selected || highlighted ? 2 : 1,
         borderStyle: 'solid',
         outline: highlighted ? '3px solid rgba(36,91,219,0.35)' : undefined,
         outlineOffset: 2,
@@ -139,16 +163,50 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
         // 规格 §5.2：禁止阴影，选中只用描边宽度与颜色区分
         boxShadow: 'none',
         opacity: node.visible ? 1 : 0.4,
-        // 对齐（用户 2026-11-04）：水平/垂直都由 extJson 决定，文本类默认左上
-        justifyContent: horizontalToFlex(textStyle.align),
-        alignItems: verticalToFlex(textStyle.valign),
-        textAlign: textStyle.align,
+        // 对齐（用户 2026-11-04）：水平/垂直都由 extJson 决定，文本类默认左上。
+        // 形状/流程节点强制居中：文字压在图形正中是这类节点的默认读法。
+        justifyContent: isShape ? 'center' : horizontalToFlex(textStyle.align),
+        alignItems: isShape ? 'center' : verticalToFlex(textStyle.valign),
+        textAlign: isShape ? 'center' : textStyle.align,
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
         if (!node.locked && !editLocked) setEditing(true);
       }}
     >
+      {/* 形状轮廓（2026-11-06）：铺满节点盒子的 SVG。
+          viewBox 直接用节点当前宽高，NodeResizer 拖动时图形跟着实时拉伸；
+          preserveAspectRatio="none" 让任意宽高比都填满盒子（圆会被拉成椭圆，
+          但四条边的中点仍在轮廓上，和四边 Handle 对齐）。
+          放在 NodeResizer 之前：不透明的填充色不会盖住缩放小方块。 */}
+      {isShape && outline && (
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+          viewBox={`0 0 ${node.width} ${node.height}`}
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <path
+            d={outline.d}
+            fill={node.bgColor}
+            stroke={selected ? 'var(--primary)' : node.borderColor}
+            strokeWidth={selected ? 2 : 1.2}
+            strokeLinejoin="round"
+          />
+          {/* 装饰线（圆柱顶盖弧 / 预定义过程的两道竖线）只描边不填充 */}
+          {outline.lines?.map((d, index) => (
+            <path
+              key={index}
+              d={d}
+              fill="none"
+              stroke={selected ? 'var(--primary)' : node.borderColor}
+              strokeWidth={selected ? 2 : 1.2}
+              strokeLinejoin="round"
+            />
+          ))}
+        </svg>
+      )}
+
       {/* 拖拽改尺寸（规格 §5.3）：锁定的节点不给手柄。
           标题下限抬到 40：默认 28px 的字在 32 高的框里会裁掉上下沿。 */}
       <NodeResizer
@@ -165,7 +223,7 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
           className="nodrag nopan w-full rounded border border-[var(--primary)] bg-white px-1 outline-none"
           style={{
             color: node.textColor,
-            textAlign: textStyle.align,
+            textAlign: isShape ? 'center' : textStyle.align,
             fontSize: textStyle.fontSize,
             fontWeight: textStyle.weight,
             fontStyle: textStyle.italic ? 'italic' : 'normal',
@@ -182,6 +240,16 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
             e.stopPropagation();
           }}
         />
+      ) : isShape ? (
+        /* 形状 / 流程节点：文字始终在图形正中。
+           字号、字重、斜体、下划线仍走 textStyle（属性面板能改），
+           但 align/valign 不参与 —— 图形里文字偏到一边会显得没对齐。 */
+        <span
+          className="max-w-full whitespace-pre-wrap break-words text-center leading-snug"
+          style={{ ...textStyleCss(textStyle), textAlign: 'center' }}
+        >
+          {node.label}
+        </span>
       ) : (
         <>
           {/* 图标（C15）：schema 只存 iconKey，图案由本地图标包渲染 */}
@@ -207,11 +275,12 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
         </>
       )}
 
-      {/* 副文本（2026-11-04 第二批）：10px、等宽字体；允许回车换行，最多显示两行 */}
+      {/* 副文本（2026-11-04 第二批）：10px、等宽字体；允许回车换行，最多显示两行。
+          形状/流程图默认副文本为空，用户真要填时同样居中显示。 */}
       {node.subLabel && !isAnnotation && (
         <span
           className="mono line-clamp-2 w-full whitespace-pre-line break-words text-[10px] leading-[13px] opacity-70"
-          style={{ textAlign: textStyle.align }}
+          style={{ textAlign: isShape ? 'center' : textStyle.align }}
         >
           {node.subLabel}
         </span>
@@ -256,6 +325,7 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
           id={anchor}
           type="source"
           position={POSITION[anchor]}
+          style={handleStyleFor(anchor)}
           className={`arch-handle${selected ? ' is-visible' : ''}`}
         >
           <span className="arch-handle-dot" />

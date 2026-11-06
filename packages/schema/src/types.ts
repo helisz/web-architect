@@ -111,6 +111,28 @@ export const NODE_TYPES = [
   'element',
   // 自由线条（2026-11-05）：结构区新建，节点当外壳、端点存 extJson.line，用来画装饰线/分割线
   'line',
+  // 形状（2026-11-06）：纯轮廓图形，画布上不画图标，文字摆在图形正中。
+  // 用 nodeType 区分形状而不是加 extJson.shape 字段：属性面板换形状就是换 nodeType，
+  // 校验、图标映射、组件库默认尺寸都能沿用同一套类型系统。
+  'shape-rect',
+  'shape-round',
+  'shape-circle',
+  'shape-diamond',
+  'shape-triangle',
+  'shape-hexagon',
+  'shape-cylinder',
+  'shape-parallelogram',
+  'shape-document',
+  'shape-arrow',
+  // 流程图（2026-11-06）：与「形状」同属轮廓渲染分支，默认带 label、无副文本。
+  // 开始/结束用胶囊而不是矩形，是流程图的行业惯例（BPMN 的 start/end event）。
+  'flow-start',
+  'flow-process',
+  'flow-decision',
+  'flow-data',
+  'flow-document',
+  'flow-predefined',
+  'flow-connector',
   'custom',
 ] as const;
 

@@ -280,6 +280,50 @@ const spec = (
 
 export const COMPONENT_CATEGORIES: ComponentCategory[] = [
   {
+    /*
+     * 形状（2026-11-06 用户新增）。
+     *
+     * 放在分类树最前面是有意的：画架构图时「先摆框、再连线」是最高频的动作，
+     * 形状比业务图标更常用。尺寸按人眼观感分别给：圆要方一点才像圆，
+     * 三角形/圆柱偏宽，其余统一 160×100 —— 全部写进 COMPONENT_INDEX，
+     * 拖进来和右键新建拿到的默认尺寸保持一致。
+     */
+    key: 'shape',
+    label: '形状',
+    items: [
+      spec('shape-rect', '直角矩形', 160, 100),
+      spec('shape-round', '圆角矩形', 160, 100),
+      spec('shape-circle', '圆形', 120, 120),
+      spec('shape-diamond', '菱形', 140, 120),
+      spec('shape-triangle', '三角形', 140, 120),
+      spec('shape-hexagon', '六边形', 160, 100),
+      spec('shape-cylinder', '圆柱', 140, 110),
+      spec('shape-parallelogram', '平行四边形', 160, 100),
+      spec('shape-document', '文档', 160, 100),
+      spec('shape-arrow', '箭头块', 160, 100),
+    ],
+  },
+  {
+    /*
+     * 流程图（2026-11-06 用户新增）。
+     *
+     * 与形状共用一套轮廓渲染：默认就带 label（开始/处理/判断…），副文本留空 ——
+     * 流程节点通常只写一个词，留空比塞一行占位说明干净。开始/结束用胶囊、
+     * 连接点用小圆，尺寸按图形本身的比例给，而不是统一 160×80。
+     */
+    key: 'flow',
+    label: '流程图',
+    items: [
+      spec('flow-start', '开始', 160, 60),
+      spec('flow-process', '处理', 160, 80),
+      spec('flow-decision', '判断', 160, 80),
+      spec('flow-data', '数据', 160, 80),
+      spec('flow-document', '文档', 160, 80),
+      spec('flow-predefined', '预定义过程', 160, 80),
+      spec('flow-connector', '连接点', 64, 64),
+    ],
+  },
+  {
     key: 'security',
     label: '网络安全',
     items: [

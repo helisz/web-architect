@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { CUSTOM_ICON_COLLECTIONS } from './custom-icons.mjs';
 
 /**
  * 从 @iconify-json/* 官方图标包里抽出本项目实际用到的图标，生成
@@ -31,6 +32,24 @@ const WANTED = {
     'route',
     'plug-connected',
     'typography',
+    // 2026-11-04 起就在白名单里、但生成脚本漏掉的两个（手改生成物补的）；补回脚本避免下次重跑丢图标
+    'letter-n',
+    'stack-2',
+    // 2026-11-06：形状 / 流程图节点在组件库与属性面板里用到的几何、流程符号
+    'rectangle',
+    'square-rounded',
+    'circle',
+    'diamond',
+    'triangle',
+    'hexagon',
+    'cylinder',
+    'shape',
+    'file-text',
+    'arrow-big-right',
+    'player-play',
+    'git-branch',
+    'settings',
+    'circle-dot',
   ],
   devicon: ['nginx', 'kubernetes'],
   k8s: ['pod'],
@@ -60,9 +79,20 @@ for (const [prefix, pkg] of Object.entries(SOURCES)) {
   console.log(`✓ ${prefix}：${Object.keys(icons).join(', ')}`);
 }
 
+/*
+ * 自绘集合（nginx 的 N 方块）单列一份源码（scripts/custom-icons.mjs）。
+ * 以前它只存在于生成物 iconData.ts 里，谁跑一次 build:icons 就会被冲掉 ——
+ * 现在脚本自己带上它，重跑多少次结果都一致。
+ */
+for (const collection of CUSTOM_ICON_COLLECTIONS) {
+  collections.push(collection);
+  total += Object.keys(collection.icons).length;
+  console.log(`✓ ${collection.prefix}：${Object.keys(collection.icons).join(', ')}（自绘）`);
+}
+
 const file = `/* 由 scripts/build-icons.mjs 生成，请勿手改。
  * 图标来自 Iconify 官方包（@iconify-json/tabler、@iconify-json/devicon、@iconify-json/k8s），
- * 未做任何绘制修改，只做了按 key 的裁剪。
+ * 未做任何绘制修改，只做了按 key 的裁剪；arch 前缀的自绘图标见 scripts/custom-icons.mjs。
  */
 
 export interface IconData {

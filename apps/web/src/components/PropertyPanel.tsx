@@ -20,6 +20,7 @@ import {
   type DiagramEdge,
   type DiagramGroup,
   type DiagramNode,
+  type NodeType,
   type TextStyle,
 } from '@arch/schema';
 import { useDiagramStore } from '../store/useDiagramStore.js';
@@ -38,6 +39,7 @@ import {
   lineInfo,
   readLineData,
 } from '../canvas/lineGeometry.js';
+import { SHAPE_NODE_TYPES, isShapeNodeType, shapePath, type ShapeNodeType } from '../canvas/shapePath.js';
 
 /** 浮动属性卡宽度（用户 2026-11-06 定稿 264px；停靠态仍用 300px 给色板留位置） */
 const PANEL_W = 264;
@@ -999,6 +1001,72 @@ function LineForm({ node }: { node: DiagramNode }) {
   );
 }
 
+/**
+ * 形状切换器（2026-11-06 用户新增）。
+ *
+ * 只对 10 个形状 + 7 个流程图节点显示。每个按钮里画的就是画布上那条 path 的缩小版
+ * （直接复用 shapePath，不另画一套图标，保证按钮和结果长得一样）。
+ *
+ * 换形状只改 nodeType：位置、尺寸、颜色、文字全部原地保留。
+ * 用户明确要求「新形状更大也不自动改尺寸」—— 手拉过的框不能被默认值顶掉，
+ * 形状会被拉伸，但这是用户能预期、也能再拉回来的结果。
+ */
+function ShapeSwitcher({
+  current,
+  onPick,
+}: {
+  current: NodeType;
+  onPick: (nodeType: ShapeNodeType) => void;
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-1">
+      {SHAPE_NODE_TYPES.map((type) => {
+        const preview = shapePath(type, 30, 20);
+        const label = COMPONENT_INDEX[type]?.label ?? type;
+        const active = type === current;
+        return (
+          <button
+            key={type}
+            type="button"
+            title={label}
+            aria-label={label}
+            aria-pressed={active}
+            onClick={() => onPick(type)}
+            className={`grid h-9 place-items-center rounded border ${
+              active
+                ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
+                : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
+            }`}
+          >
+            {preview && (
+              // viewBox 四周多留 1px：描边压在图形边界上，不留白会被 svg 视口裁掉半条
+              <svg width={32} height={22} viewBox="-1 -1 32 22" aria-hidden focusable="false">
+                <path
+                  d={preview.d}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.2}
+                  strokeLinejoin="round"
+                />
+                {preview.lines?.map((d, index) => (
+                  <path
+                    key={index}
+                    d={d}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.2}
+                    strokeLinejoin="round"
+                  />
+                ))}
+              </svg>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function NodeForm({ node }: { node: DiagramNode }) {
   const requestDelete = useDiagramStore((s) => s.requestDelete);
   const patch = useDiagramStore((s) => s.patchNode);
@@ -1071,13 +1139,16 @@ function NodeForm({ node }: { node: DiagramNode }) {
             ))}
           </div>
         </div>
-        <div className="mt-1">
-          <AlignButtons
-            align={textStyle.align}
-            valign={textStyle.valign}
-            onChange={(field, value) => setTextStyle({ [field]: value })}
-          />
-        </div>
+        {/* 形状/流程节点的文字固定居中，对齐按钮对它不生效，干脆不显示以免误操作 */}
+        {!isShapeNodeType(node.nodeType) && (
+          <div className="mt-1">
+            <AlignButtons
+              align={textStyle.align}
+              valign={textStyle.valign}
+              onChange={(field, value) => setTextStyle({ [field]: value })}
+            />
+          </div>
+        )}
       </Field>
 
       {/* 宽高按用户要求隐藏：调尺寸走画布手柄，属性面板不再重复一套数字 */}
@@ -1089,58 +1160,72 @@ function NodeForm({ node }: { node: DiagramNode }) {
         ]}
       />
 
-      <Field label={`图标（${isIconHidden(node) ? '不显示' : iconKey}）`}>
-        <div className="flex items-center gap-2">
-          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded border border-[var(--panel-border)] ${isIconHidden(node) ? 'opacity-30' : ''}`}>
-            <NodeIcon iconKey={iconKey} size={20} />
-          </span>
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="flex-1 rounded border border-[var(--panel-border)] px-2 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            搜索图标库…
-          </button>
-        </div>
-        <div className="arch-hscroll mt-1 flex items-center gap-1">
-          <button
-            type="button"
-            title="不显示图标"
-            aria-pressed={isIconHidden(node)}
-            onClick={() =>
-              patch(node.nodeId, {
-                extJson: { ...(node.extJson ?? {}), iconHidden: !isIconHidden(node) },
-              })
-            }
-            className={`grid h-7 w-7 shrink-0 place-items-center rounded border text-[11px] ${
-              isIconHidden(node)
-                ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
-                : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
-            }`}
-          >
-            无
-          </button>
-          {ALLOWED_ICON_KEYS.map((key) => (
+      {/* 形状分区（2026-11-06）：只给 10 个形状 + 7 个流程图节点显示。
+          点一下原地换轮廓，位置/尺寸/颜色/文字都不动。 */}
+      {isShapeNodeType(node.nodeType) && (
+        <Field label="形状">
+          <ShapeSwitcher
+            current={node.nodeType}
+            onPick={(nodeType) => patch(node.nodeId, { nodeType })}
+          />
+        </Field>
+      )}
+
+      {/* 形状节点在画布上不画图标（轮廓才是主体），图标控件对它没有意义，直接不显示 */}
+      {!isShapeNodeType(node.nodeType) && (
+        <Field label={`图标（${isIconHidden(node) ? '不显示' : iconKey}）`}>
+          <div className="flex items-center gap-2">
+            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded border border-[var(--panel-border)] ${isIconHidden(node) ? 'opacity-30' : ''}`}>
+              <NodeIcon iconKey={iconKey} size={20} />
+            </span>
             <button
-              key={key}
               type="button"
-              title={key}
+              onClick={() => setPickerOpen(true)}
+              className="flex-1 rounded border border-[var(--panel-border)] px-2 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            >
+              搜索图标库…
+            </button>
+          </div>
+          <div className="arch-hscroll mt-1 flex items-center gap-1">
+            <button
+              type="button"
+              title="不显示图标"
+              aria-pressed={isIconHidden(node)}
               onClick={() =>
-                patch(node.nodeId, { extJson: { ...(node.extJson ?? {}), iconKey: key, iconHidden: false } })
+                patch(node.nodeId, {
+                  extJson: { ...(node.extJson ?? {}), iconHidden: !isIconHidden(node) },
+                })
               }
-              className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
-                key === iconKey
+              className={`grid h-7 w-7 shrink-0 place-items-center rounded border text-[11px] ${
+                isIconHidden(node)
                   ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
                   : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
               }`}
             >
-              <NodeIcon iconKey={key} size={16} />
+              无
             </button>
-          ))}
-        </div>
-      </Field>
+            {ALLOWED_ICON_KEYS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                title={key}
+                onClick={() =>
+                  patch(node.nodeId, { extJson: { ...(node.extJson ?? {}), iconKey: key, iconHidden: false } })
+                }
+                className={`grid h-7 w-7 shrink-0 place-items-center rounded border ${
+                  key === iconKey
+                    ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
+                    : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)]'
+                }`}
+              >
+                <NodeIcon iconKey={key} size={16} />
+              </button>
+            ))}
+          </div>
+        </Field>
+      )}
 
-      {pickerOpen && (
+      {!isShapeNodeType(node.nodeType) && pickerOpen && (
         <IconPicker
           value={iconKey}
           onSelect={(key) => {

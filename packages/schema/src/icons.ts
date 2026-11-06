@@ -41,6 +41,26 @@ export const ALLOWED_ICON_KEYS = [
   'arch:nginx-mono',
   'tabler:letter-n',
   'tabler:stack-2',
+  /**
+   * 2026-11-06 追加 14 个：形状 / 流程图节点用。
+   *
+   * 都是 tabler 库里的基础几何与流程符号，不引入新图标库；形状在画布上并不画图标
+   * （轮廓是自绘 SVG），这些 key 只服务于左侧组件库卡片和属性面板的常用图标行。
+   */
+  'tabler:rectangle',
+  'tabler:square-rounded',
+  'tabler:circle',
+  'tabler:diamond',
+  'tabler:triangle',
+  'tabler:hexagon',
+  'tabler:cylinder',
+  'tabler:shape',
+  'tabler:file-text',
+  'tabler:arrow-big-right',
+  'tabler:player-play',
+  'tabler:git-branch',
+  'tabler:settings',
+  'tabler:circle-dot',
 ] as const;
 
 export type IconKey = (typeof ALLOWED_ICON_KEYS)[number];
@@ -49,12 +69,13 @@ export type IconKey = (typeof ALLOWED_ICON_KEYS)[number];
 export const DEFAULT_ICON_KEY: IconKey = 'tabler:cube';
 
 /**
- * nodeType → iconKey，32 个类型全覆盖。
+ * nodeType → iconKey，49 个类型全覆盖。
  *
  * 分组语义：
  * - 安全防护 → shield-lock；入口转发 → arrow-right-square；网络设备 → router / network / route / plug-connected
  * - 数据存储 → database；K8s 独有对象 → kubernetes（pod 用 cncf:pod）
  * - 计算资源 → server / server-2 / box；容器与区域 → cube
+ * - 形状 / 流程图 → 基础几何符号（画布上轮廓自绘，图标只给组件库卡片看）
  */
 export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   // 网络安全
@@ -107,6 +128,29 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   element: 'tabler:typography',
   // 自由线条：画布上不画图标，这个 key 只给左侧面板的卡片用
   line: 'tabler:route',
+
+  // 形状（2026-11-06）：画布上不画图标，这里只决定组件库卡片上的小图
+  'shape-rect': 'tabler:rectangle',
+  'shape-round': 'tabler:square-rounded',
+  'shape-circle': 'tabler:circle',
+  'shape-diamond': 'tabler:diamond',
+  'shape-triangle': 'tabler:triangle',
+  'shape-hexagon': 'tabler:hexagon',
+  'shape-cylinder': 'tabler:cylinder',
+  // tabler 没有 parallelogram，挑一个"通用图形"占位（用户：拿不准就复用 tabler:shape）
+  'shape-parallelogram': 'tabler:shape',
+  'shape-document': 'tabler:file-text',
+  // 箭头块不是圆形箭头，用实心大箭头更贴图形本身
+  'shape-arrow': 'tabler:arrow-big-right',
+
+  // 流程图（2026-11-06）：同样只给卡片用，画布上展示自绘轮廓
+  'flow-start': 'tabler:player-play',
+  'flow-process': 'tabler:rectangle',
+  'flow-decision': 'tabler:git-branch',
+  'flow-data': 'tabler:shape',
+  'flow-document': 'tabler:file-text',
+  'flow-predefined': 'tabler:settings',
+  'flow-connector': 'tabler:circle-dot',
   custom: 'tabler:cube',
 };
 
