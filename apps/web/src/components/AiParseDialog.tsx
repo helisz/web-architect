@@ -324,7 +324,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
 
         <div className="mt-3 flex items-center justify-between">
           <span className="text-[10px] leading-relaxed text-[var(--text-secondary)]">
-            识别结果直接落到新图里，不先预览；不满意可以「一键整理」或整体撤销
+            识别结果直接落到新图里，不先预览；不满意可以按 Ctrl+Z 整体撤销，再手工微调
           </span>
           <div className="flex gap-2">
             {phase === 'running' ? (

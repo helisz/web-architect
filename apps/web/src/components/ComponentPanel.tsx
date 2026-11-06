@@ -147,18 +147,25 @@ export function ComponentPanel() {
     return expandTab;
   }
 
+  /*
+   * 手柄放在面板外面（2026-11-06）：.floating-panel 有 overflow:hidden，
+   * 以前手柄右移半颗压边框，会被裁掉 5px 变成半个。现在改成面板的兄弟节点，
+   * 整颗贴在面板右边缘之外，面板继续裁自己的内容。
+   */
   return (
+    <>
+    <button
+      type="button"
+      title="收起组件库"
+      aria-label="收起组件库"
+      aria-expanded
+      onClick={() => setOpen(false)}
+      style={{ left: 'calc(var(--panel-inset) + 240px)' }}
+      className={`absolute top-1/2 z-50 -translate-y-1/2 rounded-l-none rounded-r-[var(--radius-ctl)] border border-l-0 border-[var(--panel-border)] ${handleClass}`}
+    >
+      ‹
+    </button>
     <aside className="floating-panel left-[var(--panel-inset)] top-[var(--panel-inset)] bottom-[var(--panel-inset)] flex w-60 flex-col">
-      <button
-        type="button"
-        title="收起组件库"
-        aria-label="收起组件库"
-        aria-expanded
-        onClick={() => setOpen(false)}
-        className={`absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-1/2 rounded-full border border-[var(--panel-border)] ${handleClass}`}
-      >
-        ‹
-      </button>
       {/* 搜索框去掉外框（用户 2026-11-05）：只留一条细分隔线，输入时文字本身给反馈 */}
       <div className="border-b border-[var(--panel-border)] px-2 py-1.5">
         <input
@@ -203,5 +210,6 @@ export function ComponentPanel() {
         )}
       </div>
     </aside>
+    </>
   );
 }

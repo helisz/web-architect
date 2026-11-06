@@ -9,6 +9,8 @@ import {
   ReactFlow,
   SelectionMode,
   useReactFlow,
+  useStore,
+  getNodesBounds,
   type Connection,
   type EdgeChange,
   type NodeChange,
@@ -114,10 +116,42 @@ function CanvasInner() {
   const showGrid = useDiagramStore((s) => s.showGrid);
   const setViewport = useDiagramStore((s) => s.setViewport);
   const applyAiImport = useDiagramStore((s) => s.applyAiImport);
-  const applyAiLayout = useDiagramStore((s) => s.applyAutoLayout);
   const pushToast = useDiagramStore((s) => s.pushToast);
 
-  const { screenToFlowPosition, getViewport, setViewport: applyViewport, fitView } = useReactFlow();
+  const { screenToFlowPosition, getViewport, setViewport: applyViewport, fitView, getNodes } = useReactFlow();
+  const componentPanelOpen = useDiagramStore((s) => s.componentPanelOpen);
+  // ReactFlow 自己量的画布尺寸（等于 <main> 的可用区域）
+  const flowWidth = useStore((s) => s.width);
+  const flowHeight = useStore((s) => s.height);
+
+  /**
+   * 适配视图（2026-11-06）：组件库打开时，把左边 240px 面板当成被占用区域，
+   * 让整张图在"剩下的可见区域"里居中，而不是缩到面板底下。
+   *
+   * 不用 ReactFlow 的 fitView：它只吃一个等比 padding，没法做"左侧让位"，
+   * 所以这里自己按包围盒算 zoom 和偏移。
+   */
+  const fitVisible = useCallback(
+    (duration = 260): void => {
+      const list = getNodes();
+      if (list.length === 0 || flowWidth <= 0 || flowHeight <= 0) {
+        void fitView({ padding: 0.12, duration });
+        return;
+      }
+      const bounds = getNodesBounds(list);
+      const leftOffset = componentPanelOpen ? 240 + 10 * 2 : 0;
+      const pad = 24;
+      const availW = Math.max(120, flowWidth - leftOffset - pad * 2);
+      const availH = Math.max(120, flowHeight - pad * 2);
+      const w = Math.max(1, bounds.width);
+      const h = Math.max(1, bounds.height);
+      const zoom = Math.min(availW / w, availH / h, 1.6);
+      const x = leftOffset + pad + (availW - w * zoom) / 2 - bounds.x * zoom;
+      const y = pad + (availH - h * zoom) / 2 - bounds.y * zoom;
+      void applyViewport({ x, y, zoom }, { duration });
+    },
+    [applyViewport, componentPanelOpen, fitView, flowHeight, flowWidth, getNodes],
+  );
 
   // 右键菜单位置与内容（四套菜单在 contextMenus.ts 里组装）
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuNode[] } | null>(null);
@@ -160,7 +194,7 @@ const cursorFrame = useRef<number | null>(null);
       'info',
     );
     // 等节点量完尺寸再适配，否则 fitView 按旧包围盒算，图会偏到角落
-    window.setTimeout(() => void fitView({ padding: 0.14, duration: 320 }), 360);
+    window.setTimeout(() => fitVisible(320), 360);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagram.diagramId]);
   // 拖动模式下整张图都不可拖（per-node draggable 会覆盖 ReactFlow 的 nodesDraggable）
@@ -579,7 +613,7 @@ const cursorFrame = useRef<number | null>(null);
   const menuEnv = useCallback(
     (event: { clientX: number; clientY: number }): MenuEnv => ({
       flowPoint: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
-      fitView: () => void fitView({ padding: 0.12, duration: 260 }),
+      fitView: () => fitVisible(),
       resetZoom: () => {
         const { x, y } = getViewport();
         applyViewport({ x, y, zoom: 1 }, { duration: 200 });
@@ -587,7 +621,7 @@ const cursorFrame = useRef<number | null>(null);
       exportJson: () => void exportJson(),
       exportPng: () => void exportPng(),
     }),
-    [applyViewport, exportJson, exportPng, fitView, getViewport, screenToFlowPosition],
+    [applyViewport, exportJson, exportPng, fitVisible, getViewport, screenToFlowPosition],
   );
 
   const openMenu = useCallback((event: { clientX: number; clientY: number }, items: MenuNode[]) => {
@@ -777,7 +811,12 @@ const cursorFrame = useRef<number | null>(null);
       {/* 规格 §5.1：网格。用户 2026-11-04 定稿：网点，间距与吸附一致（10px），点略深一点才看得清 */}
       {showGrid && <Background variant={BackgroundVariant.Dots} gap={SNAP_GRID[0]} size={1.4} color="#D9DCE1" />}
       {/* 缩放按钮自己画：ReactFlow 内置的 ± 是 "×1.2"，和状态条上的 20% 档位对不上 */}
-      <Controls showZoom={false} showFitView={false} showInteractive={false}>
+      <Controls
+        showZoom={false}
+        showFitView={false}
+        showInteractive={false}
+        style={{ left: componentPanelOpen ? 240 + 18 : 16 }}
+      >
         <ControlButton onClick={() => stepZoom(1)} title="放大（+20%）" aria-label="放大">
           <ToolIcon name="plus" />
         </ControlButton>
@@ -785,25 +824,11 @@ const cursorFrame = useRef<number | null>(null);
           <ToolIcon name="minus" />
         </ControlButton>
         <ControlButton
-          onClick={() => void fitView({ padding: 0.12, duration: 260 })}
+          onClick={() => fitVisible()}
           title="适配视图（Fit view）"
           aria-label="适配视图"
         >
           <ToolIcon name="fit" />
-        </ControlButton>
-        <ControlButton
-          onClick={() => {
-            const moved = applyAiLayout();
-            pushToast(
-              moved > 0 ? `已整理 ${moved} 个节点（保留分组，Ctrl+Z 可撤销）` : '图里还没有节点，没什么可整理的',
-              moved > 0 ? 'success' : 'info',
-            );
-            if (moved > 0) window.setTimeout(() => void fitView({ padding: 0.14, duration: 320 }), 260);
-          }}
-          title="一键整理：按连线层级重排（保留分组）"
-          aria-label="一键整理"
-        >
-          <ToolIcon name="layout" />
         </ControlButton>
       </Controls>
       <MiniMap

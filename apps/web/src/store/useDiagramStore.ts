@@ -31,7 +31,6 @@ import { alignRects, distributeRects, type AlignMode, type Rect } from '../canva
 import type { LineGeometry } from '../canvas/lineGeometry.js';
 import { persistDiagramExt } from '../data/diagramRepo.js';
 import type { LandingSpec } from '../ai/landing.js';
-import { computeAutoLayout } from '../ai/autoLayout.js';
 
 const PREF_KEY = 'arch.ui.prefs';
 
@@ -158,11 +157,6 @@ interface DiagramStore {
    * 一次解析可能几十个元素，如果每个都进历史，撤销要按几十次才能退出去。
    */
   applyAiImport: (spec: LandingSpec) => { nodes: number; edges: number; groups: number };
-  /**
-   * 一键整理（用户 2026-11-05）：按连线层级重排，保留分组归属，只产生一步撤销。
-   * 返回被移动的元素数，没有节点时返回 0。
-   */
-  applyAutoLayout: () => number;
 
   /** 分组（M2） */
   addGroup: (position: Point, overrides?: Partial<DiagramGroup>) => DiagramGroup;
@@ -813,49 +807,6 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
     }));
 
     return { nodes: nodes.length, edges: edges.length, groups: groupIds.length };
-  },
-  applyAutoLayout: () => {
-    const state = get();
-    const result = computeAutoLayout(state.diagram);
-    if (result.nodes.size === 0) return 0;
-
-    const store = state.diagram;
-    const parentOf = new Map(store.groups.map((group) => [group.groupId, group.parentGroupId ?? null]));
-    // 结果里的分组坐标是绝对坐标；落库要换成"相对父组"（嵌套组）
-    const absoluteOf = (groupId: string | null): { x: number; y: number } => {
-      if (!groupId) return { x: 0, y: 0 };
-      const box = result.groups.get(groupId);
-      return box ? { x: box.x, y: box.y } : { x: 0, y: 0 };
-    };
-
-    set((s) => ({
-      ...withHistory(s, 'autoLayout'),
-      diagram: {
-        ...s.diagram,
-        groups: s.diagram.groups.map((group) => {
-          const box = result.groups.get(group.groupId);
-          if (!box) return group;
-          const parent = parentOf.get(group.groupId) ?? null;
-          const parentAbs = absoluteOf(parent);
-          return {
-            ...group,
-            x: Math.round(box.x - parentAbs.x),
-            y: Math.round(box.y - parentAbs.y),
-            width: box.width,
-            height: box.height,
-          };
-        }),
-        nodes: s.diagram.nodes.map((node) => {
-          const absolute = result.nodes.get(node.nodeId);
-          if (!absolute) return node;
-          // 组内节点存的是相对组原点的坐标
-          const origin = absoluteOf(node.groupId ?? null);
-          return { ...node, x: Math.round(absolute.x - origin.x), y: Math.round(absolute.y - origin.y) };
-        }),
-      },
-      saveState: 'dirty',
-    }));
-    return result.nodes.size;
   },
   /* —— 分组 —— */
   addGroup: (position, overrides) => {

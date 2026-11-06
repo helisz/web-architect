@@ -512,6 +512,7 @@ export function PropertyPanel() {
   const viewport = useStore((s) => s.transform);
   const panelRef = useRef<HTMLElement>(null);
   const [canvasBox, setCanvasBox] = useState<{ w: number; h: number } | null>(null);
+  const [panelHeight, setPanelHeight] = useState(0);
   useLayoutEffect(() => {
     const parent = panelRef.current?.parentElement;
     if (!parent) return;
@@ -519,7 +520,16 @@ export function PropertyPanel() {
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(parent);
-    return () => observer.disconnect();
+    // 卡片自己的高度也要量：夹取顶部时不能再用写死的 200px 假设（会溢出浏览器底部）
+    const cardEl = panelRef.current;
+    const measureCard = (): void => setPanelHeight(cardEl ? Math.round(cardEl.getBoundingClientRect().height) : 0);
+    measureCard();
+    const cardObserver = cardEl ? new ResizeObserver(measureCard) : null;
+    if (cardEl && cardObserver) cardObserver.observe(cardEl);
+    return () => {
+      observer.disconnect();
+      cardObserver?.disconnect();
+    };
   }, [diagram.diagramId]);
 
   const anchorRect = useMemo(() => {
@@ -545,9 +555,12 @@ export function PropertyPanel() {
       Math.min(flipped ? screenX - GAP - PANEL_W : rightSide, canvasBox.w - INSET - PANEL_W),
     );
     const centerY = screenY + screenH / 2;
-    const top = Math.max(INSET, Math.min(centerY - 118, canvasBox.h - INSET - 200));
+    // 首帧还没量到高度时先用一个保守估计，量到之后立刻按真实高度夹取
+    const cardH = panelHeight > 0 ? panelHeight : 320;
+    const maxTop = canvasBox.h - INSET - cardH;
+    const top = maxTop <= INSET ? INSET : Math.max(INSET, Math.min(centerY - cardH / 2, maxTop));
     return { left, top, flipped, centerY, maxHeight: canvasBox.h - INSET * 2 };
-  }, [anchorRect, canvasBox, viewport]);
+  }, [anchorRect, canvasBox, viewport, panelHeight]);
 
   const panelStyle: CSSProperties | undefined = panelBox
     ? { left: panelBox.left, top: panelBox.top, width: PANEL_W, maxHeight: panelBox.maxHeight }
