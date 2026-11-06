@@ -23,7 +23,7 @@ describe('标准样图 fixture', () => {
 
   it('组内节点使用局部坐标：WAF 绝对坐标 = 分组偏移 + 局部偏移', () => {
     const byId = new Map(sample.groups.map((g) => [g.groupId, g]));
-    const waf = sample.nodes.find((n) => n.label === 'WAF')!;
+    const waf = sample.nodes.find((n) => n.label === '防火墙')!;
     const dmz = byId.get(waf.groupId!)!;
     expect(dmz.x).toBe(280);
     expect(dmz.y).toBe(120);

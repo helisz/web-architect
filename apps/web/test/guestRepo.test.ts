@@ -44,7 +44,7 @@ function blank(name = '游客图') {
 }
 
 function withNode(diagram = blank(), label = 'WAF') {
-  const node = createNode('waf', diagram.diagramId, { x: 10, y: 20 }, { label });
+  const node = createNode('firewall', diagram.diagramId, { x: 10, y: 20 }, { label });
   return { ...diagram, nodes: [node] };
 }
 

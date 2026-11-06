@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from 'vitest';
-import { newId } from '../src/factory.js';
+import { createEmptyDiagram, createNode, newId } from '../src/factory.js';
 import type { ArchitectureDiagram } from '../src/types.js';
 import { validateDiagram } from '../src/validate.js';
 import { loadSample } from './fixtures.js';
@@ -252,5 +252,19 @@ describe('分组副文本（2026-11-04 新增字段）', () => {
     const r = validateDiagram(d, { repair: true });
     expect(r.ok).toBe(true);
     expect(r.diagram!.groups[0]!.subLabel.length).toBeLessThanOrEqual(500);
+  });
+
+  it('已下线的 waf / ids 类型：加载时补回语义（2026-11-06）', () => {
+    const d = createEmptyDiagram();
+    const base = createNode('custom', d.diagramId, { x: 0, y: 0 });
+    d.nodes = [
+      { ...base, nodeId: newId(), nodeType: 'waf' as never, label: 'WAF' },
+      { ...base, nodeId: newId(), x: 200, nodeType: 'ids' as never, label: 'IDS' },
+    ];
+    const r = validateDiagram(d);
+    expect(r.diagram!.nodes[0]!.nodeType).toBe('firewall');
+    expect(r.diagram!.nodes[0]!.label).toBe('WAF');
+    expect(r.diagram!.nodes[1]!.nodeType).toBe('custom');
+    expect(r.warnings.some((w) => w.code === 'NODE_TYPE_LEGACY')).toBe(true);
   });
 });

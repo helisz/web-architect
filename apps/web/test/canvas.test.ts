@@ -136,10 +136,10 @@ describe('Schema → ReactFlow 映射（ADR-0001）', () => {
   });
 
   it('C2：节点类型名固定 archNode，真实类型在 data.node.nodeType', () => {
-    useDiagramStore.getState().addNode('waf', { x: 0, y: 0 });
+    useDiagramStore.getState().addNode('firewall', { x: 0, y: 0 });
     const flow = toFlowNodes(useDiagramStore.getState().diagram, null);
     expect(flow[0]!.type).toBe('archNode');
-    expect(flow[0]!.data.node.nodeType).toBe('waf');
+    expect(flow[0]!.data.node.nodeType).toBe('firewall');
   });
 
   it('C3：尺寸走 style，且是数字而非字符串', () => {

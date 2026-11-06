@@ -1,5 +1,5 @@
 import { LIMITS, NODE_DEFAULTS, EDGE_DEFAULTS, GROUP_DEFAULTS, TOKENS, CLEAR_COLOR, CLEAR_COLORS } from './constants.js';
-import { NODE_TYPES } from './types.js';
+import { NODE_TYPES, type NodeType } from './types.js';
 import { rectContainsRect, rectsIntersect } from './geometry.js';
 import { iconKeyFor, isIconKey, LEGACY_ICON_ALIASES, looksLikeEmbeddedImage } from './icons.js';
 import type {
@@ -149,16 +149,21 @@ function repairStructure(input: ArchitectureDiagram, ctx: Ctx): ArchitectureDiag
   }));
 
   clone.nodes = (clone.nodes ?? []).map((n, i) => {
-    // 未知 nodeType（旧版本、外部导入、手工改库）一律降级为 custom：
+    // 未知 nodeType（旧版本、外部导入、手工改库）一律降级：
     // 数据库的 arch_ck_node_type 只校验格式，不校验枚举，因此"存得进去但打不开"
     // 是真实风险，这里兜住，避免整张图因一个节点而无法载入。
-    const knownType = (NODE_TYPES as readonly string[]).includes(n.nodeType);
+    //
+    // 2026-11-06：waf / ids 两个类型已从产品里删掉。老图里的这两种节点不能变成
+    // 一片灰卡片，所以先过一遍 LEGACY_TYPE_MAP 把语义补回来（waf→防火墙，
+    // ids 没找到合适对应，保留成自定义卡片），再走"未知类型 → custom"兜底。
+    const effectiveType = n.nodeType;
+    const knownType = (NODE_TYPES as readonly string[]).includes(effectiveType);
     if (!knownType) {
       warn(ctx, `nodes[${i}].nodeType`, 'NODE_TYPE_FALLBACK', `未知节点类型 ${String(n.nodeType)}，已降级为 custom`);
     }
     return {
       ...n,
-      nodeType: knownType ? n.nodeType : 'custom',
+      nodeType: knownType ? effectiveType : 'custom',
       label: truncate(n.label, LIMITS.labelMax, `nodes[${i}].label`),
       subLabel: truncate(n.subLabel, LIMITS.subLabelMax, `nodes[${i}].subLabel`),
       x: finite(n.x, `nodes[${i}].x`),
@@ -235,12 +240,51 @@ function enforceIconRule(d: ArchitectureDiagram, ctx: Ctx, repair: boolean): voi
 /* 主入口                                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * 已下线的节点类型 → 现有类型的映射（2026-11-06）。
+ *
+ * 只影响"读老数据"：加载时补回语义，用户再保存时就写成新类型了。
+ */
+const LEGACY_TYPE_MAP: Record<string, NodeType> = {
+  waf: 'firewall',
+  ids: 'custom',
+};
+
+/**
+ * 在结构校验之前把旧类型换掉。
+ *
+ * 为什么必须提前：zod 里的 nodeType 是枚举，老图带 `waf` 会直接判 SCHEMA_INVALID，
+ * 整张图拒绝载入 —— 那才是真正危险的行为。这里返回一份浅拷贝，不改调用方的对象。
+ */
+function migrateLegacyTypes(input: ArchitectureDiagram): {
+  diagram: ArchitectureDiagram;
+  mapped: Array<{ path: string; from: string; to: NodeType }>;
+} {
+  const mapped: Array<{ path: string; from: string; to: NodeType }> = [];
+  if (!input || !Array.isArray(input.nodes)) return { diagram: input, mapped };
+  const nodes = input.nodes.map((n, i) => {
+    const to = LEGACY_TYPE_MAP[String(n?.nodeType)];
+    if (!to) return n;
+    mapped.push({ path: `nodes[${i}].nodeType`, from: String(n.nodeType), to });
+    return { ...n, nodeType: to };
+  });
+  if (mapped.length === 0) return { diagram: input, mapped };
+  return { diagram: { ...input, nodes }, mapped };
+}
+
 export function validateDiagram(
   input: ArchitectureDiagram,
   opts: ValidateOptions = {},
 ): ValidationResult {
   const ctx: Ctx = { errors: [], warnings: [] };
-  const candidate = opts.repair ? repairStructure(input, ctx) : input;
+  // 先给已下线的类型补语义（2026-11-06）：zod 的 nodeType 是枚举，
+  // 必须在结构校验之前换掉，否则老图里有 waf 节点会整张被判 SCHEMA_INVALID。
+  const migrated = migrateLegacyTypes(input);
+  for (const note of migrated.mapped) {
+    warn(ctx, note.path, 'NODE_TYPE_LEGACY', `旧类型 ${note.from} 已映射为 ${note.to}`);
+  }
+  const remapped = migrated.diagram;
+  const candidate = opts.repair ? repairStructure(remapped, ctx) : remapped;
 
   // —— 结构闸（类型 / 枚举 / 数值 / 颜色格式）
   const parsed = diagramSchema.safeParse(candidate);

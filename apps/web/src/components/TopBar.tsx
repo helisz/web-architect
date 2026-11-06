@@ -1,4 +1,3 @@
-import { useDbStatus } from '../data/useDbStatus.js';
 import { missingEnv } from '../lib/env.js';
 import { useRef, useState } from 'react';
 import { useDiagramStore } from '../store/useDiagramStore.js';
@@ -26,28 +25,6 @@ function SaveBadge({ state }: { state: string }) {
         ? 'text-amber-600'
         : 'text-[var(--text-secondary)]';
   return <span className={`shrink-0 text-[11px] leading-4 ${tone}`}>{SAVE_LABEL[state] ?? state}</span>;
-}
-
-/**
- * 数据库状态：绿点 + 数据库图标，状态原因只在 tooltip 里说（用户 2026-11-04 要求）。
- * 失败仍然是红点 —— 颜色本身就要能看出问题，不必先 hover。
- */
-function DbStatus() {
-  const state = useDbStatus();
-
-  const { color, title } =
-    state.kind === 'checking'
-      ? { color: 'var(--text-tertiary)', title: '正在探测 Supabase…' }
-      : state.kind === 'up'
-        ? { color: '#10B981', title: `数据库正常 · ${state.latencyMs}ms（PostgREST 可达，arch_diagram 可读）` }
-        : { color: '#DC2626', title: `数据库不可用：${state.message}` };
-
-  return (
-    <span className="flex items-center gap-1 pr-1" title={title} aria-label={title}>
-      <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
-      <ToolIcon name="database" size={15} className="text-[var(--text-secondary)]" />
-    </span>
-  );
 }
 
 /** 顶栏图标按钮：32×32，靠 title 做 tooltip */
@@ -156,9 +133,7 @@ export function TopBar() {
           </span>
         ) : missingEnv.length > 0 ? (
           <span className="text-xs text-amber-600">缺环境变量：{missingEnv.join(', ')}</span>
-        ) : (
-          <DbStatus />
-        )}
+        ) : null}
         <Divider />
         <IconButton
           icon="undo"

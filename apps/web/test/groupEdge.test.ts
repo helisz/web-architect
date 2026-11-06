@@ -23,7 +23,7 @@ describe('分组也能连线（用户 2026-11-04）', () => {
   });
 
   it('节点 → 分组（混合端点）也可以', () => {
-    const node = store().addNode('waf', { x: 0, y: 0 });
+    const node = store().addNode('firewall', { x: 0, y: 0 });
     const group = store().addGroup({ x: 400, y: 0 }, { label: '内网' });
     store().addEdge(node.nodeId, group.groupId, 'right', 'left');
     expect(store().diagram.edges).toHaveLength(1);
@@ -60,7 +60,7 @@ describe('分组也能连线（用户 2026-11-04）', () => {
   it('删除分组会带走挂在它身上的连线（否则就是悬空线）', () => {
     const a = store().addGroup({ x: 0, y: 0 }, { label: 'A 区' });
     const b = store().addGroup({ x: 600, y: 0 }, { label: 'B 区' });
-    const node = store().addNode('waf', { x: 0, y: 400 });
+    const node = store().addNode('firewall', { x: 0, y: 400 });
     store().addEdge(a.groupId, b.groupId, 'right', 'left');
     store().addEdge(a.groupId, node.nodeId, 'bottom', 'top');
     expect(store().diagram.edges).toHaveLength(2);

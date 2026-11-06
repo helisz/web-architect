@@ -136,7 +136,7 @@ export function ComponentPanel() {
       aria-label="展开组件库"
       aria-expanded={false}
       onClick={() => setOpen(true)}
-      className={`absolute left-[var(--panel-inset)] top-1/2 z-20 -translate-y-1/2 rounded-r-full border border-l-0 border-[var(--panel-border)] ${handleClass}`}
+      className={`absolute left-[var(--panel-inset)] top-1/2 z-20 -translate-y-1/2 rounded-[50px] border border-[var(--panel-border)] ${handleClass}`}
     >
       ›
     </button>
@@ -161,7 +161,7 @@ export function ComponentPanel() {
       aria-expanded
       onClick={() => setOpen(false)}
       style={{ left: 'calc(var(--panel-inset) + 240px)' }}
-      className={`absolute top-1/2 z-50 -translate-y-1/2 rounded-l-none rounded-r-[var(--radius-ctl)] border border-l-0 border-[var(--panel-border)] ${handleClass}`}
+      className={`absolute top-1/2 z-50 -translate-y-1/2 rounded-[50px] border border-[var(--panel-border)] ${handleClass}`}
     >
       ‹
     </button>

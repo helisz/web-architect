@@ -1000,6 +1000,7 @@ function LineForm({ node }: { node: DiagramNode }) {
 }
 
 function NodeForm({ node }: { node: DiagramNode }) {
+  const requestDelete = useDiagramStore((s) => s.requestDelete);
   const patch = useDiagramStore((s) => s.patchNode);
   const spec = COMPONENT_INDEX[node.nodeType];
   const iconKey = (node.extJson?.iconKey as string | undefined) ?? iconKeyFor(node.nodeType);
@@ -1150,7 +1151,8 @@ function NodeForm({ node }: { node: DiagramNode }) {
         />
       )}
 
-      {/* 锁定做成图标按钮（用户 2026-11-04）；「显示」开关撤掉，节点一律可见 */}
+      {/* 锁定 / 删除（2026-11-06）：锁定只留图标（状态看图标高亮即可），
+          右侧放删除入口；锁定时禁止删除，避免"锁了还被删" */}
       <div className="mt-3 flex items-center gap-2">
         <button
           type="button"
@@ -1166,12 +1168,17 @@ function NodeForm({ node }: { node: DiagramNode }) {
         >
           <ToolIcon name={node.locked ? 'lock' : 'unlock'} size={16} />
         </button>
-        <span className="text-[12px] text-[var(--text-secondary)]">{node.locked ? '已锁定' : '未锁定'}</span>
+        <button
+          type="button"
+          disabled={node.locked}
+          onClick={() => requestDelete([node.nodeId])}
+          title={node.locked ? '已锁定：先解锁才能删除' : '删除这个节点（需要确认）'}
+          aria-label="删除节点"
+          className="ml-auto grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--err)] hover:text-[var(--err)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--panel-border)] disabled:hover:text-[var(--text-secondary)]"
+        >
+          <ToolIcon name="trash" size={16} />
+        </button>
       </div>
-
-      <p className="mono mt-4 text-[11px] text-[var(--text-secondary)]">
-        {node.nodeType} · {Math.round(node.x)},{Math.round(node.y)}
-      </p>
     </div>
   );
 }

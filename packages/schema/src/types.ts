@@ -78,11 +78,9 @@ export interface DiagramNode {
 
 export const NODE_TYPES = [
   'firewall',
-  'waf',
   'vip',
   'lb',
   'vpn',
-  'ids',
   'server',
   'vm',
   'container',

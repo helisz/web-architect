@@ -10,7 +10,7 @@ beforeEach(() => {
 
 describe('多选与删除', () => {
   it('updateSelection 增量更新，单选时才回填 selectedId', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
+    const a = store().addNode('firewall', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 200, y: 0 });
 
     // 新建节点会自动选中（拖进来就该是选中态），先清空再验选择逻辑
@@ -31,7 +31,7 @@ describe('多选与删除', () => {
   });
 
   it('单个节点 / 单条连线直接删，不弹确认框', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
+    const a = store().addNode('firewall', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 300, y: 0 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
     expect(store().diagram.edges).toHaveLength(1);
@@ -79,7 +79,7 @@ describe('多选与删除', () => {
   });
 
   it('多选（≥2 个元素）删除要确认，确认后一次删干净', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
+    const a = store().addNode('firewall', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 300, y: 0 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
     const created = store().diagram.edges[0]!;
@@ -97,7 +97,7 @@ describe('多选与删除', () => {
   });
 
   it('直接删除也进撤销栈，Ctrl+Z 能恢复', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
+    const a = store().addNode('firewall', { x: 0, y: 0 });
     store().updateSelection([a.nodeId], []);
     store().requestDelete([a.nodeId]);
     expect(store().diagram.nodes).toHaveLength(0);
@@ -110,7 +110,7 @@ describe('多选与删除', () => {
 
 describe('撤销栈与服务端版本', () => {
   it('保存成功后再撤销，版本号不倒退（否则下次保存会被判成假冲突）', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
+    const a = store().addNode('firewall', { x: 0, y: 0 });
     // 模拟服务端回到 v42
     store().applySaved(42, new Date().toISOString());
     expect(store().diagram.version).toBe(42);
@@ -119,13 +119,13 @@ describe('撤销栈与服务端版本', () => {
     store().applySaved(43, new Date().toISOString());
     store().undo();
 
-    expect(store().diagram.nodes[0]?.label).toBe('WAF');
+    expect(store().diagram.nodes[0]?.label).toBe('防火墙');
     // 内容回放了，但版本号必须还是服务端最新的 43
     expect(store().diagram.version).toBe(43);
   });
 
   it('重做同样不带历史版本号', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
+    const a = store().addNode('firewall', { x: 0, y: 0 });
     store().applySaved(7, new Date().toISOString());
     store().patchNode(a.nodeId, { label: '甲' });
     store().applySaved(8, new Date().toISOString());
@@ -138,7 +138,7 @@ describe('撤销栈与服务端版本', () => {
 
 describe('连线全局配置', () => {
   it('默认：暖灰 #AFACA2 / 2px / 带箭头（2026-11-06 视觉改版）', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
+    const a = store().addNode('firewall', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 300, y: 0 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
     const edge = store().diagram.edges[0]!;
@@ -148,7 +148,7 @@ describe('连线全局配置', () => {
   });
 
   it('新建连线跟随全局配置，已有连线不动；"应用到全部"才批量改', () => {
-    const a = store().addNode('waf', { x: 0, y: 0 });
+    const a = store().addNode('firewall', { x: 0, y: 0 });
     const b = store().addNode('db', { x: 300, y: 0 });
     const c = store().addNode('lb', { x: 600, y: 0 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
@@ -172,7 +172,7 @@ function nestedDiagram() {
   const outer = store().addGroup({ x: 100, y: 100 }, { label: '外层', width: 600, height: 400 });
   const inner = store().addGroup({ x: 40, y: 40 }, { label: '内层', width: 300, height: 200 });
   store().reparentGroup(inner.groupId, outer.groupId);
-  const node = store().addNode('waf', { x: 20, y: 20 }, inner.groupId);
+  const node = store().addNode('firewall', { x: 20, y: 20 }, inner.groupId);
   return { outer, inner, node };
 }
 
@@ -270,7 +270,7 @@ describe('粘贴出来的 id 必须全是新字符串（用户 2026-11-05：node
     useDiagramStore.getState().setEditLocked(false);
     const fresh = createEmptyDiagram({ name: '粘贴测试' });
     useDiagramStore.setState({ diagram: fresh, booted: true, bootError: null, persisted: true });
-    store().addNode('waf', { x: 10, y: 10 });
+    store().addNode('firewall', { x: 10, y: 10 });
 
     const original = store().diagram.nodes[0]!;
     store().updateSelection([original.nodeId], []);
@@ -291,7 +291,7 @@ describe('粘贴出来的 id 必须全是新字符串（用户 2026-11-05：node
     const fresh = createEmptyDiagram({ name: '连续粘贴' });
     useDiagramStore.setState({ diagram: fresh, booted: true, bootError: null, persisted: true });
 
-    const a = store().addNode('waf', { x: 10, y: 10 });
+    const a = store().addNode('firewall', { x: 10, y: 10 });
     const b = store().addNode('server', { x: 200, y: 10 });
     store().addEdge(a.nodeId, b.nodeId, 'right', 'left');
 

@@ -34,7 +34,7 @@ const { createEmptyDiagram, createNode } = await import('@arch/schema');
 
 const draftDiagram = () => {
   const diagram = createEmptyDiagram({ name: '草稿测试' });
-  const node = createNode('waf', diagram.diagramId, { x: 10, y: 20 }, { label: 'WAF' });
+  const node = createNode('firewall', diagram.diagramId, { x: 10, y: 20 }, { label: 'WAF' });
   return { ...diagram, version: 7, nodes: [node] };
 };
 
@@ -100,7 +100,7 @@ describe('脏草稿不能污染当前图（用户 2026-11-05：节点莫名消�
       ...diagram,
       nodes: [
         // 故意造一个 id 丢失的节点 —— 就是粘贴 bug 当年写进草稿的样子
-        { ...createNode('waf', diagram.diagramId, { x: 0, y: 0 }), nodeId: undefined as unknown as string },
+        { ...createNode('firewall', diagram.diagramId, { x: 0, y: 0 }), nodeId: undefined as unknown as string },
       ],
     };
     const result = parseDiagram(poisoned);
@@ -112,7 +112,7 @@ describe('脏草稿不能污染当前图（用户 2026-11-05：节点莫名消�
 
   it('干净草稿仍然能通过（别把正常草稿一起丢掉）', () => {
     const diagram = createEmptyDiagram({ name: '干净草稿' });
-    diagram.nodes.push(createNode('waf', diagram.diagramId, { x: 0, y: 0 }));
+    diagram.nodes.push(createNode('firewall', diagram.diagramId, { x: 0, y: 0 }));
     expect(parseDiagram(diagram).success).toBe(true);
   });
 });

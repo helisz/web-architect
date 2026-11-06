@@ -65,7 +65,7 @@ describe.skipIf(!ENABLED)('arch_save_diagram 与前端 payload 的契约', () =>
   it('前端构造的 payload 能存进库，返回结构与解析一致', async () => {
     const diagram = createEmptyDiagram({ name: '契约测试图' });
     const group = createZoneGroup(diagram.diagramId, 'dmz', { x: 0, y: 0 });
-    const waf = createNode('waf', diagram.diagramId, { x: 10, y: 20 }, { label: 'WAF-1' });
+    const waf = createNode('firewall', diagram.diagramId, { x: 10, y: 20 }, { label: 'WAF-1' });
     const db = createNode('db', diagram.diagramId, { x: 40, y: 40 }, { label: 'MySQL' });
     db.groupId = group.groupId;
 

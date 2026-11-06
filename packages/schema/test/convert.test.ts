@@ -47,7 +47,7 @@ describe('convert 往返（对应验收 D1 / D2）', () => {
   });
 
   it('节点往返保留 subLabel 的多行内容', () => {
-    const waf = sample.nodes.find((n) => n.label === 'WAF')!;
+    const waf = sample.nodes.find((n) => n.label === '防火墙')!;
     expect(waf.subLabel.split('\n')).toHaveLength(2);
     expect(rowToNode(nodeToRow(waf, sample.diagramId))).toEqual(waf);
   });

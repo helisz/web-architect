@@ -59,11 +59,9 @@ export const DEFAULT_ICON_KEY: IconKey = 'tabler:cube';
 export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   // 网络安全
   firewall: 'tabler:shield-lock',
-  waf: 'tabler:shield-lock',
   vip: 'tabler:plug-connected',
   lb: 'tabler:arrow-right-square',
   vpn: 'tabler:shield-lock',
-  ids: 'tabler:shield-lock',
 
   // 计算
   server: 'tabler:server',

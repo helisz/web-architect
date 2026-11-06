@@ -14,11 +14,9 @@ import { NODE_TYPES, type NodeType } from '@arch/schema';
 /** 允许模型指派的节点类型（不含线条/便利贴/文本这类特殊件） */
 export const AI_NODE_TYPES = [
   'firewall',
-  'waf',
   'vip',
   'lb',
   'vpn',
-  'ids',
   'server',
   'vm',
   'container',
@@ -44,16 +42,12 @@ export type AiNodeType = (typeof AI_NODE_TYPES)[number];
 /** 模型常写的同义词 → 我们的类型 */
 const TYPE_ALIASES: Record<string, AiNodeType> = {
   firewall: 'firewall',
-  'web-application-firewall': 'waf',
-  waf: 'waf',
   vip: 'vip',
   'virtual-ip': 'vip',
   lb: 'lb',
   loadbalancer: 'lb',
   'load-balancer': 'lb',
   vpn: 'vpn',
-  ids: 'ids',
-  ips: 'ids',
   server: 'server',
   host: 'server',
   machine: 'server',
@@ -97,9 +91,8 @@ const TYPE_ALIASES: Record<string, AiNodeType> = {
  * 再落到通用词（服务器 / 服务）。
  */
 const KEYWORD_RULES: Array<{ type: AiNodeType; words: string[] }> = [
-  { type: 'waf', words: ['waf', 'web应用防火墙', 'web 应用防火墙'] },
-  { type: 'ids', words: ['ids', 'ips', '入侵检测', '入侵防御', '态势感知', '堡垒机'] },
-  { type: 'firewall', words: ['防火墙', 'firewall', '安全组', 'fw'] },
+  // 2026-11-06：waf / ids 类型已删除，这类词统一落到防火墙，避免整条识别结果被丢掉
+  { type: 'firewall', words: ['防火墙', 'firewall', '安全组', 'fw', 'waf', 'ids', 'ips', '入侵检测', '入侵防御', '堡垒机', 'web应用防火墙'] },
   { type: 'vip', words: ['vip', '虚拟ip', '虚拟 ip', '浮动ip', '浮动 ip'] },
   { type: 'lb', words: ['负载均衡', 'load balancer', 'loadbalancer', 'slb', 'elb', 'f5', 'haproxy', 'lvs', '负载'] },
   { type: 'nginx', words: ['nginx'] },

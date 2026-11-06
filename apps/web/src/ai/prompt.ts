@@ -15,11 +15,9 @@ import { AI_NODE_TYPES } from './parseSchema.js';
 /** 每个类型补一句"什么时候用它"，比只给中文名准确率高 */
 const TYPE_HINTS: Record<(typeof AI_NODE_TYPES)[number], string> = {
   firewall: '防火墙 / 安全组',
-  waf: 'WAF / Web 应用防火墙',
   vip: 'VIP / 虚拟 IP / 浮动地址',
   lb: '负载均衡 / SLB / F5 / LVS',
   vpn: 'VPN / 专线 / IPsec 网关',
-  ids: 'IDS / IPS / 入侵检测 / 堡垒机',
   server: '普通服务器 / 主机 / 物理机 / 中间件',
   vm: '虚拟机 / 云主机（ECS、EC2）',
   container: 'Docker / 容器 / 镜像仓库',

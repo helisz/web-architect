@@ -284,11 +284,21 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
     label: '网络安全',
     items: [
       spec('firewall', '防火墙', 160, 80),
-      spec('waf', 'WAF', 160, 80, '443/TLS'),
       spec('vip', 'VIP', 140, 70, 'VIP: x.x.x.x'),
       spec('lb', '负载均衡', 160, 80, ':80/:443'),
       spec('vpn', 'VPN 网关', 160, 80),
-      spec('ids', 'IDS/IPS', 160, 80),
+    ],
+  },
+  {
+    // 文本类：标题 / 文本 / 便利贴 / 注释。
+    // 这几个都是**真正的节点**（可连线、可进分组、可多选对齐），只是默认样式不同。
+    key: 'text',
+    label: '文本',
+    items: [
+      spec('title', '标题', 320, 48),
+      spec('text', '文本', 240, 72),
+      spec('sticky', '便利贴', 180, 160),
+      spec('annotation', '注释', 200, 90),
     ],
   },
   {
@@ -350,18 +360,6 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
       spec('group', '分组泳道', 420, 300),
       spec('zone', '区域框', 420, 300),
       spec('legend', '图例', 220, 160),
-    ],
-  },
-  {
-    // 文本类：标题 / 文本 / 便利贴 / 注释。
-    // 这几个都是**真正的节点**（可连线、可进分组、可多选对齐），只是默认样式不同。
-    key: 'text',
-    label: '文本',
-    items: [
-      spec('title', '标题', 320, 48),
-      spec('text', '文本', 240, 72),
-      spec('sticky', '便利贴', 180, 160),
-      spec('annotation', '注释', 200, 90),
     ],
   },
   {

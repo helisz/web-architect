@@ -25,7 +25,7 @@ function nested() {
   const diagram = createEmptyDiagram();
   const zone = createGroup(diagram.diagramId, { x: 100, y: 50 }, { label: '外区', width: 600, height: 400 });
   const dmz = createGroup(diagram.diagramId, { x: 40, y: 30 }, { label: '内区', parentGroupId: zone.groupId, width: 300, height: 200 });
-  const node = createNode('waf', diagram.diagramId, { x: 10, y: 10 }, { label: 'WAF' });
+  const node = createNode('firewall', diagram.diagramId, { x: 10, y: 10 }, { label: 'WAF' });
   return { diagram: { ...diagram, groups: [zone, dmz], nodes: [node] }, zone, dmz, node };
 }
 

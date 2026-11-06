@@ -42,7 +42,7 @@ describe('extractJsonObject', () => {
 describe('类型推断', () => {
   it('中文关键词能猜对', () => {
     expect(inferNodeType('防火墙')).toBe('firewall');
-    expect(inferNodeType('WAF 防护')).toBe('waf');
+    expect(inferNodeType('WAF 防护')).toBe('firewall');
     expect(inferNodeType('负载均衡')).toBe('lb');
     expect(inferNodeType('MySQL 主库')).toBe('db');
     expect(inferNodeType('Kubernetes 集群')).toBe('k8s-cluster');
@@ -52,7 +52,7 @@ describe('类型推断', () => {
   });
 
   it('专有词优先于通用词（WAF 不是普通防火墙、Redis 是 db）', () => {
-    expect(inferNodeType('Web 应用防火墙 WAF')).toBe('waf');
+    expect(inferNodeType('Web 应用防火墙 WAF')).toBe('firewall');
     expect(inferNodeType('Redis 缓存')).toBe('db');
   });
 

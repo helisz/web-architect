@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../lib/auth.js';
+import { useDbStatus } from '../data/useDbStatus.js';
 
 /**
  * 右上角账号菜单（用户 2026-11-05：图库和画布都要有，并且固定在最右边）。
@@ -10,6 +11,8 @@ import { useAuth } from '../lib/auth.js';
  */
 export function AccountMenu() {
   const auth = useAuth();
+  // 数据库状态（2026-11-06）：从顶栏绿点挪进下拉，这里给完整文字
+  const db = useDbStatus();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const email = auth.user?.email ?? '';
@@ -58,6 +61,32 @@ export function AccountMenu() {
             <p className="truncate px-3 py-1 text-[11px] text-[var(--text-secondary)]" title={email}>
               {email || '未登录'}
             </p>
+            <div className="my-1 border-t border-[var(--hair)]" />
+            <p
+              className="flex items-center gap-1.5 px-3 py-1 text-[11px]"
+              title={db.kind === 'checking' ? '正在探测 Supabase' : db.kind === 'up' ? 'PostgREST 可达，arch_diagram 可读' : db.message}
+            >
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ background: db.kind === 'checking' ? 'var(--text-tertiary)' : db.kind === 'up' ? '#2F7D46' : 'var(--err)' }}
+              />
+              <span
+                className={
+                  db.kind === 'up'
+                    ? 'text-[var(--text-secondary)]'
+                    : db.kind === 'checking'
+                      ? 'text-[var(--text-secondary)]'
+                      : 'text-[var(--err)]'
+                }
+              >
+                {db.kind === 'checking'
+                  ? '正在检测数据库…'
+                  : db.kind === 'up'
+                    ? `数据库正常 · ${db.latencyMs}ms`
+                    : `数据库不可用`}
+              </span>
+            </p>
+            <div className="my-1 border-t border-[var(--hair)]" />
             <button
               type="button"
               role="menuitem"

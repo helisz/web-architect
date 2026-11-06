@@ -15,7 +15,6 @@ import {
 
 /** 用户最初指定的 10 条映射，逐条钉死，避免以后被"优化"掉 */
 const USER_DECIDED: Record<string, string> = {
-  waf: 'tabler:shield-lock',
   vip: 'tabler:router',
   // 2026-11-04 用户要求：nginx 换成「N」方块标记，不用 NGINX 全称 wordmark
   nginx: 'arch:nginx',
@@ -214,9 +213,9 @@ describe('校验与修复（V11）', () => {
   });
 
   it('resolveIconKey：合法就用手上的，非法就按类型推导', () => {
-    expect(resolveIconKey({ nodeType: 'waf', extJson: { iconKey: 'tabler:shield-lock' } })).toBe('tabler:shield-lock');
-    expect(resolveIconKey({ nodeType: 'waf', extJson: { iconKey: 'oops' } })).toBe('tabler:shield-lock');
-    expect(resolveIconKey({ nodeType: 'waf' })).toBe('tabler:shield-lock');
+    expect(resolveIconKey({ nodeType: 'firewall', extJson: { iconKey: 'tabler:shield-lock' } })).toBe('tabler:shield-lock');
+    expect(resolveIconKey({ nodeType: 'firewall', extJson: { iconKey: 'oops' } })).toBe('tabler:shield-lock');
+    expect(resolveIconKey({ nodeType: 'firewall' })).toBe('tabler:shield-lock');
     expect(resolveIconKey({ nodeType: 'server' })).toBe('tabler:server');
   });
 });
