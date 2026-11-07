@@ -61,6 +61,7 @@ export const ALLOWED_ICON_KEYS = [
   'tabler:git-branch',
   'tabler:settings',
   'tabler:circle-dot',
+  'tabler:layout-navbar',
   // 2026-11-07 档 2：把撞车图标拆开（新拖出来的节点用新图标）
   'tabler:arrows-split-2',
   'tabler:arrows-exchange',
@@ -142,6 +143,8 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   annotation: 'tabler:message-circle',
   // 单行元素：默认不显示图标（高度 40 本来就不画），这里只给一个兜底 key
   element: 'tabler:typography',
+  // 水平单行元素：横条图标，和竖排的 element 区分开
+  'element-h': 'tabler:layout-navbar',
   // 自由线条：画布上不画图标，这个 key 只给左侧面板的卡片用
   line: 'tabler:route',
 

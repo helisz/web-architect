@@ -970,14 +970,17 @@ function NodeForm({ node }: { node: DiagramNode }) {
         />
       </Field>
 
-      <Field label="副文本">
-        <textarea
-          className={`${inputClass} mono h-14 resize-none`}
-          value={node.subLabel}
-          placeholder={spec?.defaultSubLabel ?? ''}
-          onChange={(e) => patch(node.nodeId, { subLabel: e.target.value })}
-        />
-      </Field>
+      {/* 水平单行元素没有副文本（用户 2026-11-07）：图标和文字已经占满一行 */}
+      {node.nodeType !== 'element-h' && (
+        <Field label="副文本">
+          <textarea
+            className={`${inputClass} mono h-14 resize-none`}
+            value={node.subLabel}
+            placeholder={spec?.defaultSubLabel ?? ''}
+            onChange={(e) => patch(node.nodeId, { subLabel: e.target.value })}
+          />
+        </Field>
+      )}
 
       {/* 文字样式（用户 2026-11-04）：字号 + 加粗/斜体/下划线，存在 extJson 里 */}
       <Field label="文字">

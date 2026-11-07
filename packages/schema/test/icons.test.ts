@@ -77,8 +77,8 @@ describe('图标规则：nodeType → iconKey', () => {
     }
   });
 
-  it('允许集合 = 原有 19 个 + 形状/流程图 14 个 + 2026-11-07 拆图标 11 个', () => {
-    expect(ALLOWED_ICON_KEYS).toHaveLength(44);
+  it('允许集合 = 原有 19 个 + 形状/流程图 14 个 + 2026-11-07 拆图标 11 个 + 横条图标 1 个', () => {
+    expect(ALLOWED_ICON_KEYS).toHaveLength(45);
     // 用户 2026-11-05：旧的 nginx 全称 logo 从常用集里彻底移除，只留自绘的方框 N
     expect(ALLOWED_ICON_KEYS).not.toContain('devicon:nginx');
     for (const key of Object.values(USER_DECIDED)) expect(ALLOWED_ICON_KEYS).toContain(key);
@@ -121,6 +121,8 @@ describe('图标规则：nodeType → iconKey', () => {
       'k8s:deployment',
       'k8s:service',
       'k8s:ingress',
+      // 2026-11-07：单行元素(水平) 的横条图标
+      'tabler:layout-navbar',
     ]) {
       expect(ALLOWED_ICON_KEYS).toContain(extra);
     }

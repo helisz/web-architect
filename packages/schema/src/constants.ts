@@ -409,6 +409,8 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
  */
 export const STRUCTURE_NODE_SPECS: ComponentSpec[] = [
   spec('element', '单行元素', 200, 40),
+  // 水平版：图标在左、文字在右，同一行
+  spec('element-h', '单行元素(水平)', 200, 40),
   spec('line', '线条', 200, 40),
   // 2026-11-07：原来的「自定义」整类并入结构区，不再单独占一个分类
   spec('custom', '自定义卡片', 160, 80),

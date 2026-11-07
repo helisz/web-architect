@@ -42,6 +42,11 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
   const isSticky = kind === 'sticky';
   const isAnnotation = kind === 'annotation';
   const isPlainText = kind === 'text';
+  /**
+   * 单行元素·水平（2026-11-07）：图标和文字排在同一行（图标在左），
+   * 对齐按钮控制的是"图标 + 文字"这个整体（左/中/右），没有副文本。
+   */
+  const isElementRow = kind === 'element-h';
   const isTextLike = isTitle || isSticky || isAnnotation || isPlainText;
   /*
    * 形状 / 流程图（2026-11-06）：同一套轮廓渲染。
@@ -60,7 +65,9 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
   // 小节点里图标要让位给文字，按高度自适应；太矮就干脆不画，免得挤压标签。
   // 另外节点可以主动关图标（extJson.iconHidden，属性面板里的「无」）。
   // 形状节点一律不画图标：轮廓本身已经是视觉主体，再塞图标会盖住文字。
-  const showIcon = node.height >= 52 && !isTextLike && !isShape && !isIconHidden(node);
+  const showIcon = isElementRow
+    ? !isIconHidden(node)
+    : node.height >= 52 && !isTextLike && !isShape && !isIconHidden(node);
   const iconSize = Math.max(14, Math.min(22, Math.round(node.height * 0.28)));
   const patchNode = useDiagramStore((s) => s.patchNode);
   // 右键菜单「编辑名称」通过 store 请求进入行内编辑
@@ -139,18 +146,20 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
   return (
     <div
       ref={boxRef}
-      className={`relative flex h-full w-full flex-col ${
-        isShape
-          ? 'gap-0.5 px-3'
+      className={`relative flex h-full w-full ${
+        isElementRow
+          ? 'flex-row items-center gap-1.5 rounded-[var(--radius-node)] border px-2'
+          : isShape
+            ? 'flex-col gap-0.5 px-3'
           : isTitle
             ? 'px-1'
             : isSticky
-              ? 'overflow-hidden rounded-[var(--radius-node)] px-2.5 py-2'
+              ? 'flex-col overflow-hidden rounded-[var(--radius-node)] px-2.5 py-2'
               : isAnnotation
-                ? 'rounded-[var(--radius-node)] px-2.5 py-2'
+                ? 'flex-col rounded-[var(--radius-node)] px-2.5 py-2'
                 : isPlainText
-                  ? 'px-2'
-                  : 'gap-0.5 rounded-[var(--radius-node)] border px-2'
+                  ? 'flex-col px-2'
+                  : 'flex-col gap-0.5 rounded-[var(--radius-node)] border px-2'
       }`}
       style={{
         // 形状的底色由 SVG path 填充，div 必须透明，否则矩形底会从图形外面露出来
@@ -172,7 +181,7 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
         // 比节点几何中心低约 7.5% 高度。其它形状仍按几何中心。
         justifyContent: isShape ? 'center' : horizontalToFlex(textStyle.align),
         paddingTop: isCylinder ? Math.round(node.height * 0.15) : undefined,
-        alignItems: isShape ? 'center' : verticalToFlex(textStyle.valign),
+        alignItems: isShape || isElementRow ? 'center' : verticalToFlex(textStyle.valign),
         textAlign: isShape ? 'center' : textStyle.align,
       }}
       onDoubleClick={(e) => {
@@ -277,7 +286,9 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
                     ? 'w-full whitespace-pre-wrap break-words leading-snug'
                     : isPlainText
                       ? 'w-full whitespace-pre-wrap break-words leading-snug'
-                      : 'w-full truncate leading-tight'
+                      : isElementRow
+                        ? 'min-w-0 truncate leading-tight'
+                        : 'w-full truncate leading-tight'
             }
             style={textStyleCss(textStyle)}
           >
@@ -288,7 +299,7 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
 
       {/* 副文本（2026-11-04 第二批）：10px、等宽字体；允许回车换行，最多显示两行。
           形状/流程图默认副文本为空，用户真要填时同样居中显示。 */}
-      {node.subLabel && !isAnnotation && (
+      {node.subLabel && !isAnnotation && !isElementRow && (
         <span
           className="mono relative z-[1] line-clamp-2 w-full whitespace-pre-line break-words text-[10px] leading-[13px] opacity-70"
           style={{ textAlign: isShape ? 'center' : textStyle.align }}

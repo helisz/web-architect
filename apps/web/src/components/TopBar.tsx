@@ -186,7 +186,8 @@ export function TopBar() {
           className="w-52 min-w-0 rounded border border-transparent px-1.5 py-1 text-[13px] font-semibold outline-none hover:border-[var(--panel-border)] focus:border-[var(--primary)]"
         />
         <div className="flex shrink-0 items-center gap-2">
-          {/* 2026-11-07 用户要求：隐藏「已保存」文字与版本号，状态/版本都看保存按钮的 hover 弹层 */}
+          {/* 2026-11-07 用户要求：隐藏「已保存」文字与版本号（状态/版本看保存按钮的 hover 弹层）；
+              保存 → 撤销 → 重做 → 版本历史 全部收在这一簇 */}
           <SaveButton />
           <IconButton
             icon="undo"
@@ -200,6 +201,21 @@ export function TopBar() {
             disabled={futureCount === 0 || historyLocked}
             onClick={() => redo()}
           />
+          <IconButton
+            icon="history"
+            label="版本历史（快照与回滚）"
+            active={versionOpen}
+            onClick={() => {
+              // 游客不存历史版本：数据只在本机，5MB 配额也撑不住快照
+              if (guest) {
+                pushToast('游客模式不保存历史版本；需要留档请导出 JSON', 'info');
+                return;
+              }
+              // 版本栏和属性面板共用右侧一列：开版本栏就先清掉选中
+              useDiagramStore.getState().select(null);
+              useDiagramStore.getState().setVersionOpen(true);
+            }}
+          />
         </div>
       </div>
 
@@ -212,21 +228,6 @@ export function TopBar() {
           <span className="text-xs text-amber-600">缺环境变量：{missingEnv.join(', ')}</span>
         ) : null}
         <Divider />
-        <IconButton
-          icon="history"
-          label="版本历史（快照与回滚）"
-          active={versionOpen}
-          onClick={() => {
-            // 游客不存历史版本：数据只在本机，5MB 配额也撑不住快照
-            if (guest) {
-              pushToast('游客模式不保存历史版本；需要留档请导出 JSON', 'info');
-              return;
-            }
-            // 版本栏和属性面板共用右侧一列：开版本栏就先清掉选中
-            useDiagramStore.getState().select(null);
-            useDiagramStore.getState().setVersionOpen(true);
-          }}
-        />
         <EdgeSettings />
         {/* 用户 2026-11-05：图层按钮挪到画布右上角（拖动模式左边），顶栏这里换成组件库开关 */}
         <IconButton

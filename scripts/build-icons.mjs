@@ -50,6 +50,7 @@ const WANTED = {
     'git-branch',
     'settings',
     'circle-dot',
+    'layout-navbar',
     // 2026-11-07 档 2：同图标拆开 —— 负载均衡 / 反向代理 / 专线 / 标题 / 便利贴 / 注释 / VPN
     //（网关保留用户指定的 arrow-right-square，不再另给）
     'arrows-split-2',

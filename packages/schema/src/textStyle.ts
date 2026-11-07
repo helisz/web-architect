@@ -50,6 +50,8 @@ const DEFAULTS: Partial<Record<NodeType, TypeDefault>> = {
   annotation: { fontSize: 12, weight: 400, align: 'left', valign: 'top' },
   // 单行元素与所有图形节点：12px / 500，水平垂直都居中
   element: { fontSize: 12, align: 'center', valign: 'middle' },
+  // 水平单行元素：图标在左，默认左对齐（对齐按钮会把图标和文字当成一个整体）
+  'element-h': { fontSize: 12, align: 'left', valign: 'middle' },
 };
 
 const BASE: Required<Omit<TextStyle, 'weight'>> & { weight: FontWeight } = {
