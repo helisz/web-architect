@@ -42,7 +42,8 @@ export type ToolIconName =
   | 'reset'
   | 'folder'
   | 'swap'
-  | 'image';
+  | 'image'
+  | 'save';
 
 const PATHS: Record<ToolIconName, string> = {
   undo: 'M9 14 5 10l4-4M5 10h11a4 4 0 0 1 0 8h-2',
@@ -89,6 +90,8 @@ const PATHS: Record<ToolIconName, string> = {
   folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z',
   swap: 'M7 8h10l-3-3M17 16H7l3 3',
   image: 'M4 5h16v14H4zM8.5 10.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM4 16l5-4 4 3 3-2 4 3',
+  // 软盘（tabler device-floppy，合并成一条 d）
+  save: 'M6 4h10l4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2M10 14a2 2 0 1 0 4 0a2 2 0 1 0-4 0m4-10v4H8V4',
 };
 
 export function ToolIcon({

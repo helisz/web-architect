@@ -99,7 +99,7 @@ create table if not exists public.arch_node (
     sort          int not null default 0,
     ext_json      jsonb,
     is_deleted    boolean not null default false,
-    constraint arch_ck_node_size check (width >= 64 and height >= 40),
+    constraint arch_ck_node_size check (width >= 24 and height >= 24),
     constraint arch_ck_node_type check (node_type ~ '^[a-z0-9-]{1,32}$')
 );
 
@@ -466,8 +466,8 @@ begin
     coalesce(e->>'nodeType', 'custom'),
     coalesce((e->>'x')::float, 0),
     coalesce((e->>'y')::float, 0),
-    greatest(coalesce((e->>'width')::float, 160), 64),
-    greatest(coalesce((e->>'height')::float, 80), 40),
+    greatest(coalesce((e->>'width')::float, 160), 24),
+    greatest(coalesce((e->>'height')::float, 80), 24),
     coalesce(e->>'bgColor', '#FFFFFF'),
     coalesce(e->>'borderColor', '#D1D5DB'),
     coalesce(e->>'textColor', '#111827'),

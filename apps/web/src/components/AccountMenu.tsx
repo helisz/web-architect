@@ -53,10 +53,10 @@ export function AccountMenu() {
          * （用户 2026-11-05 实测反馈）。把空隙做成菜单自己的 padding，
          * 这一段就落在子元素里，一路划过去菜单不会消失。
          */
-        <div className="absolute right-0 top-full z-40 pt-1">
+        <div className="anim-pop absolute right-0 top-full z-40 pt-1">
           <div
             role="menu"
-            className="w-56 rounded-md border border-[var(--panel-border)] bg-white py-1 shadow-md"
+            className="glass w-56 rounded-md py-1"
           >
             <p className="truncate px-3 py-1 text-[11px] text-[var(--text-secondary)]" title={email}>
               {email || '未登录'}

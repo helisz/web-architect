@@ -76,12 +76,12 @@ export function IconPicker({ value, onSelect, onClose }: IconPickerProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="anim-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/30"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="flex max-h-[520px] w-[580px] flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+        className="anim-window flex max-h-[520px] w-[580px] flex-col overflow-hidden rounded-lg bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-[var(--panel-border)] px-3 py-2">

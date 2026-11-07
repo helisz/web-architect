@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ToolIcon, type ToolIconName } from './ToolIcons.js';
 
 /**
@@ -102,6 +103,116 @@ function Swatch({ color }: { color: string }) {
   );
 }
 
+/**
+ * 二级 / 三级子菜单的一行。
+ *
+ * 2026-11-07 修：「添加节点 > 形状」这类**三级菜单看不见**。原因是二级菜单的容器带了
+ * `overflow-y-auto`（为了限高），而三级菜单是它的绝对定位子元素 —— 被直接裁掉了。
+ * 现在的规则：列表里还有子菜单的容器不裁剪（overflow-visible），只有叶子列表才限高滚动。
+ * 另外子菜单会在右侧放不下时翻到左边，避免贴边时整块跑到视口外。
+ */
+function SubmenuRow({
+  item,
+  onClose,
+  depth,
+}: {
+  item: Extract<MenuNode, { kind: 'submenu' }>;
+  onClose: () => void;
+  depth: number;
+}): JSX.Element {
+  const rowRef = useRef<HTMLLIElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<number | null>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  // 这份列表里还有子菜单 → 不能裁剪，否则下一级会被切掉
+  const hasNested = item.items.some((child) => child.kind === 'submenu');
+
+  const cancelClose = (): void => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+
+  const openPanel = (): void => {
+    cancelClose();
+    const row = rowRef.current?.getBoundingClientRect();
+    if (!row) return;
+    setPos({ left: row.right + 2, top: row.top - 4 });
+    setOpen(true);
+  };
+
+  const scheduleClose = (): void => {
+    cancelClose();
+    // 面板是 portal 出去的，鼠标从这一行挪到面板中间会经过一道缝，
+    // 给 140ms 缓冲，进去就取消关闭（否则子菜单一闪就没了）
+    closeTimer.current = window.setTimeout(() => setOpen(false), 140);
+  };
+
+  useEffect(() => () => cancelClose(), []);
+
+  /* 定位校正（portal 之后才测得到真实宽高）：右边放不下翻到左边，底下放不下往上顶。
+     子菜单内容是渲染后才撑开的，所以挂一个 ResizeObserver 持续校正，避免贴着窗口底边。 */
+  useLayoutEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    const row = rowRef.current;
+    if (!panel || !row) return;
+    const clamp = (): void => {
+      // 用 offsetWidth/Height（布局尺寸）：入场动画里的 scale 会让 getBoundingClientRect 偏小
+      const w = panel.offsetWidth;
+      const h = panel.offsetHeight;
+      const rowRect = row.getBoundingClientRect();
+      let left = rowRect.right + 2;
+      if (left + w > window.innerWidth - 8) left = Math.max(8, rowRect.left - w - 2);
+      let top = rowRect.top - 4;
+      if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - h - 8);
+      setPos((prev) => (prev && prev.left === left && prev.top === top ? prev : { left, top }));
+    };
+    clamp();
+    const observer = new ResizeObserver(clamp);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [open]);
+
+  return (
+    <li ref={rowRef} className="relative" onMouseEnter={openPanel} onMouseLeave={scheduleClose}>
+      <button
+        type="button"
+        disabled={item.disabled}
+        className={`${ROW} hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40 ${
+          open ? 'bg-[var(--bg-hover)]' : ''
+        }`}
+        onClick={openPanel}
+      >
+        {item.swatch ? <Swatch color={item.swatch} /> : <RowIcon name={menuIconFor(item.label)} />}
+        <span className="truncate">{item.label}</span>
+        <span className="text-[var(--text-tertiary)]">
+          <ToolIcon name={open ? 'chevronLeft' : 'chevronRight'} size={13} />
+        </span>
+      </button>
+      {open && pos
+        ? createPortal(
+            <div
+              ref={panelRef}
+              data-menu-portal
+              className={`glass anim-pop fixed z-[60] ${
+                hasNested ? '' : 'max-h-[320px] overflow-y-auto'
+              }`}
+              style={{ left: pos.left, top: pos.top }}
+              onMouseEnter={cancelClose}
+              onMouseLeave={scheduleClose}
+            >
+              <MenuList items={item.items} onClose={onClose} depth={depth + 1} />
+            </div>,
+            document.body,
+          )
+        : null}
+    </li>
+  );
+}
+
 function MenuList({
   items,
   onClose,
@@ -111,8 +222,6 @@ function MenuList({
   onClose: () => void;
   depth: number;
 }): JSX.Element {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
   return (
     <ul className="min-w-[180px] py-1">
       {items.map((item, index) => {
@@ -130,35 +239,7 @@ function MenuList({
           );
         }
         if (item.kind === 'submenu') {
-          const open = openIndex === index;
-          return (
-            <li
-              key={`sub-${index}`}
-              className="relative"
-              onMouseEnter={() => setOpenIndex(index)}
-              onMouseLeave={() => setOpenIndex((current) => (current === index ? null : current))}
-            >
-              <button
-                type="button"
-                disabled={item.disabled}
-                className={`${ROW} hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40 ${
-                  open ? 'bg-[var(--bg-hover)]' : ''
-                }`}
-                onClick={() => setOpenIndex(open ? null : index)}
-              >
-                {item.swatch ? <Swatch color={item.swatch} /> : <RowIcon name={menuIconFor(item.label)} />}
-                <span className="truncate">{item.label}</span>
-                <span className="text-[var(--text-tertiary)]">
-                  <ToolIcon name="chevronRight" size={13} />
-                </span>
-              </button>
-              {open && (
-                <div className="absolute left-full top-0 z-10 -mt-1 max-h-[320px] overflow-y-auto border border-[var(--glass-line)] bg-white shadow-[0_8px_24px_rgba(26,26,24,0.12)]">
-                  <MenuList items={item.items} onClose={onClose} depth={depth + 1} />
-                </div>
-              )}
-            </li>
-          );
+          return <SubmenuRow key={`sub-${index}`} item={item} onClose={onClose} depth={depth} />;
         }
         const tone = item.danger ? 'text-[var(--err)]' : undefined;
         return (
@@ -171,7 +252,7 @@ function MenuList({
                 onClose();
               }}
               className={`${ROW} hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40 ${
-                item.danger ? 'text-[var(--err)]' : ''
+                item.danger ? 'text-[var(--err)] shadow-[inset_2px_0_0_var(--err)]' : ''
               }`}
             >
               {item.swatch ? <Swatch color={item.swatch} /> : <RowIcon name={menuIconFor(item.label)} tone={item.checked ? 'text-[var(--primary)]' : tone} />}
@@ -211,7 +292,11 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
 
   useEffect(() => {
     const onDown = (event: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(event.target as Node)) closeRef.current();
+      const target = event.target as Node | null;
+      if (!ref.current || !target) return;
+      // 子菜单是 portal 到 body 的，不在根节点里 —— 点它们不能算"点外面"
+      const inPortal = (target as HTMLElement).closest?.('[data-menu-portal]');
+      if (!ref.current.contains(target) && !inPortal) closeRef.current();
     };
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') closeRef.current();
@@ -228,7 +313,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   return (
     <div
       ref={ref}
-      className="fixed z-50 overflow-visible border border-[var(--glass-line)] bg-white shadow-[0_10px_28px_rgba(26,26,24,0.14)]"
+      className="glass anim-pop fixed z-50 overflow-visible"
       style={{ left: pos.x, top: pos.y }}
       onContextMenu={(event) => event.preventDefault()}
     >

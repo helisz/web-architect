@@ -1,5 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useStore } from '@xyflow/react';
+import { useMemo, useState } from 'react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
@@ -8,8 +7,8 @@ import {
   FONT_SIZE_MIN,
   LIMITS,
   dashPresetOf,
-  groupOffset,
   iconKeyFor,
+  GROUP_ICON_KEY,
   isGroupLocked,
   isEditLocked,
   isIconHidden,
@@ -41,8 +40,8 @@ import {
 } from '../canvas/lineGeometry.js';
 import { SHAPE_NODE_TYPES, isShapeNodeType, shapePath, type ShapeNodeType } from '../canvas/shapePath.js';
 
-/** 浮动属性卡宽度（用户 2026-11-06 定稿 264px；停靠态仍用 300px 给色板留位置） */
-const PANEL_W = 264;
+/** 右侧固定边栏宽度（用户 2026-11-07：属性又改回钉在右侧，300px 给色板留位置） */
+const PANEL_W = 300;
 
 /** 多选批量改写：按对象类型把字段落到正确的属性上（分组没有独立的文字色，用标题色） */
 function applyMultiField(
@@ -471,7 +470,7 @@ function MultiForm() {
       <button
         type="button"
         onClick={() => requestDelete(selectedIds)}
-        className="mt-2 w-full rounded border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-600 hover:bg-red-100"
+        className="mt-2 w-full rounded border border-[var(--err)] bg-[var(--err-soft)] px-2 py-1.5 text-xs text-[var(--err)] hover:brightness-95"
       >
         删除选中的 {selectedIds.length} 个元素
       </button>
@@ -505,107 +504,19 @@ export function PropertyPanel() {
   );
 
   /*
-   * 浮动属性卡（2026-11-06 第二批）：跟着选中的节点 / 分组走，不再钉在右侧。
+   * 右侧固定边栏（用户 2026-11-07 定稿）：属性面板重新钉在右侧一列，不再跟着选中元素浮动。
    *
-   * 规则和样张一致：优先贴在元素右侧 → 右侧放不下翻到左侧 → 两边都放不下就贴住画布边缘
-   * 并夹在可视区内；上下居中于元素，靠近底边时上移。选中「连线」或「多选」时没有可贴的
-   * 矩形，退回右侧停靠（那条路径和以前一样）。
+   * 面板是 flex 的子项（w-300 + shrink-0），画布是 flex-1 —— 面板出现/消失时画布自己让位，
+   * ReactFlow 量到的 width 就是真实可视宽度，fitView / 坐标换算 / 控件定位都不用再额外补偿。
+   * 只有「版本历史」和它共用这一列（见 App）。
    */
-  const viewport = useStore((s) => s.transform);
-  const panelRef = useRef<HTMLElement>(null);
-  const [canvasBox, setCanvasBox] = useState<{ w: number; h: number } | null>(null);
-  const [panelHeight, setPanelHeight] = useState(0);
-  useLayoutEffect(() => {
-    const parent = panelRef.current?.parentElement;
-    if (!parent) return;
-    const measure = (): void => setCanvasBox({ w: parent.clientWidth, h: parent.clientHeight });
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(parent);
-    // 卡片自己的高度也要量：夹取顶部时不能再用写死的 200px 假设（会溢出浏览器底部）
-    const cardEl = panelRef.current;
-    const measureCard = (): void => setPanelHeight(cardEl ? Math.round(cardEl.getBoundingClientRect().height) : 0);
-    measureCard();
-    const cardObserver = cardEl ? new ResizeObserver(measureCard) : null;
-    if (cardEl && cardObserver) cardObserver.observe(cardEl);
-    return () => {
-      observer.disconnect();
-      cardObserver?.disconnect();
-    };
-  }, [diagram.diagramId]);
-
-  const anchorRect = useMemo(() => {
-    // 连线（2026-11-06）：取两端元素中心的中点当锚点，属性卡贴在线的中间
-    if (!node && !group && edge) {
-      const centerOf = (id: string): { x: number; y: number } | null => {
-        const endNode = diagram.nodes.find((n) => n.nodeId === id);
-        if (endNode) {
-          const offset = groupOffset(diagram.groups, endNode.groupId ?? null);
-          return { x: offset.x + endNode.x + endNode.width / 2, y: offset.y + endNode.y + endNode.height / 2 };
-        }
-        const endGroup = diagram.groups.find((g) => g.groupId === id);
-        if (endGroup) {
-          const offset = groupOffset(diagram.groups, endGroup.parentGroupId ?? null);
-          return { x: offset.x + endGroup.x + endGroup.width / 2, y: offset.y + endGroup.y + endGroup.height / 2 };
-        }
-        return null;
-      };
-      const from = centerOf(edge.sourceNodeId);
-      const to = centerOf(edge.targetNodeId);
-      if (!from || !to) return null;
-      return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2, w: 0, h: 0 };
-    }
-    if (!node && !group) return null;
-    const target = node ?? group!;
-    const offset = groupOffset(diagram.groups, node ? (node.groupId ?? null) : (group!.parentGroupId ?? null));
-    return { x: target.x + offset.x, y: target.y + offset.y, w: target.width, h: target.height };
-  }, [node, group, edge, diagram.groups, diagram.nodes]);
-
-  const panelBox = useMemo(() => {
-    if (!anchorRect || !canvasBox) return null;
-    const [tx, ty, zoom] = viewport;
-    const INSET = 10;
-    const GAP = 14;
-    const screenX = anchorRect.x * zoom + tx;
-    const screenY = anchorRect.y * zoom + ty;
-    const screenW = anchorRect.w * zoom;
-    const screenH = anchorRect.h * zoom;
-    const rightSide = screenX + screenW + GAP;
-    const flipped = rightSide + PANEL_W > canvasBox.w - INSET;
-    const left = Math.max(
-      INSET,
-      Math.min(flipped ? screenX - GAP - PANEL_W : rightSide, canvasBox.w - INSET - PANEL_W),
-    );
-    const centerY = screenY + screenH / 2;
-    // 首帧还没量到高度时先用一个保守估计，量到之后立刻按真实高度夹取
-    const cardH = panelHeight > 0 ? panelHeight : 320;
-    const maxTop = canvasBox.h - INSET - cardH;
-    const top = maxTop <= INSET ? INSET : Math.max(INSET, Math.min(centerY - cardH / 2, maxTop));
-    return { left, top, flipped, centerY, maxHeight: canvasBox.h - INSET * 2 };
-  }, [anchorRect, canvasBox, viewport, panelHeight]);
-
-  const panelStyle: CSSProperties | undefined = panelBox
-    ? { left: panelBox.left, top: panelBox.top, width: PANEL_W, maxHeight: panelBox.maxHeight }
-    : undefined;
-
   return (
-    <>
-      {panelBox && (
-        <span
-          aria-hidden
-          className={`panel-arrow ${panelBox.flipped ? 'left' : 'right'}`}
-          style={{
-            left: panelBox.flipped ? panelBox.left + PANEL_W : panelBox.left - 7,
-            top: panelBox.centerY - 6,
-          }}
-        />
-      )}
+    // 2026-11-07 用户定稿：画布铺到面板底下 —— 面板不再占布局，而是浮在画布右侧、
+    // 离窗口边缘 10px（和左侧组件库对称）。这样 60% 白 + 模糊才透得出画布的网格，
+    // 代价是选中的节点如果正好在被面板盖住的区域会看不见（用户已确认接受）。
     <aside
-      ref={panelRef}
-      style={panelStyle}
-      className={`floating-panel flex flex-col overflow-y-auto ${
-        panelBox ? '' : 'right-[var(--panel-inset)] top-[var(--panel-inset)] bottom-[var(--panel-inset)] w-[300px]'
-      }`}
+      style={{ width: PANEL_W }}
+      className="glass anim-slide-right absolute bottom-[var(--panel-inset)] right-[var(--panel-inset)] top-[var(--panel-inset)] z-40 flex flex-col overflow-y-auto"
     >
       <div className="border-b border-[var(--panel-border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
         {node
@@ -639,7 +550,6 @@ export function PropertyPanel() {
         </div>
       </div>
     </aside>
-    </>
   );
 }
 
@@ -647,52 +557,14 @@ export function PropertyPanel() {
 /* 分组表单                                                            */
 /* ------------------------------------------------------------------ */
 
-/** 宽高一对输入框（分组与节点共用口径：下限来自 DB 的 check 约束） */
-function SizeFields({
-  width,
-  height,
-  minWidth,
-  minHeight,
-  onChange,
-}: {
-  width: number;
-  height: number;
-  minWidth: number;
-  minHeight: number;
-  onChange: (size: { width: number; height: number }) => void;
-}) {
-  return (
-    <div className="mb-3 flex gap-2">
-      <Field label="宽">
-        <input
-          type="number"
-          min={minWidth}
-          className={inputClass}
-          value={Math.round(width)}
-          onChange={(e) => onChange({ width: Math.max(minWidth, Number(e.target.value) || minWidth), height })}
-        />
-      </Field>
-      <Field label="高">
-        <input
-          type="number"
-          min={minHeight}
-          className={inputClass}
-          value={Math.round(height)}
-          onChange={(e) => onChange({ width, height: Math.max(minHeight, Number(e.target.value) || minHeight) })}
-        />
-      </Field>
-    </div>
-  );
-}
-
 function GroupForm({ group }: { group: DiagramGroup }) {
   const patchGroup = useDiagramStore((s) => s.patchGroup);
   const toggleGroupCollapsed = useDiagramStore((s) => s.toggleGroupCollapsed);
-  const removeGroup = useDiagramStore((s) => s.removeGroup);
+  const requestDelete = useDiagramStore((s) => s.requestDelete);
   const childCount = useDiagramStore(
     (s) => s.diagram.nodes.filter((n) => n.groupId === group.groupId).length,
   );
-  const iconKey = (group.extJson?.iconKey as string | undefined) ?? iconKeyFor('group');
+  const iconKey = (group.extJson?.iconKey as string | undefined) ?? GROUP_ICON_KEY;
   const [pickerOpen, setPickerOpen] = useState(false);
   const setIcon = (key: string): void =>
     patchGroup(group.groupId, { extJson: { ...(group.extJson ?? {}), iconKey: key, iconHidden: false } });
@@ -735,10 +607,27 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         />
       </Field>
 
-      {/* 通用分组不支持副文本（用户 2026-11-04）：不给输入框，标题栏也只有一行 */}
+      {/*
+        副文本开关（用户 2026-11-07）：勾上显示副文本行（标题栏至少 38px，太长会换行加高），
+        取消勾选就回到单行标题（24px，和通用「分组」一样高）。
+        存储上沿用 extJson.singleLine，取反关系见 isSingleLineGroup()。
+      */}
+      <label className="mb-3 flex items-center gap-2 text-[13px]">
+        <input
+          type="checkbox"
+          checked={!isSingleLineGroup(group)}
+          onChange={(e) =>
+            patchGroup(group.groupId, {
+              extJson: { ...(group.extJson ?? {}), singleLine: e.target.checked ? undefined : true },
+            })
+          }
+        />
+        显示副文本（标题下面那行小字）
+      </label>
+
       {!isSingleLineGroup(group) && (
         <Field label="副文本">
-          {/* 允许回车换行（用户 2026-11-04 第二批）；标题栏高度固定，最多显示两行 */}
+          {/* 允许回车换行；太长时标题栏高度跟着加行 */}
           <textarea
             className={`${inputClass} mono h-12 resize-none`}
             value={group.subLabel}
@@ -804,14 +693,6 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         />
       )}
 
-      <SizeFields
-        width={group.width}
-        height={group.height}
-        minWidth={120}
-        minHeight={80}
-        onChange={(size) => patchGroup(group.groupId, size)}
-      />
-
       <ColorField
         targets={[
           { scope: 'font', value: group.titleColor, onChange: (value) => patchGroup(group.groupId, { titleColor: value }) },
@@ -834,32 +715,34 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         组内直接包含 {childCount} 个节点；拖进/拖出会自动换算局部坐标，整体拖动不漂移。
       </p>
 
-      <button
-        type="button"
-        onClick={toggleLock}
-        aria-pressed={false}
-        aria-label="锁定分组"
-        title="锁定后不能拖动、改名、缩放、折叠（仍可选中）"
-        className="mb-2 flex w-full items-center justify-center gap-1.5 rounded border border-[var(--panel-border)] px-2 py-1.5 text-xs text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-      >
-        <ToolIcon name="lock" size={16} />
-        <span>锁定分组</span>
-      </button>
-
-      <button
-        type="button"
-        className="w-full rounded border border-[#FCA5A5] px-2 py-1 text-xs text-[#B91C1C] hover:bg-[#FEF2F2]"
-        onClick={() => {
-          if (window.confirm(`删除分组「${group.label}」？组里的节点会保留并移到上一层。`)) {
-            removeGroup(group.groupId);
-          }
-        }}
-      >
-        删除分组
-      </button>
+      {/* 锁定 / 删除：和节点属性完全一致的一行图标按钮（用户 2026-11-07）。
+          删除不再用 window.confirm，统一走 DeleteConfirmDialog，确认框里也会说明
+          「组里的节点提到上一层」。 */}
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={toggleLock}
+          title="锁定后不能拖动、改名、缩放、折叠（仍可选中）"
+          aria-pressed={false}
+          aria-label="锁定分组"
+          className="grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          <ToolIcon name="lock" size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => requestDelete([group.groupId])}
+          title="删除这个分组（需要确认；组里的节点会提到上一层）"
+          aria-label="删除分组"
+          className="ml-auto grid h-8 w-8 place-items-center rounded border border-[var(--err)] text-[var(--err)] hover:bg-[var(--err-soft)]"
+        >
+          <ToolIcon name="trash" size={16} />
+        </button>
+      </div>
     </div>
   );
 }
+
 
 /* ------------------------------------------------------------------ */
 /* 通用控件                                                            */
@@ -1259,7 +1142,7 @@ function NodeForm({ node }: { node: DiagramNode }) {
           onClick={() => requestDelete([node.nodeId])}
           title={node.locked ? '已锁定：先解锁才能删除' : '删除这个节点（需要确认）'}
           aria-label="删除节点"
-          className="ml-auto grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--err)] hover:text-[var(--err)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--panel-border)] disabled:hover:text-[var(--text-secondary)]"
+          className="ml-auto grid h-8 w-8 place-items-center rounded border border-[var(--err)] text-[var(--err)] hover:bg-[var(--err-soft)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
         >
           <ToolIcon name="trash" size={16} />
         </button>

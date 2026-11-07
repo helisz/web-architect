@@ -14,7 +14,6 @@ import { GuestImportDialog } from './components/GuestImportDialog.js';
 import { AuthSplash, LoginPage } from './components/LoginPage.js';
 import { VersionPanel } from './components/VersionPanel.js';
 import { PropertyPanel } from './components/PropertyPanel.js';
-import { useCanvasMode } from './store/useCanvasMode.js';
 import { supabaseConfig } from './lib/env.js';
 import { canLoadData, useAuth } from './lib/auth.js';
 import { useGuestSession } from './data/guestSession.js';
@@ -68,9 +67,6 @@ export default function App() {
    * 只认「signed-out → signed-in」这次跃迁：刷新页面时 useAuth 也会经历 loading → signed-in，
    * 那时如果无条件跳图库，正在看 `#/d/<id>` 的人会被踢出去。
    */
-  // 正在拖连线时藏起属性卡（2026-11-06）
-  const connecting = useCanvasMode((s) => s.connecting);
-
   const prevAuthStatus = useRef(auth.status);
   useEffect(() => {
     if (prevAuthStatus.current === 'signed-out' && auth.status === 'signed-in') navigateToGallery();
@@ -155,8 +151,9 @@ export default function App() {
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
           <Canvas />
           <ComponentPanel />
-          {/* 拖连线时（connecting）属性卡先让开：它挡落点，而且选中态会跟着变（2026-11-06） */}
-          {connecting ? null : selectedIds.length > 0 ? (
+          {/* 右侧固定一列（用户 2026-11-07）：选中元素 → 属性面板；点「版本」→ 版本历史（互斥）。
+              两者都是 flex 子项，画布（flex-1）自动让位，不再压在画布上浮动。 */}
+          {selectedIds.length > 0 ? (
             <PropertyPanel />
           ) : (
             versionOpen && <VersionPanel onClose={() => setVersionOpen(false)} />

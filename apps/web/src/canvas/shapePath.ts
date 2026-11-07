@@ -21,7 +21,7 @@ import type { NodeType } from '@arch/schema';
  * 有一小段距离；上下两个 Handle 仍然精确落在轮廓上。
  */
 
-/** 走「轮廓渲染」分支的节点类型：10 个形状 + 7 个流程图 */
+/** 走「轮廓渲染」分支的节点类型：10 个形状 + 2 个流程专属（开始/预定义过程） */
 export const SHAPE_NODE_TYPES = [
   'shape-rect',
   'shape-round',
@@ -34,12 +34,7 @@ export const SHAPE_NODE_TYPES = [
   'shape-document',
   'shape-arrow',
   'flow-start',
-  'flow-process',
-  'flow-decision',
-  'flow-data',
-  'flow-document',
   'flow-predefined',
-  'flow-connector',
 ] as const satisfies readonly NodeType[];
 
 export type ShapeNodeType = (typeof SHAPE_NODE_TYPES)[number];
@@ -79,8 +74,7 @@ export function shapePath(nodeType: NodeType | string, w: number, h: number): Sh
 
   switch (nodeType) {
     // —— 直角矩形：矩形和"处理"共用，语义不同但轮廓一致 ——
-    case 'shape-rect':
-    case 'flow-process': {
+    case 'shape-rect': {
       return { d: `M 0 0 H ${n(W)} V ${n(H)} H 0 Z` };
     }
 
@@ -113,8 +107,7 @@ export function shapePath(nodeType: NodeType | string, w: number, h: number): Sh
     }
 
     // —— 圆形 / 连接点：用椭圆而不是正圆，非等比拉伸时四个边中点仍在轮廓上 ——
-    case 'shape-circle':
-    case 'flow-connector': {
+    case 'shape-circle': {
       const rx = W / 2;
       const ry = H / 2;
       return {
@@ -128,8 +121,7 @@ export function shapePath(nodeType: NodeType | string, w: number, h: number): Sh
     }
 
     // —— 菱形 / 判断：四个顶点正好落在四条边的中点 ——
-    case 'shape-diamond':
-    case 'flow-decision': {
+    case 'shape-diamond': {
       return {
         d: `M ${n(W / 2)} 0 L ${n(W)} ${n(H / 2)} L ${n(W / 2)} ${n(H)} L 0 ${n(H / 2)} Z`,
       };
@@ -176,8 +168,7 @@ export function shapePath(nodeType: NodeType | string, w: number, h: number): Sh
     }
 
     // —— 平行四边形 / 数据：上下两条水平边保留，左右斜切 ——
-    case 'shape-parallelogram':
-    case 'flow-data': {
+    case 'shape-parallelogram': {
       const skew = W * 0.18;
       return {
         d: [
@@ -191,8 +182,7 @@ export function shapePath(nodeType: NodeType | string, w: number, h: number): Sh
     }
 
     // —— 文档：底部一道波浪；中点被精确抬到包围盒底边，下 Handle 仍贴轮廓 ——
-    case 'shape-document':
-    case 'flow-document': {
+    case 'shape-document': {
       const dip = H * 0.12;
       return {
         d: [
@@ -273,7 +263,7 @@ export function handleOffsets(
       left: { left: 25, top: 50 },
     };
   }
-  if (nodeType === 'shape-parallelogram' || nodeType === 'flow-data') {
+  if (nodeType === 'shape-parallelogram') {
     // 顶点：(0.25w,0) (w,0) (0.75w,h) (0,h)；上/下边中点各偏 12.5%，
     // 左/右手柄取两条斜边的中点，正好在轮廓上
     return {

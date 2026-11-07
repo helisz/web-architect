@@ -50,9 +50,19 @@ const WANTED = {
     'git-branch',
     'settings',
     'circle-dot',
+    // 2026-11-07 档 2：同图标拆开 —— 负载均衡 / 反向代理 / 专线 / 标题 / 便利贴 / 注释 / VPN
+    //（网关保留用户指定的 arrow-right-square，不再另给）
+    'arrows-split-2',
+    'arrows-exchange',
+    'plug',
+    'heading',
+    'note',
+    'message-circle',
+    'lock-access',
   ],
   devicon: ['nginx', 'kubernetes'],
-  k8s: ['pod'],
+  // 2026-11-07：K8s 四个类型不再共用 kubernetes 图标，各自用官方 k8s 图标
+  k8s: ['pod', 'namespace', 'deployment', 'service', 'ingress'],
 };
 
 const collections = [];

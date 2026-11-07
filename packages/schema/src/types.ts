@@ -99,10 +99,7 @@ export const NODE_TYPES = [
   'router',
   'link',
   'subnet',
-  'group',
-  'zone',
   'text',
-  'legend',
   // 文本类（2026-11-04 新增）：标题 / 便利贴 / 气泡注释
   'title',
   'sticky',
@@ -124,15 +121,11 @@ export const NODE_TYPES = [
   'shape-parallelogram',
   'shape-document',
   'shape-arrow',
-  // 流程图（2026-11-06）：与「形状」同属轮廓渲染分支，默认带 label、无副文本。
-  // 开始/结束用胶囊而不是矩形，是流程图的行业惯例（BPMN 的 start/end event）。
+  // 流程图（2026-11-06；2026-11-07 精简）：只留下两个**轮廓独有的**类型。
+  // 处理/判断/数据/文档/连接点与形状是同一段渲染代码，已改成组件库预设
+  // （拖出来写 shape-*，只是默认文案和尺寸不同），不再占用 nodeType。
   'flow-start',
-  'flow-process',
-  'flow-decision',
-  'flow-data',
-  'flow-document',
   'flow-predefined',
-  'flow-connector',
   'custom',
 ] as const;
 

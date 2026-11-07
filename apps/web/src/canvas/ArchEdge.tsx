@@ -38,8 +38,11 @@ interface AnchorDrag {
 
 function rectOf(node: InternalNode | undefined): Rect | null {
   if (!node) return null;
-  const width = node.measured?.width ?? 0;
-  const height = node.measured?.height ?? 0;
+  // 优先用实测值；还没量到就退回节点自己声明的尺寸（2026-11-07）：
+  // 以前只要 measured 缺失就 return null，整条线直接不画，表现就是"拉了线看不到"，
+  // 而声明尺寸是准确的（toFlowNodes 里 width/height/measured 三份一致），够画。
+  const width = node.measured?.width ?? node.width ?? 0;
+  const height = node.measured?.height ?? node.height ?? 0;
   if (width <= 0 || height <= 0) return null;
   const abs = node.internals?.positionAbsolute;
   if (!abs) return null;

@@ -490,7 +490,7 @@ function CardAction({
         onClick();
       }}
       className={`grid h-7 w-7 place-items-center rounded border border-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--panel-border)] hover:bg-[var(--bg-hover)] disabled:opacity-40 ${
-        danger ? 'hover:text-[#B91C1C]' : 'hover:text-[var(--primary)]'
+        danger ? 'text-[var(--err)] hover:border-[var(--err)] hover:bg-[var(--err-soft)]' : 'hover:text-[var(--primary)]'
       }`}
     >
       <ToolIcon name={icon} size={15} />

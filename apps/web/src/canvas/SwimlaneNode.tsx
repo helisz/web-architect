@@ -9,6 +9,7 @@ import {
   isIconHidden,
   isSingleLineGroup,
   resolveIconKey,
+  GROUP_ICON_KEY,
   type Anchor,
 } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
@@ -87,14 +88,15 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
         minWidth={120}
         minHeight={80}
         lineClassName="!border-[var(--primary)]"
-        handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--primary)] !bg-white"
+        handleClassName="!h-2.5 !w-2.5 !rounded-sm !border !border-[var(--primary)] !bg-white"
       />
 
       {/* 标题栏：拖动组、改名都在这里。折叠三角已移除（用户 2026-11-04 第四批：
           标题栏只要名称 + 副文本，不再放按钮）；折叠仍可从属性面板和右键菜单操作。
-          高度：带副文本 38px（上边距 2 + 标题 16 + 副文本两行 2×10），
-          不带副文本的通用分组 24px。 */}
+          高度（2026-11-07 用户定）：勾了「副文本」至少 38px，副文本每多一行 +10px；
+          没勾就是 24px（只有一行标题）。 */}
       <div
+        data-group-header
         className="flex items-start gap-1.5 rounded-t-[var(--radius-node)] px-2"
         style={{
           height: groupHeaderHeight(group),
@@ -122,7 +124,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           <>
             {!isIconHidden(group) && (
               <NodeIcon
-                iconKey={resolveIconKey({ nodeType: 'group', extJson: group.extJson })}
+                iconKey={resolveIconKey({ nodeType: GROUP_ICON_KEY, extJson: group.extJson })}
                 size={14}
                 className={`${showSubLabel ? 'mt-[6px]' : 'mt-[5px]'} shrink-0 opacity-70`}
               />
@@ -138,12 +140,13 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
                 {group.label}
               </div>
               {/*
-                副文本：10px 等宽，**只显示一行**、超出用省略号（用户 2026-11-05）。
-                标题栏固定 38px（2 上边距 + 16 标题 + 3 间距 + 10 一行），
-                换行内容仍完整存在数据里，属性面板能看到全文。
+                副文本（2026-11-07 用户定）：
+                - 不再单行省略 —— 太长就换行，标题栏高度按行数动态加高（见 groupHeaderHeight）；
+                - 整体上移 2px（原来的 3px 间距改 1px）；
+                - 输入框里敲的回车会原样换行（whitespace-pre-line）。
               */}
               {showSubLabel && (
-                <div className="mono mt-[3px] truncate text-[10px] leading-[10px] opacity-60">
+                <div className="mono mt-[1px] whitespace-pre-line break-words text-[10px] leading-[10px] opacity-60">
                   {group.subLabel}
                 </div>
               )}

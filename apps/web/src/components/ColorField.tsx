@@ -231,7 +231,7 @@ export function ColorField({ targets, kind = 'node' }: { targets: ColorTarget[];
       </button>
 
       {open && (
-        <div className="mt-1 w-max min-w-[212px] max-w-[260px] space-y-2.5 rounded-md border border-[var(--panel-border)] bg-white p-2.5 shadow-lg">
+        <div className="glass anim-pop mt-1 w-max min-w-[212px] max-w-[260px] space-y-2.5 rounded-md p-2.5">
           {sectionsFor(kind).map((section) => {
             const target = targets.find((t) => t.scope === section.scope);
             if (!target) return null;

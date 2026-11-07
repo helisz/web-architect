@@ -16,8 +16,9 @@ export const LIMITS = {
   zoomMax: 4,
   /** 坐标绝对值上限：防住 1e9 这类值把 SVG 撑爆（V6 只要求有限数，这里是工程护栏） */
   coordLimit: 100000,
-  nodeMinWidth: 64,
-  nodeMinHeight: 40,
+  // 2026-11-07 用户要求：允许把节点做得很小（原 64×40 会挡住保存）
+  nodeMinWidth: 24,
+  nodeMinHeight: 24,
   groupMinWidth: 120,
   groupMinHeight: 80,
   strokeWidthMin: 0.5,
@@ -201,18 +202,6 @@ export const GROUP_PRESETS: GroupPreset[] = [
     titleColor: ZONE_PALETTES[0]!.titleColor,
   },
   {
-    key: 'cluster',
-    label: '集群',
-    groupLabel: '集群',
-    subLabel: '多副本 / 高可用',
-    iconKey: 'tabler:stack-2',
-    width: 460,
-    height: 320,
-    bgColor: ZONE_PALETTES[1]!.bgColor,
-    borderColor: ZONE_PALETTES[1]!.borderColor,
-    titleColor: ZONE_PALETTES[1]!.titleColor,
-  },
-  {
     key: 'nginx',
     label: 'nginx',
     groupLabel: 'nginx',
@@ -257,6 +246,14 @@ export const TEXT_NODE_STYLE: Partial<
 /* ------------------------------------------------------------------ */
 
 export interface ComponentSpec {
+  /**
+   * 组件库条目的唯一 key。
+   *
+   * 2026-11-07：条目与节点类型解耦 —— 预设条目（如「处理」）和正牌类型（`shape-rect`）
+   * 可以指向同一个 nodeType，只是默认文案 / 尺寸不同。React key、搜索、拖拽载荷都用它，
+   * 而 `nodeType` 才是真正落库的类型。
+   */
+  key: string;
   nodeType: NodeType;
   label: string;
   width: number;
@@ -270,13 +267,27 @@ export interface ComponentCategory {
   items: ComponentSpec[];
 }
 
+/** 正牌类型条目：key 就是 nodeType */
 const spec = (
   nodeType: NodeType,
   label: string,
   width: number,
   height: number,
   defaultSubLabel = '',
-): ComponentSpec => ({ nodeType, label, width, height, defaultSubLabel });
+): ComponentSpec => ({ key: nodeType, nodeType, label, width, height, defaultSubLabel });
+
+/**
+ * 预设条目：面板上仍是独立的一张卡（处理 / 判断 / 数据…），
+ * 但拖出来创建的是已有的形状类型，只额外带上默认文案和尺寸。
+ */
+const preset = (
+  key: string,
+  nodeType: NodeType,
+  label: string,
+  width: number,
+  height: number,
+  defaultSubLabel = '',
+): ComponentSpec => ({ key, nodeType, label, width, height, defaultSubLabel });
 
 export const COMPONENT_CATEGORIES: ComponentCategory[] = [
   {
@@ -314,13 +325,15 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
     key: 'flow',
     label: '流程图',
     items: [
+      // 开始（胶囊）和预定义过程（矩形 + 两道竖线）轮廓独有，保留为真类型；
+      // 其余 5 个与形状共用同一段渲染，改成预设，不再占 nodeType（2026-11-07）。
       spec('flow-start', '开始', 160, 60),
-      spec('flow-process', '处理', 160, 80),
-      spec('flow-decision', '判断', 160, 80),
-      spec('flow-data', '数据', 160, 80),
-      spec('flow-document', '文档', 160, 80),
+      preset('flow-process', 'shape-rect', '处理', 160, 80),
+      preset('flow-decision', 'shape-diamond', '判断', 160, 80),
+      preset('flow-data', 'shape-parallelogram', '数据', 160, 80),
+      preset('flow-document', 'shape-document', '文档', 160, 80),
       spec('flow-predefined', '预定义过程', 160, 80),
-      spec('flow-connector', '连接点', 64, 64),
+      preset('flow-connector', 'shape-circle', '连接点', 64, 64),
     ],
   },
   {
@@ -354,6 +367,8 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
       spec('container', '容器', 140, 70),
       spec('nginx', 'Nginx', 160, 90, ':8080'),
       spec('proxy', '反向代理', 160, 90, ':8080'),
+      // 2026-11-07：存储 / 数据整类并入计算（用户定稿）
+      spec('db', '数据库', 160, 90, ':3306'),
     ],
   },
   {
@@ -369,47 +384,20 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
     ],
   },
   {
-    key: 'storage',
-    label: '存储 / 数据',
-    items: [
-      spec('db', '数据库', 160, 90, ':3306'),
-    ],
-  },
-  {
-    key: 'middleware',
-    label: '中间件 / 网关',
-    items: [spec('gateway', 'API 网关', 160, 80)],
-  },
-  {
-    key: 'external',
-    label: '外部服务',
+    /*
+     * 网络与接入（2026-11-07 用户定稿：外部服务 + 网络设备 + 中间件 三合一）。
+     * 顺序按"由外到内"：先互联网 / 专线，再交换机 / 路由器 / 子网，最后 API 网关。
+     */
+    key: 'network',
+    label: '网络与接入',
     items: [
       spec('external', '互联网 / 外部服务', 160, 80),
       spec('link', '专线', 140, 60),
-    ],
-  },
-  {
-    key: 'network',
-    label: '网络设备',
-    items: [
       spec('switch', '交换机', 120, 60),
       spec('router', '路由器', 120, 60),
       spec('subnet', '子网', 360, 220, '10.0.0.0/16'),
+      spec('gateway', 'API 网关', 160, 80),
     ],
-  },
-  {
-    key: 'structure',
-    label: '结构件',
-    items: [
-      spec('group', '分组泳道', 420, 300),
-      spec('zone', '区域框', 420, 300),
-      spec('legend', '图例', 220, 160),
-    ],
-  },
-  {
-    key: 'custom',
-    label: '自定义',
-    items: [spec('custom', '自定义卡片', 160, 80)],
   },
 ];
 
@@ -419,14 +407,19 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
  * 单行元素 = 普通节点（有边框、有底色、能连线、能进分组），只是默认 200×40：
  * 高度 <52 时图标本来就不画，副文本默认空 —— 于是视觉上就是"一行字 + 一个框"。
  */
-export const STRUCTURE_NODE_SPECS: ComponentSpec[] = [spec('element', '单行元素', 200, 40), spec('line', '线条', 200, 40)];
+export const STRUCTURE_NODE_SPECS: ComponentSpec[] = [
+  spec('element', '单行元素', 200, 40),
+  spec('line', '线条', 200, 40),
+  // 2026-11-07：原来的「自定义」整类并入结构区，不再单独占一个分类
+  spec('custom', '自定义卡片', 160, 80),
+];
 
 /** nodeType → 默认尺寸 / 默认副文本，供拖入创建时使用 */
 export const COMPONENT_INDEX: Record<NodeType, ComponentSpec> = Object.fromEntries(
-  [...COMPONENT_CATEGORIES.flatMap((c) => c.items), ...STRUCTURE_NODE_SPECS].map((i) => [
-    i.nodeType,
-    i,
-  ]),
+  // 只收录"正牌"条目：预设（key ≠ nodeType）的默认文案不能覆盖类型本身的默认值
+  [...COMPONENT_CATEGORIES.flatMap((c) => c.items).filter((i) => i.key === i.nodeType), ...STRUCTURE_NODE_SPECS].map(
+    (i) => [i.nodeType, i],
+  ),
 ) as Record<NodeType, ComponentSpec>;
 
 /* ------------------------------------------------------------------ */

@@ -61,6 +61,18 @@ export const ALLOWED_ICON_KEYS = [
   'tabler:git-branch',
   'tabler:settings',
   'tabler:circle-dot',
+  // 2026-11-07 档 2：把撞车图标拆开（新拖出来的节点用新图标）
+  'tabler:arrows-split-2',
+  'tabler:arrows-exchange',
+  'tabler:plug',
+  'tabler:heading',
+  'tabler:note',
+  'tabler:message-circle',
+  'tabler:lock-access',
+  'k8s:namespace',
+  'k8s:deployment',
+  'k8s:service',
+  'k8s:ingress',
 ] as const;
 
 export type IconKey = (typeof ALLOWED_ICON_KEYS)[number];
@@ -77,12 +89,19 @@ export const DEFAULT_ICON_KEY: IconKey = 'tabler:cube';
  * - 计算资源 → server / server-2 / box；容器与区域 → cube
  * - 形状 / 流程图 → 基础几何符号（画布上轮廓自绘，图标只给组件库卡片看）
  */
+/**
+ * 分组（不是节点，是 DiagramGroup）的默认图标。
+ * 2026-11-07：`group` / `zone` 两个"伪节点类型"下线后，这里单独给分组一个 key，
+ * 别再借 `iconKeyFor('group')`。
+ */
+export const GROUP_ICON_KEY: IconKey = 'tabler:cube';
+
 export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   // 网络安全
   firewall: 'tabler:shield-lock',
   vip: 'tabler:plug-connected',
-  lb: 'tabler:arrow-right-square',
-  vpn: 'tabler:shield-lock',
+  lb: 'tabler:arrows-split-2',
+  vpn: 'tabler:lock-access',
 
   // 计算
   server: 'tabler:server',
@@ -90,15 +109,15 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   container: 'tabler:box',
   // nginx 用「N」方块标记（原来指向 devicon 的全称 wordmark，字太小认不出）
   nginx: 'arch:nginx',
-  proxy: 'tabler:arrow-right-square',
+  proxy: 'tabler:arrows-exchange',
 
   // 容器编排
   'k8s-cluster': 'devicon:kubernetes',
-  namespace: 'devicon:kubernetes',
-  deployment: 'devicon:kubernetes',
-  service: 'devicon:kubernetes',
+  namespace: 'k8s:namespace',
+  deployment: 'k8s:deployment',
+  service: 'k8s:service',
   pod: 'k8s:pod',
-  ingress: 'tabler:arrow-right-square',
+  ingress: 'k8s:ingress',
 
   // 数据
   db: 'tabler:database',
@@ -110,20 +129,17 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
   // 网络
   switch: 'tabler:network',
   router: 'tabler:router',
-  link: 'tabler:arrow-right-square',
+  link: 'tabler:plug',
   subnet: 'tabler:route',
 
   // 结构
-  group: 'tabler:cube',
-  zone: 'tabler:cube',
 
   // 其他
   text: 'tabler:typography',
-  legend: 'tabler:typography',
   // 文本类（2026-11-04）：标题 / 便利贴 / 气泡注释
-  title: 'tabler:typography',
-  sticky: 'tabler:typography',
-  annotation: 'tabler:typography',
+  title: 'tabler:heading',
+  sticky: 'tabler:note',
+  annotation: 'tabler:message-circle',
   // 单行元素：默认不显示图标（高度 40 本来就不画），这里只给一个兜底 key
   element: 'tabler:typography',
   // 自由线条：画布上不画图标，这个 key 只给左侧面板的卡片用
@@ -145,12 +161,7 @@ export const ICON_KEY_BY_NODE_TYPE: Record<NodeType, IconKey> = {
 
   // 流程图（2026-11-06）：同样只给卡片用，画布上展示自绘轮廓
   'flow-start': 'tabler:player-play',
-  'flow-process': 'tabler:rectangle',
-  'flow-decision': 'tabler:git-branch',
-  'flow-data': 'tabler:shape',
-  'flow-document': 'tabler:file-text',
   'flow-predefined': 'tabler:settings',
-  'flow-connector': 'tabler:circle-dot',
   custom: 'tabler:cube',
 };
 

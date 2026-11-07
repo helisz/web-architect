@@ -50,7 +50,7 @@ export function EdgeSettings() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-40 w-56 rounded-lg border border-[var(--panel-border)] bg-white p-3 shadow-lg">
+        <div className="glass anim-pop absolute right-0 top-10 z-40 w-56 rounded-lg p-3">
           <p className="mb-2 text-[11px] font-semibold text-[var(--text-secondary)]">新建连线的默认样式</p>
 
           <label className="mb-1 block text-[11px] text-[var(--text-secondary)]">线型</label>

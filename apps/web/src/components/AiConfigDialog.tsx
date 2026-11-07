@@ -188,7 +188,7 @@ export function AiConfigDialog() {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/30"
+      className="anim-backdrop fixed inset-0 z-50 grid place-items-center bg-black/30"
       role="dialog"
       aria-modal
       aria-label="AI 模型设置"
@@ -196,7 +196,7 @@ export function AiConfigDialog() {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div className="flex max-h-[86vh] w-[560px] flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+      <div className="anim-window flex max-h-[86vh] w-[560px] flex-col overflow-hidden rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-[var(--panel-border)] px-4 py-2.5">
           <div>
             <p className="text-sm font-semibold">AI 模型设置</p>

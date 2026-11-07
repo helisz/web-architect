@@ -19,20 +19,60 @@ export const MAX_GROUP_DEPTH = 3;
 /**
  * 分组标题栏是否只有一行。
  *
- * 用户 2026-11-04 拍板：结构区第一张卡（通用「分组」）**不支持副文本** ——
- * 建出来的组用 `extJson.singleLine` 标记，属性面板不给副文本输入框，
- * 标题栏也只按一行的高度画。带副文本的预设分组（服务器/集群/nginx）不受影响。
+ * 2026-11-07 起它是**属性面板里那个「副文本」勾选框的反面**（字段名沿用 `singleLine`）：
+ * - 勾上「副文本」→ singleLine 不设 → 标题栏显示副文本行，最小 38px；
+ * - 取消勾选 → `extJson.singleLine = true` → 不显示副文本行，标题栏 24px（和通用「分组」一样）。
+ *
+ * 早先这条是"类型决定"的（通用分组不支持副文本、预设分组才支持），现在改成每个组自己选。
  */
 export function isSingleLineGroup(group: { extJson?: Record<string, unknown> }): boolean {
   return group.extJson?.singleLine === true;
 }
 
-/** 标题栏实际高度：有副文本（且没被标成单行）才用两行的高度 */
+/** 10px 等宽字体下一个字符的估算宽度：CJK / 全角 10px，其余 6px */
+const MONO_10_WIDE = 10;
+const MONO_10_NARROW = 6;
+
+function textWidth(text: string): number {
+  let width = 0;
+  for (const ch of text) {
+    width += (ch.codePointAt(0) ?? 0) > 0x2e80 ? MONO_10_WIDE : MONO_10_NARROW;
+  }
+  return width;
+}
+
+/**
+ * 副文本会占几行（10px 等宽字体，按标题栏剩余宽度估算）。
+ *
+ * 为什么估算而不是量 DOM：标题栏高度要同时喂给画布布局和 React Flow 的节点尺寸
+ * （`displayGroupHeight`），两边必须用同一个纯函数得到同一个数，量 DOM 会引入时序差异。
+ * 副文本本身有长度上限（LIMITS.subLabelMax），估算偏差最多半个字宽，不影响观感。
+ */
+export function groupSubLabelLines(group: { subLabel?: string; width: number }): number {
+  const text = group.subLabel ?? '';
+  if (!text.trim()) return 1;
+  // 标题栏左右各 8px 内距，前面还有图标 14px + 间距 6px
+  const avail = Math.max(40, group.width - 8 * 2 - 14 - 6);
+  return text
+    .split('\n')
+    .reduce((sum, line) => sum + Math.max(1, Math.ceil(textWidth(line) / avail)), 0);
+}
+
+/**
+ * 标题栏实际高度（用户 2026-11-07）：
+ * - 没勾副文本 → 24px（只有一行标题，和通用「分组」一样高）；
+ * - 勾了副文本 → 至少 38px（服务器那种），副文本每多一行 +10px。
+ *
+ * 行内构成：上内距 5 + 标题 16 + 间距 1 + 副文本 10×行数 + 下内距 4。
+ */
 export function groupHeaderHeight(group: {
   subLabel?: string;
+  width: number;
   extJson?: Record<string, unknown>;
 }): number {
-  return group.subLabel && !isSingleLineGroup(group) ? GROUP_HEADER_HEIGHT : GROUP_HEADER_HEIGHT_SINGLE;
+  if (isSingleLineGroup(group)) return GROUP_HEADER_HEIGHT_SINGLE;
+  const lines = groupSubLabelLines(group);
+  return Math.max(GROUP_HEADER_HEIGHT, 26 + 10 * lines);
 }
 
 /**

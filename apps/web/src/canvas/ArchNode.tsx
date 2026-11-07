@@ -49,6 +49,8 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
    * 改成铺满节点的 SVG，轮廓和文字各管各的。
    */
   const isShape = isShapeNodeType(kind);
+  /** 圆柱：名称要避开顶盖（用户 2026-11-07，只影响 shape-cylinder，数据库节点不动） */
+  const isCylinder = kind === 'shape-cylinder';
   const outline = isShape ? shapePath(kind, node.width, node.height) : null;
   // 文字样式（字号 / 加粗 / 斜体 / 下划线）：extJson 覆盖 > 按类型的默认（标题 28px 加粗）
   const textStyle = textStyleOf(kind, node.extJson);
@@ -165,7 +167,11 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
         opacity: node.visible ? 1 : 0.4,
         // 对齐（用户 2026-11-04）：水平/垂直都由 extJson 决定，文本类默认左上。
         // 形状/流程节点强制居中：文字压在图形正中是这类节点的默认读法。
+        // 圆柱（2026-11-07 用户定稿）：只是让字"靠下一点"，不是顶到 15% 处开始排。
+        // 做法是给容器顶 15% 的 padding、继续垂直居中 —— 文字落在"顶盖以下那块的中间"，
+        // 比节点几何中心低约 7.5% 高度。其它形状仍按几何中心。
         justifyContent: isShape ? 'center' : horizontalToFlex(textStyle.align),
+        paddingTop: isCylinder ? Math.round(node.height * 0.15) : undefined,
         alignItems: isShape ? 'center' : verticalToFlex(textStyle.valign),
         textAlign: isShape ? 'center' : textStyle.align,
       }}
@@ -175,13 +181,15 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
       }}
     >
       {/* 形状轮廓（2026-11-06）：铺满节点盒子的 SVG。
+          2026-11-07：SVG 是绝对定位，会盖在文档流的文字之上（白色填充直接吃掉标题），
+          所以 SVG 压到 z-0、标题/副文本/改名输入框抬到 z-1。
           viewBox 直接用节点当前宽高，NodeResizer 拖动时图形跟着实时拉伸；
           preserveAspectRatio="none" 让任意宽高比都填满盒子（圆会被拉成椭圆，
           但四条边的中点仍在轮廓上，和四边 Handle 对齐）。
           放在 NodeResizer 之前：不透明的填充色不会盖住缩放小方块。 */}
       {isShape && outline && (
         <svg
-          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+          className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible"
           viewBox={`0 0 ${node.width} ${node.height}`}
           preserveAspectRatio="none"
           aria-hidden
@@ -208,19 +216,22 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
       )}
 
       {/* 拖拽改尺寸（规格 §5.3）：锁定的节点不给手柄。
-          标题下限抬到 40：默认 28px 的字在 32 高的框里会裁掉上下沿。 */}
+          标题下限抬到 40：默认 28px 的字在 32 高的框里会裁掉上下沿。
+          2026-11-07：小方块从 8px 放大到 10px；四条边的可拖动范围在 index.css 里
+          用伪元素放宽到 13px（视觉仍是 1px 细线），并且压住连线手柄，见那里的注释。 */}
       <NodeResizer
         isVisible={selected && !node.locked}
-        minWidth={isTitle ? 80 : 64}
-        minHeight={40}
+        // 与 schema 的 LIMITS.nodeMinWidth / nodeMinHeight 对齐（2026-11-07：64×40 → 24×24）
+        minWidth={isTitle ? 80 : 24}
+        minHeight={24}
         lineClassName="!border-[var(--primary)]"
-        handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--primary)] !bg-white"
+        handleClassName="!h-2.5 !w-2.5 !rounded-sm !border !border-[var(--primary)] !bg-white"
       />
 
       {editing ? (
         <input
           ref={inputRef}
-          className="nodrag nopan w-full rounded border border-[var(--primary)] bg-white px-1 outline-none"
+          className="nodrag nopan relative z-[1] w-full rounded border border-[var(--primary)] bg-white px-1 outline-none"
           style={{
             color: node.textColor,
             textAlign: isShape ? 'center' : textStyle.align,
@@ -245,7 +256,7 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
            字号、字重、斜体、下划线仍走 textStyle（属性面板能改），
            但 align/valign 不参与 —— 图形里文字偏到一边会显得没对齐。 */
         <span
-          className="max-w-full whitespace-pre-wrap break-words text-center leading-snug"
+          className="relative z-[1] max-w-full whitespace-pre-wrap break-words text-center leading-snug"
           style={{ ...textStyleCss(textStyle), textAlign: 'center' }}
         >
           {node.label}
@@ -279,7 +290,7 @@ function ArchBox({ data, selected }: NodeProps<ArchFlowNode>) {
           形状/流程图默认副文本为空，用户真要填时同样居中显示。 */}
       {node.subLabel && !isAnnotation && (
         <span
-          className="mono line-clamp-2 w-full whitespace-pre-line break-words text-[10px] leading-[13px] opacity-70"
+          className="mono relative z-[1] line-clamp-2 w-full whitespace-pre-line break-words text-[10px] leading-[13px] opacity-70"
           style={{ textAlign: isShape ? 'center' : textStyle.align }}
         >
           {node.subLabel}

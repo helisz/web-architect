@@ -151,10 +151,34 @@ describe('分组标题栏高度（用户 2026-11-04）', () => {
     expect(groupHeaderHeight(preset)).toBe(GROUP_HEADER_HEIGHT);
   });
 
-  it('没有副文本的普通分组也只用一行高度（不留空白第二行）', () => {
+  it('勾了副文本但还没填：仍按两行高度（留着写的地方）', () => {
     const { diagram } = nested();
     const empty = createGroup(diagram.diagramId, { x: 0, y: 0 }, { label: '空组' });
-    expect(groupHeaderHeight(empty)).toBe(GROUP_HEADER_HEIGHT_SINGLE);
+    expect(groupHeaderHeight(empty)).toBe(GROUP_HEADER_HEIGHT);
+  });
+
+  it('副文本太长：标题栏按行数动态加高（2026-11-07）', () => {
+    const { diagram } = nested();
+    const base = createGroup(diagram.diagramId, { x: 0, y: 0 }, { label: '长副文本', width: 420 });
+    const oneLine = groupHeaderHeight({ ...base, subLabel: '物理机 / 虚拟机' });
+    // 420 宽，可用宽 420-16-14-6=384，10px 等宽下这串约 90px → 一行
+    expect(oneLine).toBe(GROUP_HEADER_HEIGHT);
+
+    const twoLines = groupHeaderHeight({ ...base, subLabel: '很长的副文本'.repeat(12) });
+    expect(twoLines).toBeGreaterThan(oneLine);
+
+    const threeLines = groupHeaderHeight({ ...base, subLabel: '很长的副文本'.repeat(40) });
+    expect(threeLines).toBeGreaterThan(twoLines);
+  });
+
+  it('关掉副文本后，同一段文字也不占高度（只画一行标题）', () => {
+    const { diagram } = nested();
+    const group = createGroup(diagram.diagramId, { x: 0, y: 0 }, {
+      label: '关掉副文本',
+      subLabel: '很长的副文本'.repeat(40),
+      extJson: { singleLine: true },
+    });
+    expect(groupHeaderHeight(group)).toBe(GROUP_HEADER_HEIGHT_SINGLE);
   });
 });
 

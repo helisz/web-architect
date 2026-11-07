@@ -48,8 +48,8 @@ export function GuestImportDialog({ onClose }: { onClose: () => void }) {
   if (total === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/30" role="dialog" aria-modal aria-label="导入游客图">
-      <div className="w-[400px] rounded-lg bg-white p-4 shadow-xl">
+    <div className="anim-backdrop fixed inset-0 z-50 grid place-items-center bg-black/30" role="dialog" aria-modal aria-label="导入游客图">
+      <div className="anim-window w-[400px] rounded-lg bg-white p-4 shadow-xl">
         <p className="text-sm font-semibold">把游客期间的图导入账号？</p>
         <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
           本机有 <b className="text-[var(--text-primary)]">{total}</b> 张游客图。导入后会在你的账号里生成副本

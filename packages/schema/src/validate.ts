@@ -248,6 +248,16 @@ function enforceIconRule(d: ArchitectureDiagram, ctx: Ctx, repair: boolean): voi
 const LEGACY_TYPE_MAP: Record<string, NodeType> = {
   waf: 'firewall',
   ids: 'custom',
+  // 2026-11-07 精简：流程图里与形状同渲染的 5 个类型并入 shape-*（文案和尺寸都保留在原节点上）
+  'flow-process': 'shape-rect',
+  'flow-decision': 'shape-diamond',
+  'flow-data': 'shape-parallelogram',
+  'flow-document': 'shape-document',
+  'flow-connector': 'shape-circle',
+  // 结构件里的两个"伪节点"（拖出来只是卡片，不是分组）与「图例」一起下线
+  group: 'custom',
+  zone: 'custom',
+  legend: 'text',
 };
 
 /**

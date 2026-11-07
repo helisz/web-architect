@@ -11,9 +11,10 @@ import { ToolIcon } from './ToolIcons.js';
  * 位置选在画布底部居中：顶部有 banner，左下是状态条，右下是 MiniMap，只有这里不打架。
  */
 const TONE: Record<ToastKind, { box: string; icon: 'close' | 'database' | 'history' }> = {
-  info: { box: 'border-[#BAE6FD] bg-[#F0F9FF] text-[#075985]', icon: 'history' },
-  success: { box: 'border-emerald-200 bg-emerald-50 text-emerald-700', icon: 'history' },
-  error: { box: 'border-[#F5C2C7] bg-[#FEF3F2] text-[#B42318]', icon: 'close' },
+  // 2026-11-07：所有浮层统一半透明 —— toast 保留语义色，只把底色降到 70% + 高斯模糊
+  info: { box: 'border-[#BAE6FD]/70 bg-[#F0F9FF]/70 text-[#075985]', icon: 'history' },
+  success: { box: 'border-emerald-200/70 bg-emerald-50/70 text-emerald-700', icon: 'history' },
+  error: { box: 'border-[#F5C2C7]/70 bg-[#FEF3F2]/70 text-[#B42318]', icon: 'close' },
 };
 
 const LIFETIME_MS: Record<ToastKind, number> = { info: 4000, success: 3500, error: 7000 };
@@ -30,7 +31,7 @@ function ToastRow({ toast }: { toast: ToastItem }) {
   return (
     <div
       role={toast.kind === 'error' ? 'alert' : 'status'}
-      className={`pointer-events-auto flex max-w-[520px] items-start gap-2 rounded-md border px-3 py-2 text-[12px] leading-5 shadow-sm ${tone.box}`}
+      className={`anim-pop pointer-events-auto flex max-w-[520px] items-start gap-2 rounded-md border px-3 py-2 text-[12px] leading-5 shadow-sm backdrop-blur-[20px] backdrop-saturate-150 ${tone.box}`}
     >
       <span className="min-w-0 flex-1">{toast.text}</span>
       <button

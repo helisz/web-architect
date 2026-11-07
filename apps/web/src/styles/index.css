@@ -41,7 +41,8 @@
   --radius-panel: 0px;
 
   /* 浮动玻璃面板（第二批用） */
-  --glass-bg: rgba(255, 255, 255, 0.8);
+  /* 用户 2026-11-07：所有浮层统一 60% 不透明度（原来是 80% / 右侧面板 100% 纯白） */
+  --glass-bg: rgba(255, 255, 255, 0.6);
   --glass-blur: blur(20px) saturate(150%);
   --glass-line: rgba(26, 26, 24, 0.08);
   --glass-shadow: 0 1px 2px rgba(26, 26, 24, 0.05), 0 10px 28px rgba(26, 26, 24, 0.07);
@@ -54,6 +55,11 @@
   --font-ui: Inter, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', system-ui, -apple-system,
     sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, 'Courier New', monospace;
+
+  /* 破坏性操作（删除）统一色（2026-11-07）：之前 --err 被多处引用但从未定义，
+     那些 class 实际是空样式，所以「删除」按钮看着忽红忽灰。 */
+  --err: #d33b32;
+  --err-soft: #fdf1f0;
 
   /* 语义色（连线）：和橙同"矿物感"，不用霓虹绿 */
   --edge-external: #c97a12;
@@ -106,6 +112,10 @@ body {
    就离节点边框十来像素，看着"没连上"。所以 24px 的命中区放到 ::after 上，
    它不参与 RF 的测量，事件照样冒泡到手柄本身。 */
 .arch-handle {
+  /* 用户 2026-11-07：连线手柄的命中优先级高于缩放拖动范围 —— 手柄在 DOM 里
+     本来就排在 NodeResizer 后面，但 NodeResizer 被我们抬到 z-index 3，
+     所以这里也要显式抬到它之上。 */
+  z-index: 4;
   width: 8px !important;
   height: 8px !important;
   min-width: 0 !important;
@@ -146,6 +156,31 @@ body {
   box-shadow: 0 0 0 3px rgba(252, 93, 32, 0.18);
 }
 
+/* 缩放（改尺寸）手柄的可拖动范围（用户 2026-11-07）：
+   「垂直/水平拖动节点边缘调整大小的时候能触发拖动的范围太小了」。
+   原因有两个：
+   1) React Flow 的边线本身就是 1px，鼠标必须精确压在那 1px 上；
+   2) 每条边的中点是连线手柄（.arch-handle 的 24px 命中区），DOM 里又排在
+      NodeResizer 后面，于是边框中段整段被连线手柄抢走 —— 只剩下一条很窄的缝能拖。
+   处理：边线用伪元素把命中区放宽到 13px（视觉仍是 1px 细线），
+   并把缩放手柄抬到连线手柄之上；四角再单独放宽一点（那里没有连线手柄）。 */
+.react-flow__resize-control {
+  z-index: 3;
+}
+.react-flow__resize-control.line::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+.react-flow__resize-control.handle.top.left::after,
+.react-flow__resize-control.handle.top.right::after,
+.react-flow__resize-control.handle.bottom.left::after,
+.react-flow__resize-control.handle.bottom.right::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
 /* 空白画布用标准箭头（用户 2026-11-05）。
    开了 selectionOnDrag 之后 React Flow 会给 pane 加 .selection 类并设 cursor: pointer，
    于是鼠标停在啥都没有的画布上也是个"手"，看着像有什么可点。这里按用户要求改回箭头；
@@ -178,39 +213,64 @@ body {
   background: var(--text-tertiary);
 }
 
-/* ─────────── 浮动玻璃面板（2026-11-06 第二批） ───────────
-   组件库 / 属性面板 / 版本历史都浮在画布上：离外沿 10px、90° 直角、
-   80% 白 + 高斯模糊、一圈极淡投影。收起态不留白框，只浮一颗手柄。 */
-.floating-panel {
-  position: absolute;
-  z-index: 40;
+/* ─────────── 玻璃浮层（2026-11-06 第二批；2026-11-07 统一到 60%） ───────────
+   `.glass` 只管"表面"：60% 白 + 高斯模糊 + 发丝边 + 极淡投影。
+   `.floating-panel` 再补"定位"（浮在画布上、90° 直角、裁掉溢出）。
+   右侧属性 / 版本面板不浮在画布上（它们占布局、画布让位），但用同一套表面，
+   离窗口边缘 10px —— 和左侧组件库保持一致。 */
+.glass {
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-line);
-  border-radius: var(--radius-panel);
   box-shadow: var(--glass-shadow);
+}
+.floating-panel {
+  position: absolute;
+  z-index: 40;
+  border-radius: var(--radius-panel);
   overflow: hidden;
 }
 
 /* 拖节点 / 拖画布时把模糊降级成纯色：大面积 backdrop-filter 在拖拽时会掉帧 */
-body:has(.react-flow__node.dragging) .floating-panel,
-body:has(.react-flow__pane.dragging) .floating-panel,
-body:has(.react-flow__nodesselection-rect) .floating-panel {
+body:has(.react-flow__node.dragging) .glass,
+body:has(.react-flow__pane.dragging) .glass,
+body:has(.react-flow__nodesselection-rect) .glass {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  background: rgba(255, 255, 255, 0.97);
+  background: rgba(255, 255, 255, 0.94);
 }
 
-/* 属性卡指向被选中元素的三角（实心橙，浅色画布上才看得清） */
-.panel-arrow {
-  position: absolute;
-  width: 0;
-  height: 0;
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  z-index: 41;
-  pointer-events: none;
+/* ─────────── 浮层 / 窗口入场动画（用户 2026-11-07：全部 150ms） ───────────
+   用独立的 translate / scale 属性而不是 transform：这样不会覆盖元素自身的
+   Tailwind transform（例如搜索框的 -translate-x-1/2、缩放手柄的 translate:-50%）。
+   只做入场：这些浮层都是条件渲染，退场时 DOM 已经没了。 */
+@keyframes arch-win-in {
+  from { opacity: 0; translate: 0 8px; scale: 0.985; }
+  to   { opacity: 1; translate: 0 0; scale: 1; }
 }
-.panel-arrow.right { border-right: 7px solid var(--accent-500); }
-.panel-arrow.left { border-left: 7px solid var(--accent-500); }
+@keyframes arch-pop-in {
+  from { opacity: 0; translate: 0 -4px; scale: 0.98; }
+  to   { opacity: 1; translate: 0 0; scale: 1; }
+}
+@keyframes arch-slide-right {
+  from { opacity: 0; translate: 14px 0; }
+  to   { opacity: 1; translate: 0 0; }
+}
+@keyframes arch-slide-left {
+  from { opacity: 0; translate: -14px 0; }
+  to   { opacity: 1; translate: 0 0; }
+}
+@keyframes arch-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.anim-window { animation: arch-win-in 150ms ease-out both; }
+.anim-pop { animation: arch-pop-in 150ms ease-out both; }
+.anim-slide-right { animation: arch-slide-right 150ms ease-out both; }
+.anim-slide-left { animation: arch-slide-left 150ms ease-out both; }
+.anim-backdrop { animation: arch-fade-in 150ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-window, .anim-pop, .anim-slide-right, .anim-slide-left, .anim-backdrop { animation: none; }
+}

@@ -161,6 +161,21 @@ describe('Schema → ReactFlow 映射（ADR-0001）', () => {
     expect(anchorOf(flow[0]!.sourceHandle)).toBe('bottom');
   });
 
+  it('节点/分组都带 measured（2026-11-07 回归：不带的话选中一次连线就整片消失）', () => {
+    const store = useDiagramStore.getState();
+    const node = store.addNode('server', { x: 10, y: 20 });
+    const group = useDiagramStore.getState().addGroup({ x: 0, y: 0 }, { width: 320, height: 240 });
+
+    const flow = toFlowNodes(useDiagramStore.getState().diagram, null);
+    const flowNode = flow.find((n) => n.id === node.nodeId)!;
+    const flowGroup = flow.find((n) => n.id === group.groupId)!;
+
+    // React Flow 的 adoptUserNodes 在节点对象换新时，只有 userNode.measured 存在
+    // 才会沿用旧的 handleBounds；否则节点退回未测量状态，连在上面的线直接不渲染。
+    expect(flowNode.measured).toEqual({ width: node.width, height: node.height });
+    expect(flowGroup.measured).toEqual({ width: 320, height: 240 });
+  });
+
   it('隐藏节点不进画布，但数据保留', () => {
     const node = useDiagramStore.getState().addNode('server', { x: 0, y: 0 });
     useDiagramStore.setState((s) => ({

@@ -141,7 +141,13 @@ interface DiagramStore {
   cancelDelete: () => void;
 
   /** 画布编辑动作（M1） */
-  addNode: (nodeType: NodeType, position: Point, groupId?: string | null) => DiagramNode;
+  addNode: (
+    nodeType: NodeType,
+    position: Point,
+    groupId?: string | null,
+    /** 组件库预设条目的默认文案 / 尺寸（不传就用类型自身的默认值） */
+    defaults?: Partial<Pick<DiagramNode, 'label' | 'subLabel' | 'width' | 'height'>>,
+  ) => DiagramNode;
   moveNode: (nodeId: string, position: Point) => void;
   resizeNode: (nodeId: string, size: { width: number; height: number }) => void;
   /** 线条专用：端点一动，盒子跟着重算（x/y/width/height 与 extJson.line.a/b 必须一起写） */
@@ -606,9 +612,14 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
 
   cancelDelete: () => set({ pendingDelete: null }),
 
-  addNode: (nodeType, position, groupId) => {
+  addNode: (nodeType, position, groupId, defaults) => {
     const state = get();
-    const node = createNode(nodeType, state.diagram.diagramId, position, groupId ? { groupId } : {});
+    const node = createNode(nodeType, state.diagram.diagramId, position, {
+      ...(groupId ? { groupId } : {}),
+      ...(defaults ?? {}),
+      // undefined 会把 createNode 里的默认值覆盖成 undefined，这里只保留有值的字段
+      ...Object.fromEntries(Object.entries(defaults ?? {}).filter(([, value]) => value !== undefined)),
+    });
     // 线条（用户 2026-11-05）：拖进来就是一条水平线，端点存相对坐标
     if (nodeType === 'line') {
       node.extJson = {

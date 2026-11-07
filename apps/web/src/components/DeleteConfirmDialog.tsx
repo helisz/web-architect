@@ -49,8 +49,8 @@ export function DeleteConfirmDialog() {
   const rest = names.length > 4 ? ' 等' : '';
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/30" role="dialog" aria-modal>
-      <div className="w-[360px] rounded-lg bg-white p-4 shadow-xl">
+    <div className="anim-backdrop fixed inset-0 z-50 grid place-items-center bg-black/30" role="dialog" aria-modal>
+      <div className="anim-window w-[360px] rounded-lg bg-white p-4 shadow-xl">
         <p className="text-sm font-semibold">确认删除？</p>
         <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
           将删除 {pending.nodeIds.length > 0 && `${pending.nodeIds.length} 个节点`}
@@ -73,7 +73,7 @@ export function DeleteConfirmDialog() {
             type="button"
             autoFocus
             onClick={confirmDelete}
-            className="rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700"
+            className="rounded border border-[var(--err)] bg-[var(--err)] px-3 py-1 text-xs text-white hover:brightness-95"
           >
             删除 {total} 项
           </button>

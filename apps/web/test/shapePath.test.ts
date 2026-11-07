@@ -24,9 +24,12 @@ describe('形状 / 流程图轮廓', () => {
 
   it('形状类型全部来自 NODE_TYPES，普通节点不会误入轮廓分支', () => {
     for (const type of SHAPE_NODE_TYPES) expect(NODE_TYPES).toContain(type);
-    expect(SHAPE_NODE_TYPES).toHaveLength(17);
+    // 2026-11-07 精简：10 个形状 + 2 个流程专属（开始 / 预定义过程）
+    expect(SHAPE_NODE_TYPES).toHaveLength(12);
     expect(isShapeNodeType('shape-circle')).toBe(true);
-    expect(isShapeNodeType('flow-decision')).toBe(true);
+    expect(isShapeNodeType('shape-diamond')).toBe(true);
+    // 「判断」现在是组件库预设，落库类型是 shape-diamond，不再是独立类型
+    expect(isShapeNodeType('flow-decision')).toBe(false);
     expect(isShapeNodeType('server')).toBe(false);
     expect(isShapeNodeType('line')).toBe(false);
   });

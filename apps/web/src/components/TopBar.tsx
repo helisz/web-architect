@@ -9,6 +9,7 @@ import { useGuestSession } from '../data/guestSession.js';
 import { ToolIcon, type ToolIconName } from './ToolIcons.js';
 import { goToGallery } from '../data/navigate.js';
 import { useAiStore } from '../store/useAiStore.js';
+import { flushNow } from '../data/usePersistence.js';
 
 const SAVE_LABEL: Record<string, string> = {
   saved: '已保存',
@@ -16,15 +17,87 @@ const SAVE_LABEL: Record<string, string> = {
   dirty: '未保存',
 };
 
-function SaveBadge({ state }: { state: string }) {
-  // 用户 2026-11-04：去掉底色/边框，只留状态色文字，和版本号同一行同一字号
-  const tone =
-    state === 'saved'
-      ? 'text-emerald-600'
-      : state === 'saving'
-        ? 'text-amber-600'
-        : 'text-[var(--text-secondary)]';
-  return <span className={`shrink-0 text-[11px] leading-4 ${tone}`}>{SAVE_LABEL[state] ?? state}</span>;
+/**
+ * 保存按钮（用户 2026-11-07）：软盘图标 + 右下角状态灯，悬停弹出保存详情。
+ *
+ * 状态灯：绿=已保存、灰=有改动未保存、琥珀=保存中、红=冲突或保存被禁用。
+ * 点击 = 立刻写一次（等价 Ctrl+S，绕过节流）。
+ */
+function SaveButton() {
+  const saveState = useDiagramStore((s) => s.saveState);
+  const lastSavedAt = useDiagramStore((s) => s.lastSavedAt);
+  const version = useDiagramStore((s) => s.diagram.version);
+  const persisted = useDiagramStore((s) => s.persisted);
+  const saveDisabled = useDiagramStore((s) => s.saveDisabled);
+  const saveError = useDiagramStore((s) => s.saveError);
+  const conflict = useDiagramStore((s) => s.conflict);
+
+  const blocked = saveDisabled || conflict !== null;
+  const tone = blocked
+    ? 'bg-[var(--err)]'
+    : saveState === 'saving'
+      ? 'bg-amber-500'
+      : saveState === 'dirty'
+        ? 'bg-[var(--text-tertiary)]'
+        : 'bg-emerald-500';
+  const stateText = blocked
+    ? conflict
+      ? '有冲突，需要先处理'
+      : '保存不可用'
+    : (SAVE_LABEL[saveState] ?? saveState);
+  const detail = conflict?.message ?? saveError ?? null;
+
+  return (
+    <div className="group relative shrink-0">
+      <button
+        type="button"
+        title={blocked ? stateText : '保存（Ctrl+S）'}
+        aria-label="保存"
+        disabled={blocked}
+        onClick={() => flushNow()}
+        className="relative grid h-8 w-8 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+      >
+        <ToolIcon name="save" size={17} />
+        {/* 状态灯：右下角一颗小圆点，描一圈底色把它和图标分开 */}
+        <span
+          aria-hidden
+          className={`absolute bottom-1 right-1 h-[7px] w-[7px] rounded-full ring-2 ring-[var(--panel-bg)] ${tone} ${
+            saveState === 'saving' ? 'animate-pulse' : ''
+          }`}
+        />
+      </button>
+
+      {/* 悬停弹出：保存状态详情 */}
+      <div
+        role="tooltip"
+        className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-56 -translate-x-1/2 rounded-md border border-[var(--glass-line)] bg-[var(--panel-bg)] p-2.5 text-[11px] leading-5 opacity-0 shadow-[0_10px_28px_rgba(26,26,24,0.14)] transition-opacity duration-150 group-hover:opacity-100"
+      >
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[var(--text-secondary)]">保存状态</span>
+          <span className="flex items-center gap-1.5 font-medium text-[var(--text-primary)]">
+            <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${tone}`} />
+            {stateText}
+          </span>
+        </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[var(--text-secondary)]">上次保存</span>
+          <span className="mono text-[var(--text-primary)]">
+            {lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString('zh-CN', { hour12: false }) : '尚未保存'}
+          </span>
+        </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[var(--text-secondary)]">当前版本</span>
+          <span className="mono text-[var(--text-primary)]">v{version}</span>
+        </div>
+        {detail && (
+          <p className="mt-1 line-clamp-3 border-t border-[var(--panel-border)] pt-1 text-[var(--err)]">{detail}</p>
+        )}
+        <p className="mt-1 border-t border-[var(--panel-border)] pt-1 text-[var(--text-tertiary)]">
+          {persisted ? '点击保存，或按 Ctrl+S' : '这张图还没写过库，先做一次改动会自动创建'}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 /** 顶栏图标按钮：32×32，靠 title 做 tooltip */
@@ -71,10 +144,7 @@ function Divider() {
 
 export function TopBar() {
   const name = useDiagramStore((s) => s.diagram.name);
-  const version = useDiagramStore((s) => s.diagram.version);
   const rename = useDiagramStore((s) => s.rename);
-  const saveState = useDiagramStore((s) => s.saveState);
-  const lastSavedAt = useDiagramStore((s) => s.lastSavedAt);
   const undo = useDiagramStore((s) => s.undo);
   const redo = useDiagramStore((s) => s.redo);
   // 直接选长度：数字稳定，不会触发 zustand 的无限重渲染
@@ -115,14 +185,21 @@ export function TopBar() {
           onChange={(e) => rename(e.target.value)}
           className="w-52 min-w-0 rounded border border-transparent px-1.5 py-1 text-[13px] font-semibold outline-none hover:border-[var(--panel-border)] focus:border-[var(--primary)]"
         />
-        <div className="flex shrink-0 items-baseline gap-2">
-          <SaveBadge state={saveState} />
-          <span
-            className="mono text-[11px] leading-4 text-[var(--text-secondary)]"
-            title={lastSavedAt ? `上次保存 ${new Date(lastSavedAt).toLocaleString()}` : '尚未保存'}
-          >
-            v{version}
-          </span>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* 2026-11-07 用户要求：隐藏「已保存」文字与版本号，状态/版本都看保存按钮的 hover 弹层 */}
+          <SaveButton />
+          <IconButton
+            icon="undo"
+            label="撤销（Ctrl+Z）"
+            disabled={pastCount === 0 || historyLocked}
+            onClick={() => undo()}
+          />
+          <IconButton
+            icon="redo"
+            label="重做（Ctrl+Shift+Z / Ctrl+Y）"
+            disabled={futureCount === 0 || historyLocked}
+            onClick={() => redo()}
+          />
         </div>
       </div>
 
@@ -134,19 +211,6 @@ export function TopBar() {
         ) : missingEnv.length > 0 ? (
           <span className="text-xs text-amber-600">缺环境变量：{missingEnv.join(', ')}</span>
         ) : null}
-        <Divider />
-        <IconButton
-          icon="undo"
-          label="撤销（Ctrl+Z）"
-          disabled={pastCount === 0 || historyLocked}
-          onClick={() => undo()}
-        />
-        <IconButton
-          icon="redo"
-          label="重做（Ctrl+Shift+Z / Ctrl+Y）"
-          disabled={futureCount === 0 || historyLocked}
-          onClick={() => redo()}
-        />
         <Divider />
         <IconButton
           icon="history"

@@ -26,7 +26,7 @@ export function NewDiagramDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/30"
+      className="anim-backdrop fixed inset-0 z-50 grid place-items-center bg-black/30"
       role="dialog"
       aria-modal
       aria-label="新建架构图"
@@ -34,7 +34,7 @@ export function NewDiagramDialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-[520px] rounded-lg bg-white p-4 shadow-xl">
+      <div className="anim-window w-[520px] rounded-lg bg-white p-4 shadow-xl">
         <p className="text-sm font-semibold">新建架构图</p>
         <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
           空白画布从零开始；AI 解析会把上传的架构图还原成可编辑的节点和连线。

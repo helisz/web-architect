@@ -54,6 +54,20 @@ export function displayGroupHeight(group: DiagramGroup): number {
 }
 
 /**
+ * ⚠️ `measured` 必须跟着 width/height 一起给（2026-11-07 定位到的一个真 bug）：
+ *
+ * React Flow 的 `adoptUserNodes` 只在 `userNode` 对象**引用没变**时保留内部状态；
+ * 一旦换了新对象（选中态翻转、拖动、改尺寸都会换），它会重建 internal node，并用
+ * `parseHandles()` 决定要不要保留 handleBounds：
+ *
+ *     if (!userNode.handles) return !userNode.measured ? undefined : internalNode?.internals.handleBounds;
+ *
+ * 也就是说 —— 节点对象不挂 `measured` 时，每次重新 adopt 都会把 handleBounds 清空，
+ * 节点退回"未测量"，而 ResizeObserver 只在尺寸变化时才回调（写死的尺寸不会再变），
+ * 于是**所有连到这些节点的连线直接不渲染**：看起来就是"打开后连线一片空白 / 点一下选中
+ * 连线就没了，刷新偶尔又好了"。把 measured 显式带上，新对象会沿用旧 handleBounds，
+ * 节点始终是 initialized，连线也就不会掉。
+ *
  * ⚡ 性能：把"数据对象 → ReactFlow 节点对象"的映射缓存起来。
  *
  * 拖动一帧只改一个节点，但 `toFlowNodes` 每帧都会重跑。没有缓存时所有 flow node
@@ -105,6 +119,8 @@ function toFlowGroups(diagram: ArchitectureDiagram, selectedIds: Set<string>, dr
         // width/height 必须给：MiniMap 用 nodeHasDimensions() 判断，只给 style 会整块空白
         width: g.width,
         height,
+        // measured 也必须给（原因见上方「⚠️ measured 必须跟着 width/height 一起给」）
+        measured: { width: g.width, height },
         style: { width: g.width, height },
         data: { group: g },
         selected,
@@ -146,6 +162,7 @@ export function toFlowNodes(
         // 同上：MiniMap 不认 style 里的尺寸
         width: n.width,
         height: n.height,
+        measured: { width: n.width, height: n.height },
         style: { width: n.width, height: n.height },
         data: { node: n },
         selected: selectedNow,

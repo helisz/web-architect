@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ALLOWED_ICON_KEYS,
   DEFAULT_ICON_KEY,
+  GROUP_ICON_KEY,
   ICON_KEY_BY_NODE_TYPE,
   NODE_TYPES,
   createEmptyDiagram,
@@ -76,8 +77,8 @@ describe('图标规则：nodeType → iconKey', () => {
     }
   });
 
-  it('允许集合 = 原有 19 个 + 形状/流程图 14 个', () => {
-    expect(ALLOWED_ICON_KEYS).toHaveLength(33);
+  it('允许集合 = 原有 19 个 + 形状/流程图 14 个 + 2026-11-07 拆图标 11 个', () => {
+    expect(ALLOWED_ICON_KEYS).toHaveLength(44);
     // 用户 2026-11-05：旧的 nginx 全称 logo 从常用集里彻底移除，只留自绘的方框 N
     expect(ALLOWED_ICON_KEYS).not.toContain('devicon:nginx');
     for (const key of Object.values(USER_DECIDED)) expect(ALLOWED_ICON_KEYS).toContain(key);
@@ -108,16 +109,43 @@ describe('图标规则：nodeType → iconKey', () => {
       'tabler:git-branch',
       'tabler:settings',
       'tabler:circle-dot',
+      // 2026-11-07 档 2：把撞车图标拆开
+      'tabler:arrows-split-2',
+      'tabler:arrows-exchange',
+      'tabler:plug',
+      'tabler:heading',
+      'tabler:note',
+      'tabler:message-circle',
+      'tabler:lock-access',
+      'k8s:namespace',
+      'k8s:deployment',
+      'k8s:service',
+      'k8s:ingress',
     ]) {
       expect(ALLOWED_ICON_KEYS).toContain(extra);
     }
   });
 
-  it('容器与占位类保留 cube（不需要再拆）', () => {
-    expect(iconKeyFor('group')).toBe('tabler:cube');
-    expect(iconKeyFor('zone')).toBe('tabler:cube');
+  it('2026-11-07：原先撞图的组已经拆开', () => {
+    // 负载均衡 / 反向代理 / Ingress / 专线 各用各的（网关保留用户指定的 arrow-right-square）
+    expect(iconKeyFor('lb')).toBe('tabler:arrows-split-2');
+    expect(iconKeyFor('proxy')).toBe('tabler:arrows-exchange');
+    expect(iconKeyFor('ingress')).toBe('k8s:ingress');
+    expect(iconKeyFor('link')).toBe('tabler:plug');
+    expect(iconKeyFor('gateway')).toBe('tabler:arrow-right-square');
+    // K8s 四件套：cluster 用品牌标，其余用官方 k8s 图标
+    expect(new Set(['k8s-cluster', 'namespace', 'deployment', 'service'].map(iconKeyFor)).size).toBe(4);
+    // 文本四件套
+    expect(new Set(['title', 'text', 'sticky', 'annotation'].map(iconKeyFor)).size).toBe(4);
+    // 防火墙 / VPN
+    expect(iconKeyFor('firewall')).not.toBe(iconKeyFor('vpn'));
+  });
+
+  it('占位类保留 cube；分组图标独立于 nodeType', () => {
+    // 2026-11-07：group / zone / legend 三个"伪节点"已下线，分组改用 GROUP_ICON_KEY
+    expect(GROUP_ICON_KEY).toBe('tabler:cube');
     expect(iconKeyFor('custom')).toBe('tabler:cube');
-    expect(iconKeyFor('legend')).toBe('tabler:typography');
+    expect(iconKeyFor('text')).toBe('tabler:typography');
   });
 
   it('未知类型回落到 tabler:cube，不会抛错', () => {

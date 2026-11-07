@@ -10,6 +10,7 @@ import {
   SelectionMode,
   useReactFlow,
   useStore,
+  useUpdateNodeInternals,
   getNodesBounds,
   type Connection,
   type EdgeChange,
@@ -119,6 +120,20 @@ function CanvasInner() {
   const pushToast = useDiagramStore((s) => s.pushToast);
 
   const { screenToFlowPosition, getViewport, setViewport: applyViewport, fitView, getNodes } = useReactFlow();
+  /**
+   * 首屏兜底测量（用户 2026-11-07「打开后连线完全不显示，刷新才出现」）。
+   *
+   * 连线的渲染门槛在 React Flow 那边：EdgeWrapper 要先从节点的 handleBounds 算出端点，
+   * 而 handleBounds 只在节点被「测量」之后才有（measured 为空 → 整条线直接不渲染）。
+   * 常规路径是一次性 ResizeObserver 回调触发测量；但如果那一帧节点还没有盒子尺寸
+   * （画布刚挂载、外层还在撑高、字体/样式未就绪），回调只会拿到 0×0 并**再也不触发**
+   * （节点尺寸是写死的，之后没有尺寸变化）—— 表现就是节点都在、连线一条都不画，
+   * 直到某次用户操作/刷新让节点重新测量。
+   *
+   * 这里在图纸载入后补量一次（用 RF 自己的 updateNodeInternals，内部也是 rAF + force），
+   * 不依赖任何一次 ResizeObserver 的运气。
+   */
+  const updateNodeInternals = useUpdateNodeInternals();
   const componentPanelOpen = useDiagramStore((s) => s.componentPanelOpen);
   // 缩放控件贴左下角；组件库打开时要让开面板（2026-11-06）
   // 注意 React Flow 的 .react-flow__panel 自带 margin:15px，所以这里减掉它，
@@ -128,6 +143,10 @@ function CanvasInner() {
   // ReactFlow 自己量的画布尺寸（等于 <main> 的可用区域）
   const flowWidth = useStore((s) => s.width);
   const flowHeight = useStore((s) => s.height);
+  // 右侧面板浮在画布上（2026-11-07）：适配视图和 MiniMap 都要给它让位
+  const versionOpen = useDiagramStore((s) => s.versionOpen);
+  const rightPanelOpen = selectedIds.length > 0 || versionOpen;
+  const RIGHT_PANEL_W = 300 + 10 * 2;
 
   /**
    * 适配视图（2026-11-06）：组件库打开时，把左边 240px 面板当成被占用区域，
@@ -145,8 +164,9 @@ function CanvasInner() {
       }
       const bounds = getNodesBounds(list);
       const leftOffset = componentPanelOpen ? 240 + 10 * 2 : 0;
+      const rightOffset = rightPanelOpen ? RIGHT_PANEL_W : 0;
       const pad = 24;
-      const availW = Math.max(120, flowWidth - leftOffset - pad * 2);
+      const availW = Math.max(120, flowWidth - leftOffset - rightOffset - pad * 2);
       const availH = Math.max(120, flowHeight - pad * 2);
       const w = Math.max(1, bounds.width);
       const h = Math.max(1, bounds.height);
@@ -155,7 +175,7 @@ function CanvasInner() {
       const y = pad + (availH - h * zoom) / 2 - bounds.y * zoom;
       void applyViewport({ x, y, zoom }, { duration });
     },
-    [applyViewport, componentPanelOpen, fitView, flowHeight, flowWidth, getNodes],
+    [applyViewport, componentPanelOpen, fitView, flowHeight, flowWidth, getNodes, rightPanelOpen, RIGHT_PANEL_W],
   );
 
   // 右键菜单位置与内容（四套菜单在 contextMenus.ts 里组装）
@@ -208,6 +228,34 @@ const cursorFrame = useRef<number | null>(null);
     [diagram, editLocked, panMode, selectedIds],
   );
   const [dragging, setDragging] = useState(false);
+
+  // 图纸/元素数量变化后补量一次节点内部尺寸（原因见上面 updateNodeInternals 的注释）
+  const nodeCount = diagram.nodes.length;
+  const groupCount = diagram.groups.length;
+  const edgeCount = diagram.edges.length;
+  useEffect(() => {
+    // 新建连线时也补量一次：线的渲染要先拿到两端节点的 handleBounds，
+    // 只要有一次量不到（首屏、刚挂载、HMR 之后），线就会"存在但不显示"（2026-11-07）
+    const frame = requestAnimationFrame(() => {
+      const ids = getNodes().map((node) => node.id);
+      if (ids.length > 0) updateNodeInternals(ids);
+    });
+    // 自检（只在排查用）：连线数量变了之后 800ms，如果 DOM 里的线比 store 少，
+    // 说明有连线被 React Flow 挡在渲染之外（handleBounds 没量到），先补量一次再报一次警告。
+    const check = window.setTimeout(() => {
+      const expected = useDiagramStore.getState().diagram.edges.length;
+      const rendered = document.querySelectorAll('.react-flow__edge').length;
+      if (expected > 0 && rendered < expected) {
+        console.warn('[arch] 有连线没渲染出来：store', expected, 'dom', rendered, '—— 补量节点后再试一次');
+        const ids = getNodes().map((node) => node.id);
+        if (ids.length > 0) updateNodeInternals(ids);
+      }
+    }, 800);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(check);
+    };
+  }, [diagram.diagramId, nodeCount, groupCount, edgeCount, getNodes, updateNodeInternals]);
 
   /**
    * 非拖拽式的"节点在动"（键盘微调、属性面板改坐标、批量对齐）也要冻结 edges。
@@ -279,7 +327,7 @@ const cursorFrame = useRef<number | null>(null);
     };
   }, []);
 
-  // 普通滚轮 = 上下平移；Ctrl/Cmd + 滚轮 = 按 20% 档位缩放（用户 2026-11-04 定稿）
+  // 普通滚轮 = 上下 / 左右平移（触摸板两指也行）；Ctrl/Cmd + 滚轮 = 按 20% 档位缩放（用户 2026-11-04 定稿）
   const wrapperRef = useRef<HTMLDivElement>(null);
   /** 框选起点（框选连线用）：React Flow 在 onSelectionEnd 之前就把它的矩形清空了，只能自己记 */
   const selectDrag = useRef<{ x: number; y: number; snapshot: string[]; additive: boolean } | null>(null);
@@ -303,7 +351,13 @@ const cursorFrame = useRef<number | null>(null);
       }
       event.preventDefault();
       const { x, y, zoom } = getViewport();
-      applyViewport({ x, y: y - (event.deltaY / zoom) * 0.9, zoom });
+      /*
+       * 2026-11-07：横向也要能滚（笔记本触摸板两指横扫、鼠标 Shift+滚轮）。
+       * 触摸板一次手势会同时给 deltaX / deltaY，两个轴都吃才跟手；
+       * 缩放系数沿用原来那个 0.9（delta 换算成"屏幕像素"再除以 zoom）。
+       */
+      const step = 0.9 / zoom;
+      applyViewport({ x: x - event.deltaX * step, y: y - event.deltaY * step, zoom });
     };
     element.addEventListener('wheel', onWheelNative, { passive: false, capture: true });
     return () => element.removeEventListener('wheel', onWheelNative, { capture: true });
@@ -528,15 +582,26 @@ const cursorFrame = useRef<number | null>(null);
         return;
       }
 
-      // 2) 普通节点
-      const nodeType = event.dataTransfer.getData(NODE_TYPE_MIME) as NodeType;
+      // 2) 普通节点（载荷是 JSON：预设条目会带上自己的默认文案和尺寸）
+      const raw = event.dataTransfer.getData(NODE_TYPE_MIME);
+      if (!raw) return;
+      let payload: { nodeType: NodeType; label?: string; subLabel?: string; width?: number; height?: number };
+      try {
+        payload = JSON.parse(raw) as typeof payload;
+      } catch {
+        payload = { nodeType: raw as NodeType };
+      }
+      const nodeType = payload.nodeType;
       if (!nodeType) return;
       // 落点对齐指针中心：拖拽时视觉上更符合"放在这里"。
       // 尺寸按组件表取默认值 —— 交换机/路由器是 120×60，用统一的 160×80 会偏出十几像素。
       const target = hitGroup(diagram.groups, point);
       const offset = target ? groupOffset(diagram.groups, target.groupId) : { x: 0, y: 0 };
       const spec = COMPONENT_INDEX[nodeType];
-      const size = { width: spec?.width ?? NODE_DEFAULTS.width, height: spec?.height ?? NODE_DEFAULTS.height };
+      const size = {
+        width: payload.width ?? spec?.width ?? NODE_DEFAULTS.width,
+        height: payload.height ?? spec?.height ?? NODE_DEFAULTS.height,
+      };
       addNode(
         nodeType,
         {
@@ -544,6 +609,12 @@ const cursorFrame = useRef<number | null>(null);
           y: point.y - offset.y - size.height / 2,
         },
         target?.groupId ?? null,
+        {
+          label: payload.label ?? spec?.label,
+          subLabel: payload.subLabel ?? spec?.defaultSubLabel,
+          width: size.width,
+          height: size.height,
+        },
       );
     },
     [addGroup, addNode, diagram.groups, editLocked, reparentGroup, screenToFlowPosition],
@@ -845,7 +916,8 @@ const cursorFrame = useRef<number | null>(null);
         zoomable
         nodeColor={(n) => (n.type === 'archNode' ? 'var(--hair-strong)' : 'var(--bg-sunken)')}
         maskColor="rgba(250,250,250,0.7)"
-        style={{ width: 160, height: 110 }}
+        // 右侧面板浮在画布上后，MiniMap 默认的右下角会被盖住 → 面板打开时左移
+        style={{ width: 160, height: 110, right: rightPanelOpen ? RIGHT_PANEL_W : undefined }}
       />
     </ReactFlow>
     {/* 画布右上角：拖动模式 + 锁定编辑（用户 2026-11-05） */}
