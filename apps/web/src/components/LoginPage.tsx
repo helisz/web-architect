@@ -3,6 +3,7 @@ import type { AuthState } from '../lib/auth.js';
 import { useGuestSession } from '../data/guestSession.js';
 import { navigateToGallery } from '../lib/route.js';
 import { AUTH_ERRORS } from '../lib/auth.js';
+import { forgetRememberedEmail, readRememberedEmail, writeRememberedEmail } from '../lib/rememberedEmail.js';
 
 /**
  * 登录页（用户 2026-11-04 第三批；2026-11-06 按工业外壳风格重做）。
@@ -27,13 +28,20 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 }
 
 export function LoginPage({ auth }: { auth: AuthState }) {
-  const [email, setEmail] = useState('');
+  // 记住邮箱（用户 2026-11-08）：只记邮箱，不存密码。默认勾上，上次存过就自动填好。
+  // 惰性初始化：只在首次挂载读一次 localStorage，不要每次渲染都读
+  const [email, setEmail] = useState(() => readRememberedEmail());
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const enterGuest = useGuestSession((s) => s.enter);
 
-  const submit = async (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
-    await auth.signIn(email, password);
+    const ok = await auth.signIn(email, password);
+    // 登录成功才动本地记录：失败（密码错）不该把邮箱清掉，也不该存一个错的
+    if (!ok) return;
+    if (remember) writeRememberedEmail(email);
+    else forgetRememberedEmail();
   };
 
   const fieldClass =
@@ -150,6 +158,20 @@ export function LoginPage({ auth }: { auth: AuthState }) {
                 placeholder="••••••••"
                 disabled={auth.pending}
               />
+            </label>
+
+            <label className="mb-4 flex cursor-pointer items-center gap-2 text-[12px] text-[var(--text-secondary)] select-none">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => {
+                  setRemember(e.target.checked);
+                  // 取消勾选立刻清掉已存的邮箱，不用等登录
+                  if (!e.target.checked) forgetRememberedEmail();
+                }}
+                className="h-3.5 w-3.5 accent-[var(--primary)]"
+              />
+              记住邮箱（不保存密码）
             </label>
 
             {auth.error && (
