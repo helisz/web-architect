@@ -977,8 +977,9 @@ const cursorFrame = useRef<number | null>(null);
         zoomable
         nodeColor={(n) => (n.type === 'archNode' ? 'var(--hair-strong)' : 'var(--bg-sunken)')}
         maskColor="rgba(250,250,250,0.7)"
-        // 右侧面板浮在画布上后，MiniMap 默认的右下角会被盖住 → 面板打开时左移
-        style={{ width: 160, height: 110, right: rightPanelOpen ? RIGHT_PANEL_W : undefined }}
+        // 用户 2026-11-08：右下角缩略图**不受侧边栏影响**，始终保持右下角。
+        // 右侧面板是浮层、且顶部对齐后高度有限，缩略图在它下面的空白处照常可见。
+        style={{ width: 160, height: 110 }}
       />
     </ReactFlow>
     {/* 画布右上角：拖动模式 + 锁定编辑（用户 2026-11-05） */}

@@ -261,6 +261,13 @@ body:has(.react-flow__nodesselection-rect) .glass {
   from { opacity: 0; translate: -14px 0; }
   to   { opacity: 1; translate: 0 0; }
 }
+/* 居中面板用：只动 opacity + scale。
+   不能用 arch-slide-*（它们动画的是 translate 属性，会把 top-1/2 + -translate-y-1/2
+   的垂直居中对冲掉，面板会歪）—— 2026-11-08。 */
+@keyframes arch-panel-in {
+  from { opacity: 0; scale: 0.99; }
+  to   { opacity: 1; scale: 1; }
+}
 @keyframes arch-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -269,8 +276,9 @@ body:has(.react-flow__nodesselection-rect) .glass {
 .anim-pop { animation: arch-pop-in 150ms ease-out both; }
 .anim-slide-right { animation: arch-slide-right 150ms ease-out both; }
 .anim-slide-left { animation: arch-slide-left 150ms ease-out both; }
+.anim-panel { animation: arch-panel-in 150ms ease-out both; }
 .anim-backdrop { animation: arch-fade-in 150ms ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .anim-window, .anim-pop, .anim-slide-right, .anim-slide-left, .anim-backdrop { animation: none; }
+  .anim-window, .anim-pop, .anim-panel, .anim-slide-right, .anim-slide-left, .anim-backdrop { animation: none; }
 }

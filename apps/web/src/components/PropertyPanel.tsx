@@ -630,7 +630,9 @@ export function PropertyPanel() {
     // 代价是选中的节点如果正好在被面板盖住的区域会看不见（用户已确认接受）。
     <aside
       style={{ width: PANEL_W }}
-      className="glass anim-slide-right absolute bottom-[var(--panel-inset)] right-[var(--panel-inset)] top-[var(--panel-inset)] z-40 flex flex-col overflow-y-auto"
+      // 顶部对齐（2026-11-08）：从画布右上角那排按钮（图层/拖动/锁定）下方 12px 起，
+      // 按钮占 top-3 + h-8 = 44px；高度上限 = 100% - 56(顶部) - 10(底部内距)
+      className="glass anim-panel absolute right-[var(--panel-inset)] top-[56px] z-40 flex max-h-[calc(100%_-_66px)] flex-col overflow-y-auto"
     >
       <div className="border-b border-[var(--panel-border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
         {node

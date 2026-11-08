@@ -223,7 +223,11 @@ export function ComponentPanel() {
         >
           ›
         </button>
-        <aside className="glass absolute bottom-[var(--panel-inset)] left-[var(--panel-inset)] top-[var(--panel-inset)] z-40 flex w-11 flex-col items-center gap-0.5 py-1.5">
+        {/*
+          2026-11-08 用户定稿：图标栏不再拉满高度，只包住自己的内容（下面不留空白），
+          整体在窗口里上下居中 —— 用 top-1/2 + translate 而不是 top/bottom 双向拉伸。
+        */}
+        <aside className="glass absolute left-[var(--panel-inset)] top-1/2 z-40 flex w-11 -translate-y-1/2 flex-col items-center gap-0.5 py-1.5">
           {railGroups.map((group) => (
             <div key={group.key} className="group/rail relative flex w-full shrink-0 justify-center">
               <button

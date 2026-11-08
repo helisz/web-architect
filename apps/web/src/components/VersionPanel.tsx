@@ -80,7 +80,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
 
   // 右侧固定边栏（用户 2026-11-07）：和属性面板共用同一列，画布 flex-1 自动让位
   return (
-    <aside className="glass anim-slide-right absolute bottom-[var(--panel-inset)] right-[var(--panel-inset)] top-[var(--panel-inset)] z-40 flex w-[300px] flex-col overflow-hidden">
+    <aside className="glass anim-panel absolute right-[var(--panel-inset)] top-[56px] z-40 flex max-h-[calc(100%_-_66px)] w-[300px] flex-col overflow-hidden">
       <div className="flex items-start justify-between border-b border-[var(--panel-border)] px-3 py-2">
         <div className="min-w-0">
           <h2 className="text-[13px] font-medium">版本历史</h2>
