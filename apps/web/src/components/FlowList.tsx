@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createEmptyFlow, deleteFlow, listFlows, saveFlow, type FlowSummary } from '../data/flowRepo.js';
-import { navigateToFlow, navigateToHome } from '../lib/route.js';
+import { navigateToFlow, navigateToTemplates, type Route } from '../lib/route.js';
+import { PageHeader } from './PageHeader.js';
 import { ToolIcon } from './ToolIcons.js';
 
 /**
@@ -9,7 +10,7 @@ import { ToolIcon } from './ToolIcons.js';
  * 和架构图的图库是两套数据，所以没有缩略图 —— 流程的价值在"实时数据"，
  * 静态缩略图意义不大，这里改成列出节点数 / 最近更新。
  */
-export function FlowList() {
+export function FlowList({ route }: { route: Route }) {
   const [rows, setRows] = useState<FlowSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -57,31 +58,31 @@ export function FlowList() {
 
   return (
     <div className="flex h-full flex-col bg-[var(--canvas-bg)]">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--hair)] bg-white px-3">
-        <button
-          type="button"
-          onClick={navigateToHome}
-          aria-label="回产品选择"
-          className="grid h-8 w-8 place-items-center rounded-[var(--radius-ctl)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <ToolIcon name="chevronLeft" size={16} />
-        </button>
-        <span className="text-[14px] font-semibold text-[var(--text-primary)]">流程</span>
-        <span className="mono text-[10px] tracking-[0.08em] text-[var(--text-tertiary)]">
-          {rows === null ? '读取中…' : `共 ${rows.length} 张`}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void create()}
-            disabled={busy !== null}
-            className="flex items-center gap-1 rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
-          >
-            <ToolIcon name="plus" size={14} />
-            新建流程
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        route={route}
+        title="流程"
+        meta={rows === null ? '读取中…' : `共 ${rows.length} 张`}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={navigateToTemplates}
+              className="rounded-[var(--radius-ctl)] border border-[var(--panel-border)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
+            >
+              模板库
+            </button>
+            <button
+              type="button"
+              onClick={() => void create()}
+              disabled={busy !== null}
+              className="flex items-center gap-1 rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
+            >
+              <ToolIcon name="plus" size={14} />
+              新建流程
+            </button>
+          </>
+        }
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {error && (

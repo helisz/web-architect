@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { deleteTemplate, listTemplates, saveTemplate, type TemplateSummary } from '../data/flowRepo.js';
 import { emptyTemplateConfig } from '@arch/schema';
-import { navigateToFlows, navigateToHome, navigateToTemplate } from '../lib/route.js';
+import { navigateToFlows, navigateToTemplate, type Route } from '../lib/route.js';
+import { PageHeader } from './PageHeader.js';
 import { ToolIcon } from './ToolIcons.js';
 
 /**
@@ -12,7 +13,7 @@ import { ToolIcon } from './ToolIcons.js';
  */
 
 /** 公共模板只有管理员能建；普通用户点"新建公共"时给出提示 */
-export function TemplateList() {
+export function TemplateList({ route }: { route: Route }) {
   const [rows, setRows] = useState<TemplateSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -62,45 +63,38 @@ export function TemplateList() {
 
   return (
     <div className="flex h-full flex-col bg-[var(--canvas-bg)]">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--hair)] bg-white px-3">
-        <button
-          type="button"
-          onClick={navigateToHome}
-          aria-label="回产品选择"
-          className="grid h-8 w-8 place-items-center rounded-[var(--radius-ctl)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <ToolIcon name="chevronLeft" size={16} />
-        </button>
-        <span className="text-[14px] font-semibold text-[var(--text-primary)]">模板库</span>
-        <span className="mono text-[10px] tracking-[0.08em] text-[var(--text-tertiary)]">
-          {rows === null ? '读取中…' : `共 ${rows.length} 个`}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={navigateToFlows}
-            className="rounded-[var(--radius-ctl)] border border-[var(--panel-border)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
-          >
-            去流程
-          </button>
-          <button
-            type="button"
-            disabled={creating}
-            onClick={() => void create('private')}
-            className="rounded-[var(--radius-ctl)] border border-[var(--panel-border)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)] disabled:opacity-60"
-          >
-            新建私有模板
-          </button>
-          <button
-            type="button"
-            disabled={creating}
-            onClick={() => void create('public')}
-            className="rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
-          >
-            新建公共模板
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        route={route}
+        title="模板库"
+        meta={rows === null ? '读取中…' : `共 ${rows.length} 个`}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={navigateToFlows}
+              className="rounded-[var(--radius-ctl)] border border-[var(--panel-border)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
+            >
+              去流程
+            </button>
+            <button
+              type="button"
+              disabled={creating}
+              onClick={() => void create('private')}
+              className="rounded-[var(--radius-ctl)] border border-[var(--panel-border)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)] disabled:opacity-60"
+            >
+              新建私有模板
+            </button>
+            <button
+              type="button"
+              disabled={creating}
+              onClick={() => void create('public')}
+              className="rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
+            >
+              新建公共模板
+            </button>
+          </>
+        }
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {error && (

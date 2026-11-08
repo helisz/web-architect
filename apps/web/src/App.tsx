@@ -116,15 +116,15 @@ export default function App() {
   if (!onCanvas) {
     const page =
       route.kind === 'flows' ? (
-        <FlowList />
+        <FlowList route={route} />
       ) : route.kind === 'flow' ? (
-        <FlowCanvas flowId={route.flowId} />
+        <FlowCanvas flowId={route.flowId} route={route} />
       ) : route.kind === 'templates' ? (
-        <TemplateList />
+        <TemplateList route={route} />
       ) : route.kind === 'template' ? (
-        <TemplateEditor templateId={route.templateId} />
-      ) : route.kind === 'gallery' ? (
-        <Gallery />
+        <TemplateEditor templateId={route.templateId} route={route} />
+      ) : route.kind === 'diagrams' ? (
+        <Gallery route={route} />
       ) : (
         <HomePage />
       );

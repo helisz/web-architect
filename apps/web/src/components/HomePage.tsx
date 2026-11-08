@@ -1,5 +1,5 @@
 import { ToolIcon } from './ToolIcons.js';
-import { navigateToFlows, navigateToGallery, navigateToTemplates } from '../lib/route.js';
+import { navigateToFlows, navigateToGallery } from '../lib/route.js';
 
 /**
  * 产品选择页（用户 2026-11-08）。
@@ -91,15 +91,9 @@ export function HomePage() {
           />
         </div>
 
-        <div className="mt-6 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={navigateToTemplates}
-            className="mono text-[11px] tracking-[0.08em] text-[var(--text-secondary)] underline decoration-dotted underline-offset-4 hover:text-[var(--primary-text)]"
-          >
-            模板库（流程节点从这里来）
-          </button>
-        </div>
+        <p className="mt-6 text-[11px] leading-5 text-[var(--text-tertiary)]">
+          流程节点来自「模板」，模板库在流程列表里进入。
+        </p>
       </div>
     </div>
   );

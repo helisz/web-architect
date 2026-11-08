@@ -27,7 +27,8 @@ import {
 } from '@arch/schema';
 import { listTemplates, loadFlow, saveFlow, type TemplateSummary } from '../data/flowRepo.js';
 import { missingParams, resolveParams, runNodeRequest } from '../flow/runner.js';
-import { navigateToFlows } from '../lib/route.js';
+import { navigateToFlows, type Route } from '../lib/route.js';
+import { PageHeader } from './PageHeader.js';
 import { ToolIcon } from './ToolIcons.js';
 
 /**
@@ -183,7 +184,7 @@ function FlowNodeCard({ data, selected }: NodeProps & { data: FlowNodeData }) {
 
 const nodeTypes = { flowNode: FlowNodeCard };
 
-function FlowCanvasInner({ flowId }: { flowId: string }) {
+function FlowCanvasInner({ flowId, route }: { flowId: string; route: Route }) {
   const [flow, setFlow] = useState<Flow | null>(null);
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -470,17 +471,31 @@ function FlowCanvasInner({ flowId }: { flowId: string }) {
 
   return (
     <div className="flex h-full flex-col bg-[var(--canvas-bg)]">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--hair)] bg-white px-3">
-        <button
-          type="button"
-          onClick={navigateToFlows}
-          aria-label="回流程列表"
-          className="grid h-8 w-8 place-items-center rounded-[var(--radius-ctl)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <ToolIcon name="chevronLeft" size={16} />
-        </button>
+      <PageHeader
+        route={route}
+        title={flow.name || '未命名流程'}
+        meta={saveState === 'saved' ? '已保存' : saveState === 'saving' ? '保存中…' : '未保存'}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setPaletteOpen((v) => !v)}
+              className="rounded-[var(--radius-ctl)] border border-[var(--panel-border)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
+            >
+              {paletteOpen ? '收起模板' : '添加节点'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void refreshAll(flow.nodes)}
+              className="rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)]"
+            >
+              全部刷新
+            </button>
+          </>
+        }
+      >
         <input
-          className="min-w-0 max-w-[320px] flex-1 border-none bg-transparent text-[14px] font-semibold text-[var(--text-primary)] outline-none"
+          className="min-w-0 max-w-[320px] flex-1 border-none bg-transparent text-[13px] font-semibold text-[var(--text-primary)] outline-none"
           value={flow.name}
           aria-label="流程名称"
           onChange={(e) => {
@@ -488,26 +503,7 @@ function FlowCanvasInner({ flowId }: { flowId: string }) {
             mutate((current) => ({ ...current, name }));
           }}
         />
-        <span className="mono text-[10px] text-[var(--text-tertiary)]">
-          {saveState === 'saved' ? '已保存' : saveState === 'saving' ? '保存中…' : '未保存'}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPaletteOpen((v) => !v)}
-            className="rounded-[var(--radius-ctl)] border border-[var(--panel-border)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
-          >
-            {paletteOpen ? '收起模板' : '添加节点'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void refreshAll(flow.nodes)}
-            className="rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)]"
-          >
-            全部刷新
-          </button>
-        </div>
-      </header>
+      </PageHeader>
 
       {error && (
         <p className="shrink-0 border-b border-[#E8B4A6] bg-[#FDF1EE] px-3 py-2 text-[12px] text-[var(--err)]">
@@ -629,10 +625,10 @@ function FlowCanvasInner({ flowId }: { flowId: string }) {
   );
 }
 
-export function FlowCanvas({ flowId }: { flowId: string }) {
+export function FlowCanvas({ flowId, route }: { flowId: string; route: Route }) {
   return (
     <ReactFlowProvider>
-      <FlowCanvasInner flowId={flowId} />
+      <FlowCanvasInner flowId={flowId} route={route} />
     </ReactFlowProvider>
   );
 }

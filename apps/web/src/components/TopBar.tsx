@@ -7,9 +7,9 @@ import { AccountMenu } from './AccountMenu.js';
 import { GuestAccount } from './GuestAccount.js';
 import { useGuestSession } from '../data/guestSession.js';
 import { ToolIcon, type ToolIconName } from './ToolIcons.js';
-import { goToGallery } from '../data/navigate.js';
 import { flushNow } from '../data/usePersistence.js';
 import { DiagramBadge } from './DiagramBadge.js';
+import { PageNavButtons } from './PageHeader.js';
 
 const SAVE_LABEL: Record<string, string> = {
   saved: '已保存',
@@ -174,16 +174,10 @@ export function TopBar() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--panel-border)] bg-[var(--panel-bg)] px-3">
       <div className="flex min-w-0 items-center gap-2">
-        {/* 最左边：回图库（用户 2026-11-04：原来的「图库」按钮换成这个） */}
-        <button
-          type="button"
-          onClick={() => void goToGallery()}
-          title="返回图库"
-          aria-label="返回图库"
-          className="-ml-1 grid h-8 w-8 shrink-0 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <ToolIcon name="chevronLeft" size={18} />
-        </button>
+        {/* 最左边：上一页（架构图列表）+ 主页（用户 2026-11-08：全站统一这两个按钮） */}
+        <div className="-ml-1">
+          <PageNavButtons route={{ kind: 'diagram', diagramId: '' }} />
+        </div>
         {/* 图名图标 = 图名前两个字符（2026-11-08），和图库卡片共用 */}
         <DiagramBadge name={name} />
         {editingName ? (

@@ -11,7 +11,8 @@ import {
 } from '@arch/schema';
 import { loadTemplate, saveTemplate } from '../data/flowRepo.js';
 import { missingParams, resolveParams, runNodeRequest, type RunResult } from '../flow/runner.js';
-import { navigateToTemplates } from '../lib/route.js';
+import type { Route } from '../lib/route.js';
+import { PageHeader } from './PageHeader.js';
 import { ToolIcon } from './ToolIcons.js';
 
 /**
@@ -105,7 +106,7 @@ function PairRows({
   );
 }
 
-export function TemplateEditor({ templateId }: { templateId: string }) {
+export function TemplateEditor({ templateId, route }: { templateId: string; route: Route }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -202,17 +203,25 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
 
   return (
     <div className="flex h-full flex-col bg-[var(--canvas-bg)]">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--hair)] bg-white px-3">
-        <button
-          type="button"
-          onClick={navigateToTemplates}
-          aria-label="回模板库"
-          className="grid h-8 w-8 place-items-center rounded-[var(--radius-ctl)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <ToolIcon name="chevronLeft" size={16} />
-        </button>
+      <PageHeader
+        route={route}
+        title={name || '模板'}
+        actions={
+          <>
+            {notice && <span className="mono text-[10px] text-[var(--text-tertiary)]">{notice}</span>}
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void save()}
+              className="rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
+            >
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </>
+        }
+      >
         <input
-          className="min-w-0 max-w-[320px] flex-1 border-none bg-transparent text-[14px] font-semibold text-[var(--text-primary)] outline-none"
+          className="min-w-0 max-w-[320px] flex-1 border-none bg-transparent text-[13px] font-semibold text-[var(--text-primary)] outline-none"
           value={name}
           onChange={(e) => setName(e.target.value)}
           aria-label="模板名称"
@@ -220,18 +229,7 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
         <span className="mono shrink-0 border border-[var(--hair-strong)] px-1 text-[9px] uppercase tracking-[0.08em] text-[var(--text-secondary)]">
           {visibility === 'public' ? '公共' : '私有'}
         </span>
-        <div className="ml-auto flex items-center gap-2">
-          {notice && <span className="mono text-[10px] text-[var(--text-tertiary)]">{notice}</span>}
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void save()}
-            className="rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
-          >
-            {saving ? '保存中…' : '保存'}
-          </button>
-        </div>
-      </header>
+      </PageHeader>
 
       {error && (
         <p className="shrink-0 border-b border-[#E8B4A6] bg-[#FDF1EE] px-3 py-2 text-[12px] leading-5 text-[var(--err)]">

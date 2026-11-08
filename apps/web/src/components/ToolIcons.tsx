@@ -13,6 +13,7 @@ export type ToolIconName =
   | 'sliders'
   | 'layers'
   | 'flow'
+  | 'home'
   | 'grid'
   | 'search'
   | 'database'
@@ -53,6 +54,8 @@ const PATHS: Record<ToolIconName, string> = {
   gallery: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   sliders: 'M4 7h5M13 7h7M4 12h9M17 12h3M4 17h3M11 17h9M11 5v4M15 10v4M9 15v4',
   layers: 'M12 3 21 8l-9 5-9-5 9-5ZM3 13l9 5 9-5M3 17l9 5 9-5',
+  // 主页（2026-11-08）：房子 —— 页面头部的「回主页」按钮用
+  home: 'M4 11.5 12 4l8 7.5M6.5 10.5V20h11v-9.5M10 20v-5h4v5',
   // 流程（2026-11-08）：两个方框 + 一条折线箭头，和「图层」区分开
   flow: 'M4 4h6v5H4zM14 15h6v5h-6zM7 9v5a2 2 0 0 0 2 2h5M12 13l2 3-2 3',
   grid: 'M6 6h.01M12 6h.01M18 6h.01M6 12h.01M12 12h.01M18 12h.01M6 18h.01M12 18h.01M18 18h.01',
