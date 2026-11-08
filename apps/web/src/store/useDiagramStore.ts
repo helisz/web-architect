@@ -35,7 +35,6 @@ import {
 import { alignRects, distributeRects, type AlignMode, type Rect } from '../canvas/align.js';
 import type { LineGeometry } from '../canvas/lineGeometry.js';
 import { persistDiagramExt } from '../data/diagramRepo.js';
-import type { LandingSpec } from '../ai/landing.js';
 
 const PREF_KEY = 'arch.ui.prefs';
 
@@ -172,12 +171,6 @@ interface DiagramStore {
   /** 属性面板用：局部更新单个节点 / 连线 */
   patchNode: (nodeId: string, patch: Partial<DiagramNode>) => void;
   patchEdge: (edgeId: string, patch: Partial<DiagramEdge>) => void;
-  /**
-   * AI 解析落图（用户 2026-11-05）：整批插入分组 / 节点 / 连线，**只产生一步撤销**。
-   * 一次解析可能几十个元素，如果每个都进历史，撤销要按几十次才能退出去。
-   */
-  applyAiImport: (spec: LandingSpec) => { nodes: number; edges: number; groups: number };
-
   /** 分组（M2） */
   addGroup: (position: Point, overrides?: Partial<DiagramGroup>) => DiagramGroup;
   moveGroup: (groupId: string, position: Point) => void;
@@ -811,79 +804,6 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
       saveState: 'dirty',
     })),
 
-  applyAiImport: (spec) => {
-    const state = get();
-    const diagramId = state.diagram.diagramId;
-    // ① 先建分组：节点的局部坐标要靠分组原点换算
-    const groupIds = spec.groups.map((group) => {
-      const created = createGroup(
-        diagramId,
-        { x: group.x, y: group.y },
-        {
-          label: group.label,
-          subLabel: group.subLabel,
-          width: Math.max(group.width, 200),
-          height: Math.max(group.height, 140),
-          // 解析出来的边界框用虚线：一眼能看出"这是 AI 猜的框"
-          extJson: { aiImport: true },
-        },
-      );
-      return created;
-    });
-
-    // ② 节点：在组里的写相对坐标（schema 约定）
-    const nodeIdByKey = new Map<string, string>();
-    const nodes = spec.nodes.map((node) => {
-      const group = node.groupIndex >= 0 ? groupIds[node.groupIndex] : undefined;
-      const created = createNode(
-        node.nodeType,
-        diagramId,
-        {
-          x: Math.round(group ? node.x - group.x : node.x),
-          y: Math.round(group ? node.y - group.y : node.y),
-        },
-        {
-          label: node.label,
-          subLabel: node.subLabel,
-          width: node.width,
-          height: node.height,
-          groupId: group ? group.groupId : null,
-        },
-      );
-      nodeIdByKey.set(node.key, created.nodeId);
-      return created;
-    });
-
-    // ③ 连线：只要两端都在就画，缺一端直接跳过（草图层已过滤，这里兜底）
-    const edges = spec.edges.flatMap((edge) => {
-      const source = nodeIdByKey.get(edge.fromKey);
-      const target = nodeIdByKey.get(edge.toKey);
-      if (!source || !target) return [];
-      return [
-        createEdge(diagramId, source, target, {
-          label: edge.label || undefined,
-          // 虚线用面板里的「短虚线」档位，和手动画的虚线长得一样
-          strokeDasharray: edge.dashed ? '6 4' : null,
-        }),
-      ];
-    });
-
-    set((s) => ({
-      ...withHistory(s, `aiImport:${Date.now()}`),
-      diagram: {
-        ...s.diagram,
-        groups: [...s.diagram.groups, ...groupIds],
-        nodes: [...s.diagram.nodes, ...nodes],
-        edges: [...s.diagram.edges, ...edges],
-      },
-      selectedId: null,
-      selectedIds: [],
-      saveState: 'dirty',
-    }));
-
-    return { nodes: nodes.length, edges: edges.length, groups: groupIds.length };
-  },
-  /* —— 分组 —— */
   addGroup: (position, overrides) => {
     const state = get();
     const group = createGroup(state.diagram.diagramId, position, overrides ?? {});

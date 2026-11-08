@@ -60,7 +60,6 @@ import { ArchEdge } from './ArchEdge.js';
 import { edgeIdsInRect, rectFromPoints } from './edgeHitTest.js';
 import { ArchConnectionLine } from './ArchConnectionLine.js';
 import { nextZoom, zoomAroundCenter, ZOOM_RESET_EVENT } from './zoom.js';
-import { peekStagedImport, takeStagedImport } from '../ai/staging.js';
 
 const nodeTypes = { archNode: ArchNode, swimlane: SwimlaneNode };
 // 三种线型（正交 / 曲线 / 直线）都走同一支自绘线：端点统一贴节点边框，
@@ -105,8 +104,6 @@ function CanvasInner() {
   const deleting = useDiagramStore((s) => s.pendingDelete !== null);
   const showGrid = useDiagramStore((s) => s.showGrid);
   const setViewport = useDiagramStore((s) => s.setViewport);
-  const applyAiImport = useDiagramStore((s) => s.applyAiImport);
-  const pushToast = useDiagramStore((s) => s.pushToast);
 
   const { screenToFlowPosition, getViewport, setViewport: applyViewport, fitView, getNodes } = useReactFlow();
   /**
@@ -190,27 +187,6 @@ const cursorFrame = useRef<number | null>(null);
   const panActive = panMode || spaceHeld;
   const startEdgeLabelEdit = useEdgeLabelEdit((s) => s.start);
 
-  /**
-   * AI 解析落图（用户 2026-11-05）：图库那边解析完成后把结果暂存在内存里，
-   * 这里一挂载就整批写入 —— 撤销栈的上一格正是"空图"，所以 Ctrl+Z 一次清空。
-   */
-  const aiImportDone = useRef(false);
-  useEffect(() => {
-    if (aiImportDone.current) return;
-    const staged = peekStagedImport();
-    if (!staged) return;
-    const spec = takeStagedImport(diagram.diagramId);
-    if (!spec) return;
-    aiImportDone.current = true;
-    const applied = applyAiImport(spec);
-    pushToast(
-      `已落图：${applied.nodes} 个节点 / ${applied.edges} 条连线 / ${applied.groups} 个分组（Ctrl+Z 可整体撤销）`,
-      'info',
-    );
-    // 等节点量完尺寸再适配，否则 fitView 按旧包围盒算，图会偏到角落
-    window.setTimeout(() => fitVisible(320), 360);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagram.diagramId]);
   // 拖动模式下整张图都不可拖（per-node draggable 会覆盖 ReactFlow 的 nodesDraggable）
   const nodes = useMemo(
     () => toFlowNodes(diagram, selectedIds, { draggable: !editLocked && !panMode }),

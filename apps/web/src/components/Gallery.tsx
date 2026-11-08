@@ -19,8 +19,6 @@ import { DiagramBadge } from './DiagramBadge.js';
 import { AccountMenu } from './AccountMenu.js';
 import { GuestAccount } from './GuestAccount.js';
 import { useGuestSession } from '../data/guestSession.js';
-import { NewDiagramDialog, type NewDiagramChoice } from './NewDiagramDialog.js';
-import { AiParseDialog } from './AiParseDialog.js';
 import { thumbnailDataUrl, type ThumbnailPayload } from '../export/thumbnail.js';
 
 type SortKey = 'updated' | 'name' | 'version';
@@ -50,9 +48,6 @@ export function Gallery() {
   const [rows, setRows] = useState<DiagramSummary[] | null>(null);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
-  // 新建分流（用户 2026-11-05）：点「新建架构图」先问空白还是 AI 解析
-  const [newOpen, setNewOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
 
   // 筛选条件
   const [searchInput, setSearchInput] = useState('');
@@ -222,8 +217,8 @@ export function Gallery() {
           <button
             type="button"
             className="flex items-center gap-1 rounded bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)]"
-            onClick={() => setNewOpen(true)}
-            title="新建：空白画布 / AI 解析架构图"
+            onClick={() => void createNew()}
+            title="新建空白架构图"
           >
             <ToolIcon name="plus" size={14} />
             新建架构图
@@ -498,17 +493,6 @@ export function Gallery() {
           </button>
         </div>
       )}
-      {newOpen && (
-        <NewDiagramDialog
-          onClose={() => setNewOpen(false)}
-          onChoose={(choice: NewDiagramChoice) => {
-            setNewOpen(false);
-            if (choice === 'blank') void createNew();
-            else setAiOpen(true);
-          }}
-        />
-      )}
-      {aiOpen && <AiParseDialog onClose={() => setAiOpen(false)} />}
     </div>
   );
 }

@@ -11,6 +11,20 @@ const container = document.getElementById('root');
 if (!container) throw new Error('#root 未找到');
 
 /**
+ * 清理已下线功能留下的本机数据（用户 2026-11-08：AI 解析整体删除）。
+ *
+ * 旧版本把模型配置以加密串存在 `arch.ai.vault`，现在没有任何代码读它，
+ * 留着只是脏数据 —— 启动时删一次即可，幂等。
+ */
+try {
+  localStorage.removeItem('arch.ai.vault');
+  localStorage.removeItem('arch.ai.vault.salt');
+  localStorage.removeItem('arch.ai.staging');
+} catch {
+  // 隐私模式读不到 localStorage：不影响使用
+}
+
+/**
  * 调试/压测入口：控制台可直接看/改 store。
  *
  * 开发构建默认挂上；生产构建只有带 `?testhook` 时才挂 —— 性能验收要跑生产包

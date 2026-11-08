@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './canvas/Canvas.js';
 import { ComponentPanel } from './components/ComponentPanel.js';
-import { AiConfigDialog } from './components/AiConfigDialog.js';
 import { BatchAddDialog } from './components/BatchAddDialog.js';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog.js';
 import { SaveBanner } from './components/SaveBanner.js';
@@ -114,8 +113,6 @@ export default function App() {
       <>
         {guest && <GuestBanner />}
         <Gallery />
-        {/* AI 模型配置在画廊也要能用（用户 2026-11-05：解析入口在图库） */}
-        <AiConfigDialog />
         <ToastHost />
         {importOpen && <GuestImportDialog onClose={() => setImportOpen(false)} />}
       </>
@@ -170,7 +167,6 @@ export default function App() {
       </ReactFlowProvider>
       <DeleteConfirmDialog />
       <BatchAddDialog />
-      <AiConfigDialog />
       <ToastHost />
       {importOpen && <GuestImportDialog onClose={() => setImportOpen(false)} />}
     </div>
