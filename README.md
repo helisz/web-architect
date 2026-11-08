@@ -51,18 +51,34 @@
 
 管理员身份不放在业务表里，直接用 **Supabase Auth 的用户元数据**（`app_metadata`）判定 —— 前端读 JWT 里的 `app_metadata.role`，数据库 RLS 也用 `auth.jwt() -> 'app_metadata' ->> 'role'` 卡住"谁能把模板设成 public"。
 
-操作步骤：
+`app_metadata` **不是业务表里的列**，它在 Supabase 的 `auth.users` 表里，列名是 `raw_app_meta_data`（jsonb）。Dashboard 每个版本的入口位置略有不同，两种改法任选：
 
-1. 打开 Supabase Dashboard → 左侧 **Authentication** → **Users**；
-2. 找到要授权的人（没有就先 Add user 建一个）；
-3. 点该用户右侧的 **⋯ → Edit user**（或直接点进用户详情），找到 **App Metadata**（JSON 编辑框）；
-4. 填入（已有其它字段就合并，不要覆盖）：
+**方式 A：在 Dashboard 里点**
+
+1. Supabase Dashboard → 左侧 **Authentication** → **Users**；
+2. 点要授权的那个人这一行（不要点右侧的 ⋯ 菜单，直接点行进入用户详情）；
+3. 详情页里找 **App Metadata** 区块（有的版本叫 *Raw App Meta Data*，也可能收在 **Advanced** 或 `{}` 图标后面），它是一个 JSON 编辑框；
+4. 填入（已有其它字段就合并，**不要覆盖**）：
 
    ```json
    { "role": "admin" }
    ```
 
-5. 保存。**该用户需要重新登录一次**才会拿到新的 JWT —— 已登录的会话里 `app_metadata` 还是旧的。
+5. 保存。
+
+**方式 B：直接跑 SQL**（Dashboard → SQL Editor，界面找不到时用这个，最稳）
+
+```sql
+-- 把某个邮箱设成管理员（已有其它 app_metadata 字段会保留）
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+where email = 'YOUR_EMAIL@example.com';
+
+-- 核对（应能看到 {"role": "admin", ...}）
+select email, raw_app_meta_data from auth.users where email = 'YOUR_EMAIL@example.com';
+```
+
+无论哪种方式，**该用户都要重新登录一次**才会拿到含新 `app_metadata` 的 JWT —— 已登录的会话里还是旧值。
 
 ### 建一个公共模板
 
