@@ -13,7 +13,8 @@
   --accent-50: #fff2ec;
   --accent-100: #ffdccc;
   --accent-200: #ffc0a4;
-  --accent-500: #fc5d20;
+  /* 2026-11-08 用户指定：主橙 #FD5E20（原 #FC5D20，微调 +1/+1） */
+  --accent-500: #fd5e20;
   --accent-600: #e24a10;
   --accent-700: #b23a0b;
 
@@ -24,7 +25,7 @@
   --primary: var(--accent-500);
   /*
    * 2026-11-08 对比度调整（用户定稿：向参考图看齐，提亮文字、橙色只做块不做小字）。
-   *   --primary        #FC5D20  只用于描边 / 图标 / 装饰线（不承载文字）
+   *   --primary        #FD5E20  只用于描边 / 图标 / 装饰线（不承载文字）
    *   --primary-text   #B23A0B  橙色**文字**：白底 5.99:1
    *   --primary-solid  #D1440E  实心橙底 + 白字：4.62:1
    *   --primary-solid-hover #B23A0B 悬停更深（5.99:1）
@@ -173,7 +174,7 @@ body {
   opacity: 1;
 }
 .arch-handle:hover .arch-handle-dot {
-  box-shadow: 0 0 0 3px rgba(252, 93, 32, 0.18);
+  box-shadow: 0 0 0 3px rgba(253, 94, 32, 0.18);
 }
 
 /* 缩放（改尺寸）手柄的可拖动范围（用户 2026-11-07）：
