@@ -9,6 +9,11 @@ import { StartupError } from './components/StartupError.js';
 import { ToastHost } from './components/ToastHost.js';
 import { TopBar } from './components/TopBar.js';
 import { Gallery } from './components/Gallery.js';
+import { HomePage } from './components/HomePage.js';
+import { FlowList } from './components/FlowList.js';
+import { TemplateList } from './components/TemplateList.js';
+import { TemplateEditor } from './components/TemplateEditor.js';
+import { FlowCanvas } from './components/FlowCanvas.js';
 import { GuestBanner } from './components/GuestBanner.js';
 import { GuestImportDialog } from './components/GuestImportDialog.js';
 import { AuthSplash, LoginPage } from './components/LoginPage.js';
@@ -18,7 +23,7 @@ import { supabaseConfig } from './lib/env.js';
 import { canLoadData, useAuth } from './lib/auth.js';
 import { useGuestSession } from './data/guestSession.js';
 import { guestDiagramCount, guestImportAsked } from './data/guestRepo.js';
-import { navigateToGallery, useRoute } from './lib/route.js';
+import { navigateToHome, useRoute } from './lib/route.js';
 import { useAutosave, useRouteDiagram } from './data/usePersistence.js';
 import { useWriterLock } from './data/tabLock.js';
 import { useShortcuts } from './hooks/useShortcuts.js';
@@ -76,7 +81,7 @@ export default function App() {
    */
   const prevAuthStatus = useRef(auth.status);
   useEffect(() => {
-    if (prevAuthStatus.current === 'signed-out' && auth.status === 'signed-in') navigateToGallery();
+    if (prevAuthStatus.current === 'signed-out' && auth.status === 'signed-in') navigateToHome();
     prevAuthStatus.current = auth.status;
   }, [auth.status]);
 
@@ -107,12 +112,26 @@ export default function App() {
   // 游客不需要 Supabase 配置：没有 env 也能画图（数据只在本机）
   if (!supabaseConfig && !guest) return <StartupError />;
 
-  // 图库页不需要等任何图载入，先渲染出来（列表自己拉数据）
+  // 非画布页：不需要等任何图载入，先渲染出来（各列表自己拉数据）
   if (!onCanvas) {
+    const page =
+      route.kind === 'flows' ? (
+        <FlowList />
+      ) : route.kind === 'flow' ? (
+        <FlowCanvas flowId={route.flowId} />
+      ) : route.kind === 'templates' ? (
+        <TemplateList />
+      ) : route.kind === 'template' ? (
+        <TemplateEditor templateId={route.templateId} />
+      ) : route.kind === 'gallery' ? (
+        <Gallery />
+      ) : (
+        <HomePage />
+      );
     return (
       <>
         {guest && <GuestBanner />}
-        <Gallery />
+        {page}
         <ToastHost />
         {importOpen && <GuestImportDialog onClose={() => setImportOpen(false)} />}
       </>

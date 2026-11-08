@@ -39,7 +39,8 @@ export function useRouteDiagram(route: Route, enabled = true): void {
     if (!enabled) return;
     let cancelled = false;
 
-    if (route.kind === 'gallery') {
+    // 流程 / 模板页不碰架构图 store：离开时同样把当前图卸掉，自动保存停手
+    if (route.kind !== 'diagram') {
       // 回图库：把图从内存里卸掉，自动保存自然停手
       const store = useDiagramStore.getState();
       if (store.persisted && store.diagram.diagramId) {
