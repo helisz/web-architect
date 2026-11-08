@@ -1,4 +1,7 @@
 import { ToolIcon } from './ToolIcons.js';
+import { AccountMenu } from './AccountMenu.js';
+import { GuestAccount } from './GuestAccount.js';
+import { useGuestSession } from '../data/guestSession.js';
 import { navigateToFlows, navigateToGallery } from '../lib/route.js';
 
 /**
@@ -52,8 +55,16 @@ function ProductCard({ title, subtitle, points, onOpen, icon, code }: CardProps)
 }
 
 export function HomePage() {
+  const guest = useGuestSession((s) => s.guest);
+
   return (
-    <div className="h-full overflow-y-auto bg-[var(--canvas-bg)]">
+    <div className="relative h-full overflow-y-auto bg-[var(--canvas-bg)]">
+      {/* 主页右上角：账号头像 / 游客胶囊（用户 2026-11-08）。
+          和列表页同一套组件，登录态是头像 + 下拉（含退出登录），游客是「本机 + 登录」。 */}
+      <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+        {guest ? <GuestAccount /> : <AccountMenu />}
+      </div>
+
       <div className="mx-auto flex min-h-full w-full max-w-[860px] flex-col justify-center px-6 py-10">
         <div className="mb-6">
           <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-primary)]">
