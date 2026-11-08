@@ -86,7 +86,7 @@ export function AlignToolbar() {
 
   return (
     <div
-      className="pointer-events-auto absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-0.5 rounded-md border border-[var(--panel-border)] bg-white/95 px-1.5 py-1 shadow-sm backdrop-blur"
+      className="pointer-events-auto absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-0.5 rounded-[var(--radius-card)] border border-[var(--panel-border)] bg-white/95 px-1.5 py-1 shadow-sm backdrop-blur"
       onMouseDown={(event) => event.stopPropagation()}
     >
       <span className="mr-1 px-1 text-[11px] text-[var(--text-secondary)]">已选 {count}</span>

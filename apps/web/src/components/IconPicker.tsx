@@ -81,7 +81,7 @@ export function IconPicker({ value, onSelect, onClose }: IconPickerProps) {
       role="presentation"
     >
       <div
-        className="anim-window flex max-h-[520px] w-[580px] flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+        className="anim-window flex max-h-[520px] w-[580px] flex-col overflow-hidden rounded-[var(--radius-card)] bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-[var(--panel-border)] px-3 py-2">
@@ -115,7 +115,7 @@ export function IconPicker({ value, onSelect, onClose }: IconPickerProps) {
                 onClick={() => setPrefix(item.value)}
                 className={`rounded px-2 py-1 text-[11px] ${
                   prefix === item.value
-                    ? 'bg-[var(--primary)] text-white'
+                    ? 'bg-[var(--primary-solid)] text-white'
                     : 'border border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
                 }`}
               >
@@ -186,7 +186,7 @@ function IconCell({
       onClick={() => onSelect(iconKey)}
       className={`grid h-9 place-items-center rounded border ${
         active
-          ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
+          ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary-text)]'
           : 'border-transparent text-[var(--text-primary)] hover:border-[var(--primary)] hover:bg-[var(--bg-hover)]'
       }`}
     >

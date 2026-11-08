@@ -71,7 +71,7 @@ function SaveButton() {
       {/* 悬停弹出：保存状态详情 */}
       <div
         role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-56 -translate-x-1/2 rounded-md border border-[var(--glass-line)] bg-[var(--panel-bg)] p-2.5 text-[11px] leading-5 opacity-0 shadow-[0_10px_28px_rgba(26,26,24,0.14)] transition-opacity duration-150 group-hover:opacity-100"
+        className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-56 -translate-x-1/2 rounded-[var(--radius-card)] border border-[var(--glass-line)] bg-[var(--panel-bg)] p-2.5 text-[11px] leading-5 opacity-0 shadow-[0_10px_28px_rgba(26,26,24,0.14)] transition-opacity duration-150 group-hover:opacity-100"
       >
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-[var(--text-secondary)]">保存状态</span>
@@ -124,7 +124,7 @@ function IconButton({
       onClick={onClick}
       className={`grid h-8 w-8 shrink-0 place-items-center rounded ${
         active
-          ? 'bg-[var(--accent-50)] text-[var(--primary)]'
+          ? 'bg-[var(--accent-50)] text-[var(--primary-text)]'
           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
       } disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent`}
     >
@@ -206,7 +206,7 @@ export function TopBar() {
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={commitName}
-              className="shrink-0 rounded bg-[var(--primary)] px-1.5 py-0.5 text-[11px] text-white hover:brightness-95"
+              className="shrink-0 rounded bg-[var(--primary-solid)] px-1.5 py-0.5 text-[11px] text-white hover:brightness-95"
             >
               确定
             </button>
@@ -331,7 +331,7 @@ export function TopBar() {
           </button>
           {menuOpen && (
             <div
-              className="glass absolute right-0 z-[80] mt-1 w-48 overflow-hidden rounded-md py-1"
+              className="glass absolute right-0 z-[80] mt-1 w-48 overflow-hidden rounded-[var(--radius-card)] py-1"
               onMouseLeave={() => setMenuOpen(false)}
             >
               <MenuLabel>工程文件</MenuLabel>

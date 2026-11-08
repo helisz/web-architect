@@ -155,7 +155,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
             e.stopPropagation();
             openBatch(group.groupId);
           }}
-          className="arch-editor-only nodrag nopan absolute left-1/2 z-10 grid h-6 w-6 -translate-x-1/2 cursor-pointer place-items-center rounded-full border border-dashed border-[var(--text-tertiary)] bg-white/85 text-[14px] leading-none text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          className="arch-editor-only nodrag nopan absolute left-1/2 z-10 grid h-6 w-6 -translate-x-1/2 cursor-pointer place-items-center rounded-full border border-dashed border-[var(--text-tertiary)] bg-white/85 text-[14px] leading-none text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
           style={{ bottom: -32 }}
         >
           ＋

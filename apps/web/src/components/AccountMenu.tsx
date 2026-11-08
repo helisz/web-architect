@@ -56,7 +56,7 @@ export function AccountMenu() {
         <div className="anim-pop absolute right-0 top-full z-40 pt-1">
           <div
             role="menu"
-            className="glass w-56 rounded-md py-1"
+            className="glass w-56 rounded-[var(--radius-card)] py-1"
           >
             <p className="truncate px-3 py-1 text-[11px] text-[var(--text-secondary)]" title={email}>
               {email || '未登录'}

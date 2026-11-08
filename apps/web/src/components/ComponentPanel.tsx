@@ -32,11 +32,11 @@ function StructureCard({
         e.dataTransfer.effectAllowed = 'copy';
       }}
       title={title}
-      className={`group flex h-8 min-w-0 cursor-grab items-center gap-1.5 rounded-md border bg-[var(--panel-bg)] px-1.5 hover:border-[var(--primary)] active:cursor-grabbing ${
+      className={`group flex h-8 min-w-0 cursor-grab items-center gap-1.5 rounded-[var(--radius-card)] border bg-[var(--panel-bg)] px-1.5 hover:border-[var(--primary)] active:cursor-grabbing ${
         dashed ? 'border-dashed border-[var(--panel-border)]' : 'border-[var(--panel-border)]'
       }`}
     >
-      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] group-hover:bg-[var(--accent-50)] group-hover:text-[var(--primary)]">
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] group-hover:bg-[var(--accent-50)] group-hover:text-[var(--primary-text)]">
         <NodeIcon iconKey={iconKey} size={14} />
       </span>
       <span className="truncate text-xs text-[var(--text-primary)]">{label}</span>
@@ -89,9 +89,9 @@ function ComponentCard({ item }: { item: ComponentSpec }) {
         e.dataTransfer.effectAllowed = 'copy';
       }}
       title={`拖到画布创建「${item.label}」（${item.width}×${item.height}）`}
-      className="group flex h-8 min-w-0 cursor-grab items-center gap-1.5 rounded-md border border-[var(--panel-border)] bg-[var(--panel-bg)] px-1.5 hover:border-[var(--primary)] active:cursor-grabbing"
+      className="group flex h-8 min-w-0 cursor-grab items-center gap-1.5 rounded-[var(--radius-card)] border border-[var(--panel-border)] bg-[var(--panel-bg)] px-1.5 hover:border-[var(--primary)] active:cursor-grabbing"
     >
-      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] group-hover:bg-[var(--accent-50)] group-hover:text-[var(--primary)]">
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] group-hover:bg-[var(--accent-50)] group-hover:text-[var(--primary-text)]">
         <NodeIcon iconKey={iconKeyFor(item.nodeType)} size={14} />
       </span>
       <span className="truncate text-xs text-[var(--text-primary)]">{item.label}</span>
@@ -203,7 +203,7 @@ export function ComponentPanel() {
    * 2026-11-07：用户要求手柄向右加宽 3px（12→15、24→27），并补 `cursor-pointer`。
    */
   const handleClass =
-    'grid h-14 w-[15px] cursor-pointer place-items-center overflow-hidden bg-white text-[12px] leading-none text-[var(--text-secondary)] shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-[width,color,border-color] duration-150 hover:w-[27px] hover:border-[var(--primary)] hover:text-[var(--primary)]';
+    'grid h-14 w-[15px] cursor-pointer place-items-center overflow-hidden bg-white text-[12px] leading-none text-[var(--text-secondary)] shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-[width,color,border-color] duration-150 hover:w-[27px] hover:border-[var(--primary)] hover:text-[var(--primary-text)]';
 
   if (!open) {
     /*
@@ -235,14 +235,14 @@ export function ComponentPanel() {
                 title={`${group.label}（点击展开组件库）`}
                 aria-label={group.label}
                 onClick={() => setOpen(true)}
-                className="grid h-8 w-8 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--primary)]"
+                className="grid h-8 w-8 place-items-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--primary-text)]"
               >
                 <NodeIcon iconKey={group.icon} size={16} />
               </button>
               {/* 悬停弹出：分类名 + 该分类下的卡片（和展开态同一个组件，外观完全一致）。
                   用命名 group（group/rail）：否则卡片自己的 group-hover 会被这一行的 hover 连带触发，
                   图标底色会一直是橙色，看起来和展开态不一样（2026-11-07）。 */}
-              <div className="invisible absolute left-full top-0 z-50 w-[236px] rounded-md border border-[var(--glass-line)] bg-[var(--panel-bg)] p-1.5 opacity-0 shadow-[0_10px_28px_rgba(26,26,24,0.14)] transition-opacity duration-150 group-hover/rail:visible group-hover/rail:opacity-100">
+              <div className="invisible absolute left-full top-0 z-50 w-[236px] rounded-[var(--radius-card)] border border-[var(--glass-line)] bg-[var(--panel-bg)] p-1.5 opacity-0 shadow-[0_10px_28px_rgba(26,26,24,0.14)] transition-opacity duration-150 group-hover/rail:visible group-hover/rail:opacity-100">
                 <p className="mb-1 px-1 text-[11px] font-semibold text-[var(--text-secondary)]">{group.label}</p>
                 <div className="max-h-[420px] overflow-y-auto">
                   <div className="grid grid-cols-2 gap-1">

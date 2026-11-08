@@ -194,7 +194,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
         if (file) void acceptFile(file);
       }}
     >
-      <div className="w-[560px] rounded-lg bg-white p-4 shadow-xl">
+      <div className="w-[560px] rounded-[var(--radius-card)] bg-white p-4 shadow-xl">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm font-semibold">AI 解析架构图</p>
@@ -228,7 +228,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={() => setConfigOpen(true)}
-            className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            className="rounded border border-[var(--panel-border)] px-2 py-0.5 text-[11px] hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
           >
             {problem ? '去配置' : '换模型'}
           </button>
@@ -240,7 +240,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className={`mt-3 flex h-[190px] w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed text-center ${
+            className={`mt-3 flex h-[190px] w-full flex-col items-center justify-center gap-1.5 rounded-[var(--radius-card)] border-2 border-dashed text-center ${
               dragging ? 'border-[var(--primary)] bg-[var(--accent-50)]' : 'border-[var(--hair-strong)] hover:border-[var(--primary)] hover:bg-[var(--accent-50)]'
             }`}
           >
@@ -350,7 +350,7 @@ export function AiParseDialog({ onClose }: { onClose: () => void }) {
               onClick={() => void run()}
               disabled={!image || busy || Boolean(problem)}
               title={problem ?? undefined}
-              className="rounded bg-[var(--primary)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--primary-hover,#1D4ED8)] disabled:opacity-50"
+              className="rounded bg-[var(--primary-solid)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-50"
             >
               {phase === 'running' || phase === 'creating' ? '解析中…' : error ? '重试' : '开始解析'}
             </button>

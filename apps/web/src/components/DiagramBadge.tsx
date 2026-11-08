@@ -38,7 +38,7 @@ export function DiagramBadge({
       aria-hidden
       title={name || '未命名架构图'}
       style={style}
-      className={`grid shrink-0 place-items-center rounded-[3px] bg-[var(--primary)] font-semibold leading-none text-white ${box} ${className}`}
+      className={`grid shrink-0 place-items-center rounded-[var(--radius-card)] bg-[var(--primary-solid)] font-semibold leading-none text-white ${box} ${className}`}
     >
       {initialsOf(name)}
     </span>

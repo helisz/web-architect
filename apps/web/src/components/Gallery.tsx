@@ -221,7 +221,7 @@ export function Gallery() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="flex items-center gap-1 rounded bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-hover,#1D4ED8)]"
+            className="flex items-center gap-1 rounded bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)]"
             onClick={() => setNewOpen(true)}
             title="新建：空白画布 / AI 解析架构图"
           >
@@ -265,7 +265,7 @@ export function Gallery() {
               type="button"
               className={`rounded-full border px-2 py-0.5 text-[11px] ${
                 tag === item
-                  ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
+                  ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary-text)]'
                   : 'border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
               }`}
               onClick={() => {
@@ -308,7 +308,7 @@ export function Gallery() {
                 key={row.diagramId}
                 onMouseEnter={() => setHoverId(row.diagramId)}
                 onMouseLeave={() => setHoverId((id) => (id === row.diagramId ? null : id))}
-                className={`group relative flex h-full flex-col overflow-hidden rounded-[3px] border bg-white p-3 transition-colors ${
+                className={`group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border bg-white p-3 transition-colors ${
                   row.diagramId === currentId
                     ? 'border-[var(--primary)]'
                     : 'border-[var(--panel-border)] hover:border-[var(--primary)]'
@@ -318,7 +318,7 @@ export function Gallery() {
                 <button
                   type="button"
                   aria-label={`打开「${row.name || '未命名架构图'}」`}
-                  className="absolute inset-0 z-0 rounded-lg"
+                  className="absolute inset-0 z-0 rounded-[var(--radius-card)]"
                   onClick={() => void open(row.diagramId)}
                   disabled={busy !== null}
                 />
@@ -401,7 +401,7 @@ export function Gallery() {
                         v{row.version} · {new Date(row.updatedAt).toLocaleDateString('zh-CN')}
                       </span>
                       {row.diagramId === currentId && (
-                        <span className="shrink-0 rounded bg-[var(--accent-50)] px-1 text-[10px] text-[var(--primary)]">当前</span>
+                        <span className="shrink-0 rounded bg-[var(--accent-50)] px-1 text-[10px] text-[var(--primary-text)]">当前</span>
                       )}
                     </div>
                   </div>
@@ -437,7 +437,7 @@ export function Gallery() {
                 {/* 动作图标（2026-11-08）：绝对定位在卡片右下角，**不占布局高度**；
                     默认隐藏，悬停整张卡时浮出，底下一层高斯模糊避免压在文字上。 */}
                 <div
-                  className={`absolute bottom-2 right-2 z-20 flex items-center gap-1 rounded-md border border-[var(--glass-line)] bg-white/60 p-1 backdrop-blur-[20px] backdrop-saturate-150 transition-opacity ${
+                  className={`absolute bottom-2 right-2 z-20 flex items-center gap-1 rounded-[var(--radius-card)] border border-[var(--glass-line)] bg-white/60 p-1 backdrop-blur-[20px] backdrop-saturate-150 transition-opacity ${
                     hoverId === row.diagramId ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
                   }`}
                 >
@@ -543,7 +543,7 @@ function CardAction({
         onClick();
       }}
       className={`grid h-7 w-7 place-items-center rounded border border-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--panel-border)] hover:bg-[var(--bg-hover)] disabled:opacity-40 ${
-        danger ? 'text-[var(--err)] hover:border-[var(--err)] hover:bg-[var(--err-soft)]' : 'hover:text-[var(--primary)]'
+        danger ? 'text-[var(--err)] hover:border-[var(--err)] hover:bg-[var(--err-soft)]' : 'hover:text-[var(--primary-text)]'
       }`}
     >
       <ToolIcon name={icon} size={15} />

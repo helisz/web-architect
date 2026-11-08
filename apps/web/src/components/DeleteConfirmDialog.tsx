@@ -50,7 +50,7 @@ export function DeleteConfirmDialog() {
 
   return (
     <div className="anim-backdrop fixed inset-0 z-50 grid place-items-center bg-black/30" role="dialog" aria-modal>
-      <div className="anim-window w-[360px] rounded-lg bg-white p-4 shadow-xl">
+      <div className="anim-window w-[360px] rounded-[var(--radius-card)] bg-white p-4 shadow-xl">
         <p className="text-sm font-semibold">确认删除？</p>
         <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
           将删除 {pending.nodeIds.length > 0 && `${pending.nodeIds.length} 个节点`}

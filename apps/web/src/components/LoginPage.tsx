@@ -57,7 +57,7 @@ export function LoginPage({ auth }: { auth: AuthState }) {
 
         <div className="relative">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center bg-[var(--primary)] text-[15px] font-bold text-white">
+            <span className="grid h-8 w-8 place-items-center bg-[var(--primary-solid)] text-[15px] font-bold text-white">
               架
             </span>
             <div className="flex flex-col leading-tight">
@@ -98,7 +98,7 @@ export function LoginPage({ auth }: { auth: AuthState }) {
         <div className="mx-auto my-auto w-full max-w-[380px]">
           {/* 窄屏下的品牌标识（品牌区被隐藏时补上） */}
           <div className="mb-6 flex items-center gap-2.5 lg:hidden">
-            <span className="grid h-8 w-8 place-items-center bg-[var(--primary)] text-[15px] font-bold text-white">
+            <span className="grid h-8 w-8 place-items-center bg-[var(--primary-solid)] text-[15px] font-bold text-white">
               架
             </span>
             <div className="flex flex-col leading-tight">
@@ -164,7 +164,7 @@ export function LoginPage({ auth }: { auth: AuthState }) {
             <button
               type="submit"
               disabled={auth.pending}
-              className="h-9 w-full bg-[var(--primary)] text-[13px] font-bold text-white transition-colors hover:bg-[var(--accent-600)] disabled:opacity-60"
+              className="h-9 w-full bg-[var(--primary-solid)] text-[13px] font-bold text-white transition-colors hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
             >
               {auth.pending ? '登录中…' : '登录'}
             </button>
@@ -208,7 +208,7 @@ export function AuthSplash() {
   return (
     <div className="grid h-full place-items-center bg-[var(--canvas-bg)]">
       <div className="flex flex-col items-center gap-3">
-        <span className="grid h-8 w-8 place-items-center bg-[var(--primary)] text-[15px] font-bold text-white">
+        <span className="grid h-8 w-8 place-items-center bg-[var(--primary-solid)] text-[15px] font-bold text-white">
           架
         </span>
         <div className="flex items-center gap-2">

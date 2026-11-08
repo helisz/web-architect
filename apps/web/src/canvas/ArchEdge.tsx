@@ -495,7 +495,7 @@ function ArchEdgeImpl({
               onPointerDown={(e) => startWaypointDrag(e, 'new')}
               style={handleStyle(addHandlePoint)}
             >
-              <div className="grid h-3.5 w-3.5 place-items-center rounded-full border border-dashed border-[var(--primary)] bg-white/90 text-[9px] leading-none text-[var(--primary)]">
+              <div className="grid h-3.5 w-3.5 place-items-center rounded-full border border-dashed border-[var(--primary)] bg-white/90 text-[9px] leading-none text-[var(--primary-text)]">
                 ＋
               </div>
             </div>

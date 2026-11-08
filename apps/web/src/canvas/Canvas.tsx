@@ -1006,10 +1006,10 @@ function CanvasModeButtons() {
   const setEditLocked = useDiagramStore((s) => s.setEditLocked);
   const layerOpen = useDiagramStore((s) => s.layerPanelOpen);
   const setLayerPanelOpen = useDiagramStore((s) => s.setLayerPanelOpen);
-  const base = 'grid h-8 w-8 place-items-center rounded-md border shadow-sm';
-  const on = 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]';
+  const base = 'grid h-8 w-8 place-items-center rounded-[var(--radius-card)] border shadow-sm';
+  const on = 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary-text)]';
   const off =
-    'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]';
+    'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)]';
   return (
     <div className="absolute right-3 top-3 z-30 flex items-center gap-1.5">
       <button

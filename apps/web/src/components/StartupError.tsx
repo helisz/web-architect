@@ -21,7 +21,7 @@ export function StartupError({ title, detail, hint, backToGallery }: StartupErro
 
   return (
     <div className="grid h-full place-items-center bg-[var(--canvas-bg)] p-6">
-      <div className="w-full max-w-xl rounded-lg border border-[#F5C2C7] bg-white p-6">
+      <div className="w-full max-w-xl rounded-[var(--radius-card)] border border-[#F5C2C7] bg-white p-6">
         <h1 className="text-base font-semibold text-[#B42318]">
           {title ?? '启动失败：缺少 Supabase 配置'}
         </h1>
@@ -79,7 +79,7 @@ export function StartupError({ title, detail, hint, backToGallery }: StartupErro
             <button
               type="button"
               onClick={() => navigateToGallery()}
-              className="rounded bg-[var(--primary)] px-3 py-1.5 text-sm text-white hover:bg-[var(--primary-hover,#1D4ED8)]"
+              className="rounded bg-[var(--primary-solid)] px-3 py-1.5 text-sm text-white hover:bg-[var(--primary-solid-hover)]"
             >
               回到图库
             </button>

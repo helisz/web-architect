@@ -196,7 +196,7 @@ export function AiConfigDialog() {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div className="anim-window flex max-h-[86vh] w-[560px] flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+      <div className="anim-window flex max-h-[86vh] w-[560px] flex-col overflow-hidden rounded-[var(--radius-card)] bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-[var(--panel-border)] px-4 py-2.5">
           <div>
             <p className="text-sm font-semibold">AI 模型设置</p>
@@ -248,7 +248,7 @@ export function AiConfigDialog() {
                 type="button"
                 onClick={() => void doCreate()}
                 disabled={busy}
-                className="rounded bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-hover,#1D4ED8)] disabled:opacity-60"
+                className="rounded bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
               >
                 {busy ? '处理中…' : '设好口令，开始配置'}
               </button>
@@ -281,7 +281,7 @@ export function AiConfigDialog() {
                   type="button"
                   onClick={() => void doUnlock()}
                   disabled={busy}
-                  className="rounded bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-hover,#1D4ED8)] disabled:opacity-60"
+                  className="rounded bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
                 >
                   {busy ? '解锁中…' : '解锁'}
                 </button>
@@ -328,7 +328,7 @@ export function AiConfigDialog() {
                     onClick={newProfile}
                     title="新建档案"
                     aria-label="新建模型档案"
-                    className="rounded border border-[var(--panel-border)] px-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                    className="rounded border border-[var(--panel-border)] px-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
                   >
                     + 新建
                   </button>
@@ -349,7 +349,7 @@ export function AiConfigDialog() {
                         }`}
                       >
                         <span className="flex items-center gap-1">
-                          <span className={isActive ? 'text-[var(--primary)]' : 'text-[var(--text-secondary)]'}>
+                          <span className={isActive ? 'text-[var(--primary-text)]' : 'text-[var(--text-secondary)]'}>
                             {isActive ? '●' : '○'}
                           </span>
                           <span className="truncate">{profile.name}</span>
@@ -377,7 +377,7 @@ export function AiConfigDialog() {
                         if (ok) notice('已设为默认档案');
                       });
                     }}
-                    className="mt-2 w-full rounded border border-[var(--panel-border)] px-2 py-1 text-[10px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                    className="mt-2 w-full rounded border border-[var(--panel-border)] px-2 py-1 text-[10px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary-text)]"
                   >
                     把当前档案设为默认
                   </button>
@@ -473,7 +473,7 @@ export function AiConfigDialog() {
                         type="button"
                         onClick={() => void doSave()}
                         disabled={busy}
-                        className="rounded bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-hover,#1D4ED8)] disabled:opacity-60"
+                        className="rounded bg-[var(--primary-solid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
                       >
                         {busy ? '保存中…' : '保存到本机'}
                       </button>

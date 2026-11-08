@@ -49,7 +49,7 @@ export function GuestImportDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="anim-backdrop fixed inset-0 z-50 grid place-items-center bg-black/30" role="dialog" aria-modal aria-label="导入游客图">
-      <div className="anim-window w-[400px] rounded-lg bg-white p-4 shadow-xl">
+      <div className="anim-window w-[400px] rounded-[var(--radius-card)] bg-white p-4 shadow-xl">
         <p className="text-sm font-semibold">把游客期间的图导入账号？</p>
         <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
           本机有 <b className="text-[var(--text-primary)]">{total}</b> 张游客图。导入后会在你的账号里生成副本
@@ -74,7 +74,7 @@ export function GuestImportDialog({ onClose }: { onClose: () => void }) {
             autoFocus
             onClick={() => void runImport()}
             disabled={busy}
-            className="rounded bg-[var(--primary)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--primary-hover,#1D4ED8)] disabled:opacity-60"
+            className="rounded bg-[var(--primary-solid)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-60"
           >
             {busy ? '导入中…' : `导入 ${total} 张`}
           </button>

@@ -22,9 +22,22 @@
   --panel-bg: #ffffff;
   --panel-border: #e7e6e1;
   --primary: var(--accent-500);
+  /*
+   * 2026-11-08 对比度调整（用户定稿：向参考图看齐，提亮文字、橙色只做块不做小字）。
+   *   --primary        #FC5D20  只用于描边 / 图标 / 装饰线（不承载文字）
+   *   --primary-text   #B23A0B  橙色**文字**：白底 5.99:1
+   *   --primary-solid  #D1440E  实心橙底 + 白字：4.62:1
+   *   --primary-solid-hover #B23A0B 悬停更深（5.99:1）
+   */
+  --primary-text: var(--accent-700);
+  --primary-solid: #d1440e;
+  --primary-solid-hover: var(--accent-700);
+
   --text-primary: #1a1a18;
-  --text-secondary: #77766f;
-  --text-tertiary: #a3a29a;
+  /* 4.56 → 6.51（白底）：次级文字原来只是"刚过 AA"，小字容易糊 */
+  --text-secondary: #5f5e57;
+  /* 2.56 → 3.76：三级灰原来连 3:1 都不到，只配做分隔线，不能写内容 */
+  --text-tertiary: #85847c;
   --node-bg: #ffffff;
   --node-border: #d6d5cf;
   --radius-node: 4px;
@@ -36,8 +49,15 @@
   --bg-sunken: #eeede7;
   --dot: #dedcd4;
 
-  /* 圆角：大块直角，小件微圆角 */
+  /*
+   * 圆角：收敛成三档（2026-11-08）。
+   * 之前实际渲染出 2/3/4/6/8/50px 六种，散在 26 处；参考图是统一的 2–4px 近乎直角。
+   *   --radius-ctl   2px  输入框、小按钮、色块
+   *   --radius-card  4px  卡片、面板、菜单、弹窗（= Tailwind 的 rounded）
+   *   胶囊 / 圆点 / 头像仍用 rounded-full
+   */
   --radius-ctl: 2px;
+  --radius-card: 4px;
   --radius-panel: 0px;
 
   /* 浮动玻璃面板（第二批用） */

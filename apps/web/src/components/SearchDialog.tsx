@@ -68,7 +68,7 @@ export function SearchDialog() {
 
   return (
     <div
-      className="glass anim-pop absolute left-1/2 top-3 z-30 w-[420px] -translate-x-1/2 overflow-hidden rounded-lg"
+      className="glass anim-pop absolute left-1/2 top-3 z-30 w-[420px] -translate-x-1/2 overflow-hidden rounded-[var(--radius-card)]"
       onMouseDown={(event) => event.stopPropagation()}
     >
       <div className="flex items-center gap-2 border-b border-[var(--panel-border)] px-3 py-2">

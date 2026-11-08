@@ -255,10 +255,10 @@ function MenuList({
                 item.danger ? 'text-[var(--err)] shadow-[inset_2px_0_0_var(--err)]' : ''
               }`}
             >
-              {item.swatch ? <Swatch color={item.swatch} /> : <RowIcon name={menuIconFor(item.label)} tone={item.checked ? 'text-[var(--primary)]' : tone} />}
+              {item.swatch ? <Swatch color={item.swatch} /> : <RowIcon name={menuIconFor(item.label)} tone={item.checked ? 'text-[var(--primary-text)]' : tone} />}
               <span className="truncate">{item.label}</span>
               <span className="flex items-center gap-2">
-                {item.checked && <span className="text-[11px] text-[var(--primary)]">✓</span>}
+                {item.checked && <span className="text-[11px] text-[var(--primary-text)]">✓</span>}
                 {item.hint && (
                   <span className="mono text-[11px] text-[var(--text-tertiary)]">{item.hint}</span>
                 )}

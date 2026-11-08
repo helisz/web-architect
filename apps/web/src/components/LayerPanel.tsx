@@ -73,7 +73,7 @@ export function LayerPanel() {
   };
 
   return (
-    <div className="glass anim-pop absolute right-3 top-12 z-20 w-[252px] overflow-hidden rounded-lg">
+    <div className="glass anim-pop absolute right-3 top-12 z-20 w-[252px] overflow-hidden rounded-[var(--radius-card)]">
       <div className="flex items-center justify-between border-b border-[var(--panel-border)] px-2.5 py-1.5">
         <span className="text-[12px] font-medium">图层（{rows.length}）</span>
         <button
@@ -207,7 +207,7 @@ export function LayerPanel() {
           }}
           className={`mx-1.5 my-1 rounded border border-dashed px-2 py-1 text-center text-[11px] ${
             dropTarget === '__root__'
-              ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary)]'
+              ? 'border-[var(--primary)] bg-[var(--accent-50)] text-[var(--primary-text)]'
               : 'border-[var(--panel-border)] text-[var(--text-secondary)]'
           }`}
         >

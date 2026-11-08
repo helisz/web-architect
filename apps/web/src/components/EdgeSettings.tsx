@@ -42,7 +42,7 @@ export function EdgeSettings() {
         aria-label="连线全局配置"
         className={`grid h-8 w-8 place-items-center rounded ${
           open
-            ? 'bg-[var(--accent-50)] text-[var(--primary)]'
+            ? 'bg-[var(--accent-50)] text-[var(--primary-text)]'
             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
         }`}
       >
@@ -50,7 +50,7 @@ export function EdgeSettings() {
       </button>
 
       {open && (
-        <div className="glass anim-pop absolute right-0 top-10 z-40 w-56 rounded-lg p-3">
+        <div className="glass anim-pop absolute right-0 top-10 z-40 w-56 rounded-[var(--radius-card)] p-3">
           <p className="mb-2 text-[11px] font-semibold text-[var(--text-secondary)]">新建连线的默认样式</p>
 
           <label className="mb-1 block text-[11px] text-[var(--text-secondary)]">线型</label>

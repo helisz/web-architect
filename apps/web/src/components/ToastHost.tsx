@@ -31,7 +31,7 @@ function ToastRow({ toast }: { toast: ToastItem }) {
   return (
     <div
       role={toast.kind === 'error' ? 'alert' : 'status'}
-      className={`anim-pop pointer-events-auto flex max-w-[520px] items-start gap-2 rounded-md border px-3 py-2 text-[12px] leading-5 shadow-sm backdrop-blur-[20px] backdrop-saturate-150 ${tone.box}`}
+      className={`anim-pop pointer-events-auto flex max-w-[520px] items-start gap-2 rounded-[var(--radius-card)] border px-3 py-2 text-[12px] leading-5 shadow-sm backdrop-blur-[20px] backdrop-saturate-150 ${tone.box}`}
     >
       <span className="min-w-0 flex-1">{toast.text}</span>
       <button

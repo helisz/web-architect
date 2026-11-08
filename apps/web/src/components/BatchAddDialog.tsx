@@ -62,7 +62,7 @@ export function BatchAddDialog() {
     <div
       role="dialog"
       aria-label="批量添加节点"
-      className="glass anim-window fixed left-1/2 top-[84px] z-50 w-[380px] -translate-x-1/2 rounded-lg p-3"
+      className="glass anim-window fixed left-1/2 top-[84px] z-50 w-[380px] -translate-x-1/2 rounded-[var(--radius-card)] p-3"
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
@@ -126,7 +126,7 @@ export function BatchAddDialog() {
           type="button"
           onClick={apply}
           disabled={lines.length === 0}
-          className="rounded bg-[var(--primary)] px-3 py-1 text-[12px] text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded bg-[var(--primary-solid)] px-3 py-1 text-[12px] text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
         >
           应用
         </button>

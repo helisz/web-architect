@@ -112,7 +112,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
         />
         <button
           type="button"
-          className="shrink-0 rounded bg-[var(--primary)] px-2 py-1 text-[12px] text-white hover:bg-[var(--primary-hover,#1D4ED8)] disabled:opacity-50"
+          className="shrink-0 rounded bg-[var(--primary-solid)] px-2 py-1 text-[12px] text-white hover:bg-[var(--primary-solid-hover)] disabled:opacity-50"
           disabled={busy !== null}
           onClick={() => void saveManual()}
         >
@@ -189,7 +189,7 @@ export function VersionPanel({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="button"
-              className="rounded bg-[var(--primary)] px-2 py-1 text-[11px] text-white hover:bg-[var(--primary-hover,#1D4ED8)]"
+              className="rounded bg-[var(--primary-solid)] px-2 py-1 text-[11px] text-white hover:bg-[var(--primary-solid-hover)]"
               onClick={() => void rollback(confirming)}
               disabled={busy !== null}
             >

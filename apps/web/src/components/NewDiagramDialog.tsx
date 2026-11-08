@@ -34,7 +34,7 @@ export function NewDiagramDialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="anim-window w-[520px] rounded-lg bg-white p-4 shadow-xl">
+      <div className="anim-window w-[520px] rounded-[var(--radius-card)] bg-white p-4 shadow-xl">
         <p className="text-sm font-semibold">新建架构图</p>
         <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
           空白画布从零开始；AI 解析会把上传的架构图还原成可编辑的节点和连线。
@@ -45,9 +45,9 @@ export function NewDiagramDialog({
             type="button"
             autoFocus
             onClick={() => onChoose('blank')}
-            className="group rounded-lg border border-[var(--panel-border)] p-3 text-left hover:border-[var(--primary)] hover:bg-[var(--accent-50)]"
+            className="group rounded-[var(--radius-card)] border border-[var(--panel-border)] p-3 text-left hover:border-[var(--primary)] hover:bg-[var(--accent-50)]"
           >
-            <span className="mb-1.5 grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] group-hover:border-[var(--primary)] group-hover:text-[var(--primary)]">
+            <span className="mb-1.5 grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] group-hover:border-[var(--primary)] group-hover:text-[var(--primary-text)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
                 <path d="M4 4h16v16H4z" />
                 <path d="M12 8v8M8 12h8" />
@@ -62,9 +62,9 @@ export function NewDiagramDialog({
           <button
             type="button"
             onClick={() => onChoose('ai')}
-            className="group rounded-lg border border-[var(--panel-border)] p-3 text-left hover:border-[var(--primary)] hover:bg-[var(--accent-50)]"
+            className="group rounded-[var(--radius-card)] border border-[var(--panel-border)] p-3 text-left hover:border-[var(--primary)] hover:bg-[var(--accent-50)]"
           >
-            <span className="mb-1.5 grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] group-hover:border-[var(--primary)] group-hover:text-[var(--primary)]">
+            <span className="mb-1.5 grid h-8 w-8 place-items-center rounded border border-[var(--panel-border)] text-[var(--text-secondary)] group-hover:border-[var(--primary)] group-hover:text-[var(--primary-text)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
                 <path d="M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6z" />
                 <path d="M17.5 14l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" />
