@@ -24,15 +24,17 @@
   --panel-border: #e7e6e1;
   --primary: var(--accent-500);
   /*
-   * 2026-11-08 对比度调整（用户定稿：向参考图看齐，提亮文字、橙色只做块不做小字）。
-   *   --primary        #FD5E20  只用于描边 / 图标 / 装饰线（不承载文字）
-   *   --primary-text   #B23A0B  橙色**文字**：白底 5.99:1
-   *   --primary-solid  #D1440E  实心橙底 + 白字：4.62:1
-   *   --primary-solid-hover #B23A0B 悬停更深（5.99:1）
+   * 橙色派生色（2026-11-08 用户定稿：**全部还原成主色调橙**）。
+   * 之前为了 WCAG 对比度把它们压深过（#B23A0B / #D1440E），但和主色不是同一个橙，看着发脏；
+   * 现在统一回 --primary：
+   *   --primary-text        橙色文字
+   *   --primary-solid       实心橙底（白字压在上面）
+   *   --primary-solid-hover 悬停只降一档亮度，保持同一色相
+   * 代价：白底橙字 / 橙底白字的对比度回到 3.12:1（低于 AA 4.5）—— 用户已知并接受。
    */
-  --primary-text: var(--accent-700);
-  --primary-solid: #d1440e;
-  --primary-solid-hover: var(--accent-700);
+  --primary-text: var(--primary);
+  --primary-solid: var(--primary);
+  --primary-solid-hover: var(--accent-600);
 
   --text-primary: #1a1a18;
   /* 4.56 → 6.51（白底）：次级文字原来只是"刚过 AA"，小字容易糊 */

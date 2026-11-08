@@ -44,7 +44,7 @@ export function GuestBanner() {
         <button
           type="button"
           onClick={() => exitGuest()}
-          className="rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-2 py-0.5 font-medium text-white hover:bg-[var(--accent-700)]"
+          className="rounded-[var(--radius-ctl)] bg-[var(--primary-solid)] px-2 py-0.5 font-medium text-white hover:bg-[var(--primary-solid-hover)]"
           title="回到登录页；本机游客数据会保留，登录后可以导入账号"
         >
           登录以保存到云端
