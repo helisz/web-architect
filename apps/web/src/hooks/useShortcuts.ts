@@ -13,6 +13,9 @@ import { useDiagramStore } from '../store/useDiagramStore.js';
  * - Ctrl/Cmd + F          搜索定位
  * - Delete / Backspace    删除选中（RF 自己处理，这里兜底分组）
  * - L                     锁定 / 解锁
+ * - Ctrl/Cmd + G          组合（把选区包进一个分组）
+ * - Ctrl/Cmd + Shift + G  取消组合（只解开最外层）
+ * - Alt + G / Alt+Shift+G 同上（避开浏览器「查找下一个」）
  * - ] / [                 置顶 / 置底
  * - N                     在视口中心新建一个通用节点
  * - Esc                   取消选择 / 关闭面板
@@ -86,12 +89,28 @@ export function useShortcuts(enabled = true): void {
           state.setSearchOpen(true);
           return;
         }
+        if (key === 'g') {
+          // 组合 / 取消组合（2026-11-08）：Ctrl/Cmd 和 Alt 两套都认，
+          // 因为 Cmd+G 在部分浏览器里是「查找下一个」，拦不住时还能用 Alt+G。
+          event.preventDefault();
+          if (event.shiftKey) state.ungroupSelection();
+          else state.groupSelection();
+          return;
+        }
         if (key === 's') {
           // 显式保存：不等节流，立刻写一次（"我知道我在干什么，现在就存"）
           event.preventDefault();
           flushNow();
           return;
         }
+        return;
+      }
+
+      // Alt + G / Alt + Shift + G：组合 / 取消组合的备用键位（避开浏览器「查找下一个」）
+      if (event.altKey && key === 'g') {
+        event.preventDefault();
+        if (event.shiftKey) state.ungroupSelection();
+        else state.groupSelection();
         return;
       }
 

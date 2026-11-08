@@ -43,7 +43,8 @@ export type ToolIconName =
   | 'folder'
   | 'swap'
   | 'image'
-  | 'save';
+  | 'save'
+  | 'tag';
 
 const PATHS: Record<ToolIconName, string> = {
   undo: 'M9 14 5 10l4-4M5 10h11a4 4 0 0 1 0 8h-2',
@@ -92,6 +93,8 @@ const PATHS: Record<ToolIconName, string> = {
   image: 'M4 5h16v14H4zM8.5 10.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM4 16l5-4 4 3 3-2 4 3',
   // 软盘（tabler device-floppy，合并成一条 d）
   save: 'M6 4h10l4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2M10 14a2 2 0 1 0 4 0a2 2 0 1 0-4 0m4-10v4H8V4',
+  // 标签（tabler tag）
+  tag: 'M3 6v5.172a2 2 0 0 0 .586 1.414l7.71 7.71a2.41 2.41 0 0 0 3.408 0l5.592-5.592a2.41 2.41 0 0 0 0-3.408l-7.71-7.71A2 2 0 0 0 11.172 3H6a3 3 0 0 0-3 3M7.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0-2 0',
 };
 
 export function ToolIcon({

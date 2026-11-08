@@ -18,6 +18,7 @@ import {
   isGroupLocked,
   MAX_GROUP_DEPTH,
   nodeAbsoluteRect,
+  dissolveGroup,
   removeGroupLifting,
   setGroupParent,
   setNodeGroup,
@@ -154,6 +155,8 @@ interface DiagramStore {
   ) => DiagramNode;
   moveNode: (nodeId: string, position: Point) => void;
   resizeNode: (nodeId: string, size: { width: number; height: number }) => void;
+  /** 批量改尺寸（多选统一宽高）：只改节点，整批算一步撤销 */
+  resizeNodes: (ids: string[], size: Partial<{ width: number; height: number }>) => void;
   /** 线条专用：端点一动，盒子跟着重算（x/y/width/height 与 extJson.line.a/b 必须一起写） */
   setLineGeometry: (nodeId: string, geometry: LineGeometry) => void;
   removeNode: (nodeId: string) => void;
@@ -185,6 +188,12 @@ interface DiagramStore {
   toggleGroupCollapsed: (groupId: string) => void;
   /** 拖进/拖出分组：换算局部坐标，屏幕位置不变（C1） */
   reparentNode: (nodeId: string, groupId: string | null) => void;
+
+  /* ---------------- 组合 / 取消组合（2026-11-08） ---------------- */
+  /** Ctrl/Cmd+G：把当前选区包进一个新分组；返回新组 id */
+  groupSelection: () => string | null;
+  /** Ctrl/Cmd+Shift+G：只解散选区里最外层的分组（嵌套子组保留） */
+  ungroupSelection: () => void;
 
   /* ---------------- 动态容器（2026-11-07） ---------------- */
   /** 批量添加弹层当前对着哪个容器；null = 关闭 */
@@ -671,6 +680,26 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
       saveState: 'dirty',
     })),
 
+  resizeNodes: (ids, size) =>
+    set((s) => {
+      const set = new Set(ids);
+      let changed = false;
+      const nodes = s.diagram.nodes.map((n) => {
+        if (!set.has(n.nodeId)) return n;
+        const width = size.width !== undefined ? Math.max(24, Math.round(size.width)) : n.width;
+        const height = size.height !== undefined ? Math.max(24, Math.round(size.height)) : n.height;
+        if (width === n.width && height === n.height) return n;
+        changed = true;
+        return { ...n, width, height };
+      });
+      if (!changed) return s;
+      return {
+        ...withHistory(s, `resizeNodes:${ids.join(',')}`),
+        diagram: { ...s.diagram, nodes },
+        saveState: 'dirty',
+      };
+    }),
+
   resizeNode: (nodeId, size) =>
     set((s) => ({
       ...withHistory(s, `resize:${nodeId}`),
@@ -1006,6 +1035,106 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
     });
     return created.length;
   },
+
+  groupSelection: () => {
+    const state = get();
+    const { diagram, selectedIds } = state;
+    if (selectedIds.length < 2) return null;
+
+    // 只取"最外层"的选中项：父级也在选区里的话，跟着父级一起搬就行，别再单独搬一次
+    const items = collectSelection({ diagram, selectedIds });
+    if (items.length < 2) return null;
+
+    const parentOf = (item: SelectionItem): string | null => {
+      if (item.kind === 'node') {
+        return diagram.nodes.find((n) => n.nodeId === item.id)?.groupId ?? null;
+      }
+      return diagram.groups.find((g) => g.groupId === item.id)?.parentGroupId ?? null;
+    };
+    const isInsideSelectedGroup = (item: SelectionItem): boolean => {
+      const seen = new Set<string>();
+      let current = parentOf(item);
+      while (current && !seen.has(current)) {
+        if (selectedIds.includes(current)) return true;
+        seen.add(current);
+        current = diagram.groups.find((g) => g.groupId === current)?.parentGroupId ?? null;
+      }
+      return false;
+    };
+    const outer = items.filter((item) => !isInsideSelectedGroup(item));
+    if (outer.length < 1) return null;
+
+    // 新组的父级 = 所有外层选中项的共同父级（没有就放顶层）
+    const parents = new Set(outer.map((item) => parentOf(item) ?? ''));
+    const parentId = parents.size === 1 ? ([...parents][0] || null) : null;
+
+    // 嵌套深度上限：父级已经 3 层就不能再套
+    if (parentId) {
+      const depth = countDepth(diagram.groups, parentId);
+      if (depth >= MAX_GROUP_DEPTH) {
+        state.pushToast('已经是第 3 层分组了，不能再嵌套', 'info');
+        return null;
+      }
+    }
+
+    const minX = Math.min(...outer.map((item) => item.rect.x));
+    const minY = Math.min(...outer.map((item) => item.rect.y));
+    const maxX = Math.max(...outer.map((item) => item.rect.x + item.rect.width));
+    const maxY = Math.max(...outer.map((item) => item.rect.y + item.rect.height));
+    const pad = 16;
+    // 纯组没有标题栏（用户 2026-11-08：Ctrl+G 建的是"就是个组"，不是分组组件）
+    const header = 0;
+    const offset = groupOffset(diagram.groups, parentId);
+
+    const group = createGroup(diagram.diagramId, { x: minX - pad - offset.x, y: minY - header - pad - offset.y }, {
+      width: maxX - minX + pad * 2,
+      height: maxY - minY + header + pad * 2,
+      label: '',
+      // 纯组：无标题栏 / 名称 / 图标，平时不可见，悬停或选中才显形
+      extJson: { bare: true },
+      bgColor: '#00000000',
+      borderColor: '#00000000',
+      parentGroupId: parentId,
+    });
+
+    set((s) => {
+      let next: ArchitectureDiagram = { ...s.diagram, groups: [...s.diagram.groups, group] };
+      for (const item of outer) {
+        if (item.kind === 'node') next = setNodeGroup(next, item.id, group.groupId);
+        else next = setGroupParent(next, item.id, group.groupId);
+      }
+      return {
+        ...withHistory(s, `group:${group.groupId}`),
+        diagram: next,
+        selectedId: group.groupId,
+        selectedIds: [group.groupId],
+        saveState: 'dirty',
+      };
+    });
+    return group.groupId;
+  },
+
+  ungroupSelection: () =>
+    set((s) => {
+      const targets = s.selectedIds.filter((id) => s.diagram.groups.some((g) => g.groupId === id));
+      if (targets.length === 0) return s;
+      let diagram = s.diagram;
+      for (const id of targets) {
+        diagram = dissolveGroup(diagram, id);
+        // 组没了，挂在它身上的连线也一起清掉
+        diagram = {
+          ...diagram,
+          edges: diagram.edges.filter((e) => e.sourceNodeId !== id && e.targetNodeId !== id),
+        };
+      }
+      return {
+        ...withHistory(s, `ungroup:${targets.join(',')}`),
+        diagram,
+        selectedIds: [],
+        selectedId: null,
+        saveState: 'dirty',
+      };
+    }),
 
   reparentNode: (nodeId, groupId) =>
     set((s) => {

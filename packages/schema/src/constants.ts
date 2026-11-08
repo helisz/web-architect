@@ -417,11 +417,14 @@ export interface DynamicPreset {
   width: number;
   height: number;
   dashed: boolean;
+  /** 建出来时用的组名（不填就用 label） */
+  groupLabel?: string;
 }
 
 export const DYNAMIC_PRESETS: DynamicPreset[] = [
   { key: 'dynamic-group', label: '动态分组', iconKey: 'tabler:square-plus', width: 260, height: 160, dashed: false },
-  { key: 'dynamic-zone', label: '动态组', iconKey: 'tabler:square-dashed', width: 260, height: 150, dashed: true },
+  // 卡片上叫「动态组 (简)」，但建出来的组仍叫「动态组」（2026-11-08 用户要求）
+  { key: 'dynamic-zone', label: '动态组 (简)', groupLabel: '动态组', iconKey: 'tabler:square-dashed', width: 260, height: 150, dashed: true },
 ];
 
 /**
@@ -433,7 +436,7 @@ export const DYNAMIC_PRESETS: DynamicPreset[] = [
 export const STRUCTURE_NODE_SPECS: ComponentSpec[] = [
   spec('element', '单行元素', 200, 40),
   // 水平版：图标在左、文字在右，同一行
-  spec('element-h', '单行元素(水平)', 200, 40),
+  spec('element-h', '水平元素', 200, 40),
   spec('line', '线条', 200, 40),
   // 2026-11-07：原来的「自定义」整类并入结构区，不再单独占一个分类
   spec('custom', '自定义卡片', 160, 80),

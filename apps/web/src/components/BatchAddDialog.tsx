@@ -14,7 +14,7 @@ import { ToolIcon } from './ToolIcons.js';
 
 const NODE_TYPES = [
   { value: 'element' as const, label: '单行元素' },
-  { value: 'element-h' as const, label: '单行元素(水平)' },
+  { value: 'element-h' as const, label: '水平元素' },
 ];
 
 /** 一次最多把多少行变成节点（防手滑贴整篇文档） */

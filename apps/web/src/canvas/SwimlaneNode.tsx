@@ -8,6 +8,7 @@ import {
   isEditLocked,
   isIconHidden,
   isSingleLineGroup,
+  isBareGroup,
   isDynamicGroup,
   isDynamicZone,
   resolveIconKey,
@@ -48,6 +49,8 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
   const showSubLabel = Boolean(group.subLabel) && !isSingleLineGroup(group);
   // 动态容器（2026-11-07）：容器内一个「＋」打开批量添加
   const isDynamic = isDynamicGroup(group);
+  /** 纯组：Ctrl+G 建的容器，没有标题栏/名称/图标，平时不可见 */
+  const isBare = isBareGroup(group);
   const isZone = isDynamicZone(group);
   const openBatch = useDiagramStore((s) => s.openBatch);
   const locked = isGroupLocked(group);
@@ -79,14 +82,17 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
 
   return (
     <div
-      className={`relative h-full w-full rounded-[var(--radius-node)] border ${
-        isZone ? 'border-dashed' : ''
+      className={`relative h-full w-full rounded-[var(--radius-node)] border group/lane ${
+        isZone || isBare ? 'border-dashed' : ''
+      } ${
+        isBare ? 'border-transparent hover:border-[var(--text-tertiary)]' : ''
       }`}
       style={{
         background: group.bgColor,
-        borderColor: selected ? 'var(--primary)' : group.borderColor,
+        // 纯组平时不画边框（让 class 里的 hover 生效），选中才用主色
+        borderColor: selected || highlighted ? 'var(--primary)' : isBare ? undefined : group.borderColor,
         borderWidth: selected || highlighted ? 2 : 1,
-        borderStyle: isZone ? 'dashed' : 'solid',
+        borderStyle: isZone || isBare ? 'dashed' : 'solid',
         // 动态组的名称画在框外左上角，不能被自己裁掉
         overflow: isZone ? 'visible' : undefined,
         outline: highlighted ? '3px solid rgba(36,91,219,0.35)' : undefined,
@@ -103,23 +109,24 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
       />
 
       {/* 动态组（2026-11-07）：名称画在虚线框**外**的左上角，灰色等宽小字 + 图标。
-          双击可改名；不参与节点包围盒（absolute + 负 top），不影响拖拽/缩放命中。 */}
+          2026-11-08：字号/图标与「动态分组」的标题栏一致（12px / 14px），
+          并且**这一行也参与拖动**（去掉 nodrag，整行都是拖拽热区；双击仍是改名）。 */}
       {isZone && (
         <div
-          className="nodrag nopan absolute -top-5 left-0 flex max-w-full items-center gap-1 text-[11px] leading-4 text-[var(--text-tertiary)]"
+          className="absolute -top-5 left-0 flex max-w-full cursor-grab items-center gap-1 text-xs font-medium leading-4 text-[var(--text-secondary)] active:cursor-grabbing"
           onDoubleClick={(e) => {
             e.stopPropagation();
             if (!locked && !editLocked) setEditing(true);
           }}
-          title="双击改名"
+          title="拖动移动分组 · 双击改名"
         >
           {!isIconHidden(group) && (
-            <NodeIcon iconKey={resolveIconKey({ nodeType: GROUP_ICON_KEY, extJson: group.extJson })} size={12} className="shrink-0 opacity-70" />
+            <NodeIcon iconKey={resolveIconKey({ nodeType: GROUP_ICON_KEY, extJson: group.extJson })} size={14} className="shrink-0 opacity-70" />
           )}
           {editing ? (
             <input
               ref={inputRef}
-              className="nodrag nopan w-40 rounded border border-[var(--primary)] bg-white px-1 text-[11px] text-[var(--text-primary)] outline-none"
+              className="nodrag nopan w-40 rounded border border-[var(--primary)] bg-white px-1 text-xs text-[var(--text-primary)] outline-none"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onBlur={commit}
@@ -148,7 +155,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
             e.stopPropagation();
             openBatch(group.groupId);
           }}
-          className="nodrag nopan absolute left-1/2 z-10 grid h-6 w-6 -translate-x-1/2 cursor-pointer place-items-center rounded-full border border-dashed border-[var(--text-tertiary)] bg-white/85 text-[14px] leading-none text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          className="arch-editor-only nodrag nopan absolute left-1/2 z-10 grid h-6 w-6 -translate-x-1/2 cursor-pointer place-items-center rounded-full border border-dashed border-[var(--text-tertiary)] bg-white/85 text-[14px] leading-none text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
           style={{ bottom: -32 }}
         >
           ＋
@@ -159,7 +166,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           标题栏只要名称 + 副文本，不再放按钮）；折叠仍可从属性面板和右键菜单操作。
           高度（2026-11-07 用户定）：勾了「副文本」至少 38px，副文本每多一行 +10px；
           没勾就是 24px（只有一行标题）。 */}
-      {!isZone && (
+      {!isZone && !isBare && (
       <div
         data-group-header
         className="flex items-start gap-1.5 rounded-t-[var(--radius-node)] px-2"

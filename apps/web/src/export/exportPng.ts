@@ -89,11 +89,14 @@ export async function renderPng(viewport: HTMLElement, options: PngOptions = {})
       transform: frame.transform,
       transformOrigin: 'top left',
     },
-    // 画布网格、Controls、MiniMap、水印都是"编辑器装饰"，交付图里不要
+    // 画布网格、Controls、MiniMap、水印，以及节点上的连线手柄 / 缩放手柄 /
+    // 动态容器的「＋」按钮都是"编辑器装饰"，交付图里不要
     filter: (domNode) => {
       const className = (domNode as HTMLElement).className;
       if (typeof className !== 'string') return true;
-      return !/react-flow__(background|panel|attribution)/.test(className);
+      return !/(react-flow__(background|panel|attribution)|arch-editor-only|arch-handle|react-flow__resize-control)/.test(
+        className,
+      );
     },
   });
 }
@@ -122,10 +125,14 @@ export async function renderSvg(viewport: HTMLElement, options: PngOptions = {})
       transform: frame.transform,
       transformOrigin: 'top left',
     },
+    // 画布网格、Controls、MiniMap、水印，以及节点上的连线手柄 / 缩放手柄 /
+    // 动态容器的「＋」按钮都是"编辑器装饰"，交付图里不要
     filter: (domNode) => {
       const className = (domNode as HTMLElement).className;
       if (typeof className !== 'string') return true;
-      return !/react-flow__(background|panel|attribution)/.test(className);
+      return !/(react-flow__(background|panel|attribution)|arch-editor-only|arch-handle|react-flow__resize-control)/.test(
+        className,
+      );
     },
   });
 }

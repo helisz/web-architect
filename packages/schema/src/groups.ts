@@ -99,6 +99,16 @@ export function isDynamicGroup(group: { extJson?: Record<string, unknown> }): bo
   return group.extJson?.dynamic === true;
 }
 
+/**
+ * 纯组（2026-11-08）：Ctrl+G 组合出来的容器。
+ *
+ * 它不是一个"组件"：没有标题栏、名称、图标、副文本、折叠，
+ * 平时整块不可见，悬停或选中时才出现一圈虚线，纯粹用来把几个元素归到一起。
+ */
+export function isBareGroup(group: { extJson?: Record<string, unknown> }): boolean {
+  return group.extJson?.bare === true;
+}
+
 /** 动态组（虚线框、名称在框外）—— 是动态分组的特例 */
 export function isDynamicZone(group: { extJson?: Record<string, unknown> }): boolean {
   return group.extJson?.dynamic === true && group.extJson?.dashed === true;
@@ -121,7 +131,7 @@ export function dynamicHeaderHeight(group: {
   width: number;
   extJson?: Record<string, unknown>;
 }): number {
-  if (isDynamicZone(group)) return 0;
+  if (isDynamicZone(group) || isBareGroup(group)) return 0;
   return Math.ceil(groupHeaderHeight(group) / 10) * 10;
 }
 
@@ -319,6 +329,36 @@ export function removeGroupLifting(diagram: ArchitectureDiagram, groupId: string
 
 
 
+
+/**
+ * 解开一个组（取消组合，2026-11-08）：只解散这一层。
+ *
+ * 和 `removeGroupLifting` 的区别：那个连子孙组一起删（"删框"语义），
+ * 这个只把**直接子节点**和**直接子分组**提升到父级，嵌套的子组原样保留
+ * （用户选定："只解开最外层"）。坐标都按绝对位置换算回父级坐标系，屏幕上不跳。
+ */
+export function dissolveGroup(diagram: ArchitectureDiagram, groupId: string): ArchitectureDiagram {
+  const group = diagram.groups.find((g) => g.groupId === groupId);
+  if (!group) return diagram;
+  const target = group.parentGroupId ?? null;
+  const targetOffset = groupOffset(diagram.groups, target);
+
+  const nodes = diagram.nodes.map((node) => {
+    if (node.groupId !== groupId) return node;
+    const absolute = nodeAbsoluteRect(diagram.groups, node);
+    return { ...node, groupId: target, x: absolute.x - targetOffset.x, y: absolute.y - targetOffset.y };
+  });
+
+  const groups = diagram.groups
+    .filter((g) => g.groupId !== groupId)
+    .map((g) => {
+      if (g.parentGroupId !== groupId) return g;
+      const absolute = groupAbsoluteRect(diagram.groups, g);
+      return { ...g, parentGroupId: target, x: absolute.x - targetOffset.x, y: absolute.y - targetOffset.y };
+    });
+
+  return { ...diagram, nodes, groups };
+}
 
 /* ------------------------------------------------------------------ */
 /* 动态容器的排版落库（2026-11-07）                                     */

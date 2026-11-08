@@ -24,6 +24,7 @@ import { useAutosave, useRouteDiagram } from './data/usePersistence.js';
 import { useWriterLock } from './data/tabLock.js';
 import { useShortcuts } from './hooks/useShortcuts.js';
 import { useDiagramStore } from './store/useDiagramStore.js';
+import { isEditLocked } from '@arch/schema';
 
 /**
  * 三栏骨架（规格 §3.1）：
@@ -43,6 +44,8 @@ export default function App() {
   const exitGuest = useGuestSession((s) => s.exit);
   const [importOpen, setImportOpen] = useState(false);
   const selectedIds = useDiagramStore((s) => s.selectedIds);
+  // 锁定编辑时自动收起左侧组件库，解锁后自动打开（用户 2026-11-08）
+  const editLocked = useDiagramStore((s) => isEditLocked(s.diagram));
   const booted = useDiagramStore((s) => s.booted);
   const bootError = useDiagramStore((s) => s.bootError);
   const versionOpen = useDiagramStore((s) => s.versionOpen);
@@ -57,6 +60,10 @@ export default function App() {
   useRouteDiagram(route, guest || canLoadData(auth.status));
   // 同一张图只让一个标签页在写：这是版本冲突最主要的来源
   useWriterLock(onCanvas ? diagramId : '', booted && onCanvas);
+
+  useEffect(() => {
+    useDiagramStore.getState().setComponentPanelOpen(!editLocked);
+  }, [editLocked]);
 
   // 右侧只有一列：选中元素时属性面板优先，版本栏让位
   useEffect(() => {

@@ -32,6 +32,8 @@ export const FONT_COLORS = [
   '#77766F',
   '#A3A29A',
   ...SATURATED,
+  // 2026-11-08：纯白文字（深色底上用）。色块里的「A」描边显示，否则白字在白块上看不见
+  '#FFFFFF',
 ] as const;
 
 /** 连线不分深浅底，只用能看清的两种中性 + 饱和色 */
@@ -96,6 +98,12 @@ export function colorToStore(color: string): string {
   return color === 'transparent' ? CLEAR_COLOR : color;
 }
 
+/** 白色文字：字用描边画（白色填充 + 灰描边），在白色色块上也能看清是「A」 */
+const WHITE_OUTLINE_STYLE = {
+  color: 'transparent',
+  WebkitTextStroke: '1px var(--text-tertiary)',
+} as const;
+
 /** 透明格：浅灰棋盘 + 一道斜杠，一眼看出是"清除" */
 const CLEAR_BG =
   'repeating-conic-gradient(#FFFFFF 0% 25%, #E7E6E1 0% 50%) 0 0 / 7px 7px, linear-gradient(135deg, transparent 44%, #A3A29A 44% 56%, transparent 56%)';
@@ -130,7 +138,9 @@ function Swatch({
         background: isClear ? CLEAR_BG : mode === 'font' ? '#FFFFFF' : color,
       }}
     >
-      {mode === 'font' ? <span style={{ color }}>A</span> : null}
+      {mode === 'font' ? (
+        <span style={color.toLowerCase() === '#ffffff' ? WHITE_OUTLINE_STYLE : { color }}>A</span>
+      ) : null}
     </button>
   );
 }
@@ -224,7 +234,15 @@ export function ColorField({ targets, kind = 'node' }: { targets: ColorTarget[];
           className="grid h-5 w-5 place-items-center rounded-full border border-black/10 text-[12px] font-semibold"
           style={{ background: previewIsClear ? '#fff' : preview.value }}
         >
-          <span style={{ color: targets.find((t) => t.scope === 'font')?.value ?? '#000' }}>A</span>
+          <span
+            style={
+              (targets.find((t) => t.scope === 'font')?.value ?? '').toLowerCase() === '#ffffff'
+                ? WHITE_OUTLINE_STYLE
+                : { color: targets.find((t) => t.scope === 'font')?.value ?? '#000' }
+            }
+          >
+            A
+          </span>
         </span>
         <span className="flex-1 text-[var(--text-secondary)]">{summary}</span>
         <span className="text-[10px] text-[var(--text-secondary)]">{open ? '▴' : '▾'}</span>

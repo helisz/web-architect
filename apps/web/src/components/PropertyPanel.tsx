@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ALLOWED_ICON_KEYS,
   COMPONENT_INDEX,
@@ -13,6 +13,7 @@ import {
   isEditLocked,
   isIconHidden,
   isSingleLineGroup,
+  isBareGroup,
   isDynamicZone,
   parseFontSize,
   textStyleOf,
@@ -239,6 +240,26 @@ function MultiForm() {
   };
 
   const find = (field: MultiField) => fields.find((f) => f.field === field);
+
+  /* 多选统一尺寸（2026-11-08）：画布上拖手柄只改被拖的那个，批量改尺寸走这里 */
+  const resizeNodes = useDiagramStore((s) => s.resizeNodes);
+  const [sizeW, setSizeW] = useState('');
+  const [sizeH, setSizeH] = useState('');
+  const pickedNodes = picked.filter(({ kind }) => kind === 'node').map(({ item }) => item as DiagramNode);
+  const maxW = pickedNodes.length > 0 ? Math.max(...pickedNodes.map((n) => n.width)) : 0;
+  const maxH = pickedNodes.length > 0 ? Math.max(...pickedNodes.map((n) => n.height)) : 0;
+  // 默认值 = 选中元素里最宽/最高的（用户 2026-11-08）；选中集合变化时跟着重填
+  const sizeKey = pickedNodes.map((n) => n.nodeId).join(',');
+  useEffect(() => {
+    if (maxW > 0 && maxH > 0) {
+      setSizeW(String(maxW));
+      setSizeH(String(maxH));
+    }
+  }, [sizeKey, maxW, maxH]);
+  const sameSize = pickedNodes.every((n) => n.width === pickedNodes[0]!.width && n.height === pickedNodes[0]!.height);
+  const applySize = (size: Partial<{ width: number; height: number }>): void => {
+    resizeNodes(pickedNodes.map((n) => n.nodeId), size);
+  };
   // 纯线条选择时把字段名换成线条的说法（颜色 / 粗细 / 虚线）
   const allLines = picked.length > 0 && picked.every(({ kind }) => kind === 'line');
   const labelOf = (field: MultiField): string => {
@@ -458,6 +479,84 @@ function MultiForm() {
           </Field>
         )}
 
+        {pickedNodes.length >= 2 && (
+          <div className="mb-3 rounded border border-[var(--panel-border)] p-2">
+            <div className="mb-1 flex items-baseline justify-between">
+              <span className="text-[11px] text-[var(--text-secondary)]">统一尺寸</span>
+              <span className="mono text-[10px] text-[var(--text-tertiary)]">
+                {sameSize ? `${maxW} × ${maxH}` : '尺寸不一致'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={sizeW}
+                onChange={(e) => setSizeW(e.target.value)}
+                onKeyDown={(e) => {
+                  const stepTo = snapStep(sizeW, e.key, maxW);
+                  if (stepTo !== null) {
+                    e.preventDefault();
+                    setSizeW(String(stepTo));
+                  }
+                }}
+                onBlur={() => setSizeW(String(snapToGrid(sizeW, maxW)))}
+                aria-label="统一宽度"
+                className={`${inputClass} mono`}
+              />
+              <span className="text-[11px] text-[var(--text-tertiary)]">×</span>
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={sizeH}
+                onChange={(e) => setSizeH(e.target.value)}
+                onKeyDown={(e) => {
+                  const stepTo = snapStep(sizeH, e.key, maxH);
+                  if (stepTo !== null) {
+                    e.preventDefault();
+                    setSizeH(String(stepTo));
+                  }
+                }}
+                onBlur={() => setSizeH(String(snapToGrid(sizeH, maxH)))}
+                aria-label="统一高度"
+                className={`${inputClass} mono`}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const snapGrid = (value: string, fallback: number): number => {
+                    const n = Number(value);
+                    if (!Number.isFinite(n) || n <= 0) return fallback;
+                    return Math.max(24, Math.round(n / 10) * 10);
+                  };
+                  applySize({ width: snapGrid(sizeW, maxW), height: snapGrid(sizeH, maxH) });
+                }}
+                className="shrink-0 rounded bg-[var(--primary)] px-2 py-1 text-[11px] text-white hover:brightness-95"
+              >
+                应用
+              </button>
+            </div>
+            <div className="mt-1 flex gap-1">
+              <button
+                type="button"
+                onClick={() => applySize({ width: maxW })}
+                className="flex-1 rounded border border-[var(--panel-border)] px-1 py-0.5 text-[10px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+              >
+                按最宽
+              </button>
+              <button
+                type="button"
+                onClick={() => applySize({ height: maxH })}
+                className="flex-1 rounded border border-[var(--panel-border)] px-1 py-0.5 text-[10px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+              >
+                按最高
+              </button>
+            </div>
+          </div>
+        )}
+
         {fields.length === 0 && (
           <p className="text-xs text-[var(--text-secondary)]">
             这批对象没有共同可批量编辑的属性，只能整体移动或删除。
@@ -503,6 +602,20 @@ export function PropertyPanel() {
     () => diagram.groups.find((g) => g.groupId === selectedId) ?? null,
     [diagram.groups, selectedId],
   );
+
+  /**
+   * 面板底部的尺寸摘要（用户 2026-11-08）：等宽小字、灰色。
+   * 单选显示该节点/分组的宽高；多选时尺寸一致就显示同一个值，否则显示「尺寸不一致」。
+   */
+  const sizeSummary = useMemo(() => {
+    if (node) return `${Math.round(node.width)} × ${Math.round(node.height)}`;
+    if (group) return `${Math.round(group.width)} × ${Math.round(group.height)}`;
+    const nodes = diagram.nodes.filter((n) => selectedIds.includes(n.nodeId));
+    if (nodes.length === 0) return null;
+    const same = nodes.every((n) => n.width === nodes[0]!.width && n.height === nodes[0]!.height);
+    if (!same) return '尺寸不一致';
+    return `${Math.round(nodes[0]!.width)} × ${Math.round(nodes[0]!.height)}`;
+  }, [node, group, diagram.nodes, selectedIds]);
 
   /*
    * 右侧固定边栏（用户 2026-11-07 定稿）：属性面板重新钉在右侧一列，不再跟着选中元素浮动。
@@ -550,6 +663,13 @@ export function PropertyPanel() {
           )}
         </div>
       </div>
+
+      {/* 底部尺寸摘要：等宽、浅灰，和状态条同一套字号 */}
+      {sizeSummary && (
+        <div className="mt-auto shrink-0 border-t border-[var(--panel-border)] px-3 py-1.5">
+          <span className="mono text-[10px] leading-4 text-[var(--text-tertiary)]">{sizeSummary}</span>
+        </div>
+      )}
     </aside>
   );
 }
@@ -571,6 +691,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
     patchGroup(group.groupId, { extJson: { ...(group.extJson ?? {}), iconKey: key, iconHidden: false } });
   const patchGroupIcon = (patch: { iconHidden: boolean }): void =>
     patchGroup(group.groupId, { extJson: { ...(group.extJson ?? {}), ...patch } });
+  const bare = isBareGroup(group);
   const locked = isGroupLocked(group);
   const toggleLock = (): void =>
     patchGroup(group.groupId, {
@@ -600,20 +721,22 @@ function GroupForm({ group }: { group: DiagramGroup }) {
 
   return (
     <div>
-      <Field label="名称">
-        <input
-          className={inputClass}
-          value={group.label}
-          onChange={(e) => patchGroup(group.groupId, { label: e.target.value })}
-        />
-      </Field>
+      {!bare && (
+        <Field label="名称">
+          <input
+            className={inputClass}
+            value={group.label}
+            onChange={(e) => patchGroup(group.groupId, { label: e.target.value })}
+          />
+        </Field>
+      )}
 
       {/*
         副文本开关（用户 2026-11-07）：勾上显示副文本行（标题栏至少 38px，太长会换行加高），
         取消勾选就回到单行标题（24px，和通用「分组」一样高）。
         存储上沿用 extJson.singleLine，取反关系见 isSingleLineGroup()。
       */}
-      {!isDynamicZone(group) && (
+      {!isDynamicZone(group) && !bare && (
       <label className="mb-3 flex items-center gap-2 text-[13px]">
         <input
           type="checkbox"
@@ -628,7 +751,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
       </label>
       )}
 
-      {!isDynamicZone(group) && !isSingleLineGroup(group) && (
+      {!isDynamicZone(group) && !bare && !isSingleLineGroup(group) && (
         <Field label="副文本">
           {/* 允许回车换行；太长时标题栏高度跟着加行 */}
           <textarea
@@ -640,7 +763,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         </Field>
       )}
 
-      <Field label={`图标（${isIconHidden(group) ? '不显示' : iconKey}）`}>
+      {!bare && <Field label={`图标（${isIconHidden(group) ? '不显示' : iconKey}）`}>
         <div className="flex items-center gap-2">
           <span className={`grid h-9 w-9 shrink-0 place-items-center rounded border border-[var(--panel-border)] ${isIconHidden(group) ? 'opacity-30' : ''}`}>
             <NodeIcon iconKey={iconKey} size={20} />
@@ -683,9 +806,8 @@ function GroupForm({ group }: { group: DiagramGroup }) {
             </button>
           ))}
         </div>
-      </Field>
-
-      {pickerOpen && (
+      </Field>}
+      {!bare && pickerOpen && (
         <IconPicker
           value={iconKey}
           onSelect={(key) => {
@@ -705,7 +827,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         kind="group"
       />
 
-      {!isDynamicZone(group) && (
+      {!isDynamicZone(group) && !bare && (
         <label className="mb-3 flex items-center gap-2 text-[13px]">
           <input
             type="checkbox"
@@ -760,6 +882,25 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </label>
   );
+}
+
+/**
+ * 统一尺寸输入框的网格步进（2026-11-08）。
+ *
+ * HTML 原生 number 的 step 是从当前值加 10（30 → 40，但 34 → 44），
+ * 这里自己接管方向键：**先对齐到最近的 10 的倍数再走一步**，永远是 30/40/50。
+ */
+function snapToGrid(value: string, fallback: number): number {
+  const n = Number(value);
+  const base = Number.isFinite(n) && n > 0 ? n : fallback;
+  return Math.max(24, Math.round(base / 10) * 10);
+}
+
+function snapStep(value: string, key: string, fallback: number): number | null {
+  if (key !== 'ArrowUp' && key !== 'ArrowDown') return null;
+  const current = snapToGrid(value, fallback);
+  const next = key === 'ArrowUp' ? current + 10 : current - 10;
+  return Math.max(24, next);
 }
 
 const inputClass =

@@ -149,6 +149,25 @@ export function buildBlankMenu(): MenuNode[] {
         store.addGroup({ x: point.x - 180, y: point.y - 120 }, { width: 360, height: 240 });
       },
     },
+    {
+      /* 空白处右键也能批量添加（2026-11-08）：在落点建一个动态组，直接弹输入框 */
+      kind: 'item',
+      label: '批量添加',
+      hint: '一行一个',
+      onSelect: () => {
+        const point = currentEnv()?.flowPoint ?? { x: 0, y: 0 };
+        const created = store.addGroup(
+          { x: point.x - 130, y: point.y - 75 },
+          {
+            width: 260,
+            height: 150,
+            label: '动态组',
+            extJson: { dynamic: true, dashed: true, iconKey: 'tabler:square-dashed' },
+          },
+        );
+        store.openBatch(created.groupId);
+      },
+    },
     { kind: 'separator' },
     {
       kind: 'item',

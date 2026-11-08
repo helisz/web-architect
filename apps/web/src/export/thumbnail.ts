@@ -65,7 +65,12 @@ const escapeXml = (value: string): string =>
  * @param width   目标宽度（px），高度按内容比例算
  * @param padding 内容四周留白（px，按缩略图坐标）
  */
-export function snapshotThumbnail(payload: ThumbnailPayload, width = 96, padding = 4): string {
+export function snapshotThumbnail(
+  payload: ThumbnailPayload,
+  width = 96,
+  padding = 4,
+  background: string | null = '#FFFFFF',
+): string {
   const groups = (payload.groups ?? []).map((g) => ({ ...g, ...groupOffsetOf(payload.groups ?? [], g.parentGroupId) }));
   const nodes = (payload.nodes ?? []).map((n) => {
     const offset = groupOffsetOf(payload.groups ?? [], n.groupId);
@@ -139,11 +144,12 @@ export function snapshotThumbnail(payload: ThumbnailPayload, width = 96, padding
     })
     .join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#FFFFFF"/>${shapes}${lines}</svg>`;
+  const bg = background === null ? '' : `<rect width="100%" height="100%" fill="${escapeXml(background)}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${bg}${shapes}${lines}</svg>`;
 }
 
 /** 缩略图 SVG → data URL（直接塞进 <img src>） */
-export function thumbnailDataUrl(payload: ThumbnailPayload, width = 96): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(snapshotThumbnail(payload, width))}`;
+export function thumbnailDataUrl(payload: ThumbnailPayload, width = 96, background: string | null = '#FFFFFF'): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(snapshotThumbnail(payload, width, 4, background))}`;
 }
 

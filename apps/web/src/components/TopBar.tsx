@@ -10,6 +10,7 @@ import { ToolIcon, type ToolIconName } from './ToolIcons.js';
 import { goToGallery } from '../data/navigate.js';
 import { useAiStore } from '../store/useAiStore.js';
 import { flushNow } from '../data/usePersistence.js';
+import { DiagramBadge } from './DiagramBadge.js';
 
 const SAVE_LABEL: Record<string, string> = {
   saved: '已保存',
@@ -156,6 +157,14 @@ export function TopBar() {
     useTransfer();
   const fileRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // 图名（2026-11-08）：默认只读，点铅笔进入编辑，确定才保存
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(name);
+  const commitName = (): void => {
+    const next = nameDraft.trim() || '未命名架构图';
+    if (next !== name) rename(next);
+    setEditingName(false);
+  };
   const showGrid = useDiagramStore((s) => s.showGrid);
   const componentPanelOpen = useDiagramStore((s) => s.componentPanelOpen);
   const versionOpen = useDiagramStore((s) => s.versionOpen);
@@ -176,15 +185,51 @@ export function TopBar() {
         >
           <ToolIcon name="chevronLeft" size={18} />
         </button>
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-[var(--primary)] text-[13px] font-semibold text-white">
-          架
-        </span>
-        <input
-          aria-label="图名"
-          value={name}
-          onChange={(e) => rename(e.target.value)}
-          className="w-52 min-w-0 rounded border border-transparent px-1.5 py-1 text-[13px] font-semibold outline-none hover:border-[var(--panel-border)] focus:border-[var(--primary)]"
-        />
+        {/* 图名图标 = 图名前两个字符（2026-11-08），和图库卡片共用 */}
+        <DiagramBadge name={name} />
+        {editingName ? (
+          <span className="flex min-w-0 items-center gap-1">
+            <input
+              autoFocus
+              aria-label="图名"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitName();
+                if (e.key === 'Escape') setEditingName(false);
+                e.stopPropagation();
+              }}
+              onBlur={() => commitName()}
+              className="w-52 min-w-0 rounded border border-[var(--primary)] px-1.5 py-1 text-[13px] font-semibold outline-none"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={commitName}
+              className="shrink-0 rounded bg-[var(--primary)] px-1.5 py-0.5 text-[11px] text-white hover:brightness-95"
+            >
+              确定
+            </button>
+          </span>
+        ) : (
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="max-w-[220px] truncate text-[13px] font-semibold" title={name || '未命名架构图'}>
+              {name || '未命名架构图'}
+            </span>
+            <button
+              type="button"
+              title="修改图名"
+              aria-label="修改图名"
+              onClick={() => {
+                setNameDraft(name);
+                setEditingName(true);
+              }}
+              className="grid h-6 w-6 shrink-0 place-items-center rounded text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            >
+              <ToolIcon name="pencil" size={13} />
+            </button>
+          </span>
+        )}
         <div className="flex shrink-0 items-center gap-2">
           {/* 2026-11-07 用户要求：隐藏「已保存」文字与版本号（状态/版本看保存按钮的 hover 弹层）；
               保存 → 撤销 → 重做 → 版本历史 全部收在这一簇 */}
@@ -286,7 +331,7 @@ export function TopBar() {
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-md border border-[var(--panel-border)] bg-white py-1 shadow-md"
+              className="glass absolute right-0 z-[80] mt-1 w-48 overflow-hidden rounded-md py-1"
               onMouseLeave={() => setMenuOpen(false)}
             >
               <MenuLabel>工程文件</MenuLabel>

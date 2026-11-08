@@ -217,6 +217,14 @@ const cursorFrame = useRef<number | null>(null);
     [diagram, editLocked, panMode, selectedIds],
   );
   const [dragging, setDragging] = useState(false);
+  /** 按住 Shift/Ctrl/Cmd 点空白前选中的内容：RF 会在框选结束时清空，靠它补回来 */
+  const selectionBeforePaneDown = useRef<string[]>([]);
+  /**
+   * 抑制取消选择的截止时间（ms）。
+   * RF 清空选择会抛出 select=false，而且这轮变更可能晚于我们的恢复动作到达，
+   * 所以恢复后的一小段时间内忽略"取消选择"的变更，避免刚补回来又被冲掉。
+   */
+  const suppressDeselectUntil = useRef(0);
 
   // 图纸/元素数量变化后补量一次节点内部尺寸（原因见上面 updateNodeInternals 的注释）
   const nodeCount = diagram.nodes.length;
@@ -405,7 +413,7 @@ const cursorFrame = useRef<number | null>(null);
           else resizeNode(id, size);
         } else if (change.type === 'select') {
           if ('selected' in change && change.selected) added.push(id);
-          else removed.push(id);
+          else if (performance.now() >= suppressDeselectUntil.current) removed.push(id);
         } else if (change.type === 'remove') {
           // 删除一律走二次确认，不在这里真删
           toDelete.push(id);
@@ -543,7 +551,7 @@ const cursorFrame = useRef<number | null>(null);
             {
               width: dynamic.width,
               height: dynamic.height,
-              label: dynamic.label,
+              label: dynamic.groupLabel ?? dynamic.label,
               subLabel: '',
               extJson: {
                 dynamic: true,
@@ -795,6 +803,9 @@ const cursorFrame = useRef<number | null>(null);
         // 只记「从画布空白处开始」的拖动：节点、连接手柄、控件上的按下都不算框选起点
         const target = event.target as HTMLElement;
         if (event.button !== 0 || panActive || !target.closest('.react-flow__pane')) return;
+        if (event.shiftKey || event.ctrlKey || event.metaKey) {
+          selectionBeforePaneDown.current = [...useDiagramStore.getState().selectedIds];
+        }
         selectDrag.current = {
           x: event.clientX,
           y: event.clientY,
@@ -849,7 +860,31 @@ const cursorFrame = useRef<number | null>(null);
       onNodeDragStart={onNodeDragStart}
       onNodeDragStop={onNodeDragStop}
       onMoveEnd={onMoveEnd}
-      onPaneClick={() => select(null)}
+      onPaneClick={(event) => {
+        /*
+         * 按住 Shift/Ctrl/Cmd 点空白 = "手滑没点中"，要保住已有选择（用户 2026-11-08）。
+         * React Flow 在调用 onPaneClick 之后会无条件 resetSelectedElements()，
+         * 而且这次重置会再抛一轮 select=false，所以只能延后一帧把选择补回来。
+         */
+        if (event.shiftKey || event.ctrlKey || event.metaKey) {
+          const keep = selectionBeforePaneDown.current;
+          selectionBeforePaneDown.current = [];
+          if (keep.length === 0) return;
+          suppressDeselectUntil.current = performance.now() + 150;
+          requestAnimationFrame(() => {
+            const st = useDiagramStore.getState();
+            const alive = keep.filter(
+              (id) =>
+                st.diagram.nodes.some((n) => n.nodeId === id) ||
+                st.diagram.groups.some((g) => g.groupId === id) ||
+                st.diagram.edges.some((e) => e.edgeId === id),
+            );
+            if (alive.length > 0) st.updateSelection(alive, []);
+          });
+          return;
+        }
+        select(null);
+      }}
       onSelectionEnd={(event) => {
         /**
          * 框选收尾（用户 2026-11-05 定稿，规则 A）：
@@ -877,8 +912,20 @@ const cursorFrame = useRef<number | null>(null);
           screenToFlowPosition({ x: drag.x, y: drag.y }),
           screenToFlowPosition({ x: event.clientX, y: event.clientY }),
         );
-        // 太小的拖动当点击，别让它变成一次"空框选"
-        if (rect.width < 4 || rect.height < 4) return;
+        // 太小的拖动当点击：按住 Shift/Ctrl/Cmd 时这是"手滑点空白"，
+        // 要把点之前的选择补回来（React Flow 已经在框选结束时清空了，用户 2026-11-08）
+        if (rect.width < 4 || rect.height < 4) {
+          if (drag.additive && drag.snapshot.length > 0) {
+            const alive = drag.snapshot.filter(
+              (id) =>
+                state.diagram.nodes.some((n) => n.nodeId === id) ||
+                state.diagram.groups.some((g) => g.groupId === id) ||
+                state.diagram.edges.some((e) => e.edgeId === id),
+            );
+            if (alive.length > 0) state.updateSelection(alive, []);
+          }
+          return;
+        }
 
         const hit = edgeIdsInRect(wrapperRef.current, rect);
         const keep = drag.additive
@@ -1029,7 +1076,7 @@ function CanvasStatus() {
 
   return (
     <div
-      className="pointer-events-none absolute bottom-1 z-10 flex items-center gap-3 text-[11px] leading-4 text-[var(--text-secondary)]"
+      className="pointer-events-none absolute bottom-1 z-10 flex items-center gap-3 text-[10px] leading-4 text-[var(--text-tertiary)]"
       style={{ left: (componentPanelOpen ? 240 + 18 : 16) + STATUS_BAR_OFFSET }}
     >
       <button

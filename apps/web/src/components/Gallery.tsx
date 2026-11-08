@@ -15,6 +15,7 @@ import {
 import { rememberSavedPayload } from '../data/usePersistence.js';
 import { navigateToDiagram } from '../lib/route.js';
 import { ToolIcon } from './ToolIcons.js';
+import { DiagramBadge } from './DiagramBadge.js';
 import { AccountMenu } from './AccountMenu.js';
 import { GuestAccount } from './GuestAccount.js';
 import { useGuestSession } from '../data/guestSession.js';
@@ -63,6 +64,10 @@ export function Gallery() {
 
   // 行内编辑
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
+  /** 鼠标停在哪张卡上：用它控制右下角操作区的显隐（2026-11-08） */
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  /** 缩略图加载完的卡片：用来做"生成后渐入"（2026-11-08） */
+  const [thumbReady, setThumbReady] = useState<Record<string, boolean>>({});
   const [tagging, setTagging] = useState<{ id: string; value: string } | null>(null);
 
   // 输入防抖：300ms 内连打不重复请求
@@ -301,6 +306,8 @@ export function Gallery() {
             {rows.map((row) => (
               <li
                 key={row.diagramId}
+                onMouseEnter={() => setHoverId(row.diagramId)}
+                onMouseLeave={() => setHoverId((id) => (id === row.diagramId ? null : id))}
                 className={`group relative flex h-full flex-col overflow-hidden rounded-[3px] border bg-white p-3 transition-colors ${
                   row.diagramId === currentId
                     ? 'border-[var(--primary)]'
@@ -315,47 +322,90 @@ export function Gallery() {
                   onClick={() => void open(row.diagramId)}
                   disabled={busy !== null}
                 />
-                <div className="-mx-3 -mt-3 mb-2 aspect-[3/2] overflow-hidden border-b border-[var(--hair)] bg-white">
+                {/*
+                  缩略图（2026-11-08 视觉加强）：
+                  - 底子是画布同款点阵 + 一层很淡的暖色渐变，缩略图本身透明底，叠在上面像"蓝图"；
+                  - 图片 decode 完成后从「淡 + 轻微缩小 + 2px 模糊」过渡到正常，500ms；
+                  - 卡片悬停时整张图再放大一点，配合边框高亮。
+                */}
+                {/* 缩略图整块 pointer-events-none：点击穿透到卡片底层那个"打开"按钮，
+                    所以单击 / 双击缩略图都能进图（2026-11-08） */}
+                <div className="pointer-events-none relative -mx-3 -mt-3 mb-2 aspect-[3/2] overflow-hidden border-b border-[var(--hair)] bg-[var(--canvas-bg)]">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      backgroundImage: 'radial-gradient(var(--dot) 1px, transparent 1px)',
+                      backgroundSize: '10px 10px',
+                      maskImage: 'radial-gradient(ellipse at center, #000 55%, transparent 100%)',
+                      WebkitMaskImage: 'radial-gradient(ellipse at center, #000 55%, transparent 100%)',
+                    }}
+                  />
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--accent-50)]/60 via-transparent to-[var(--bg-sunken)]/70"
+                  />
                   {previews[row.diagramId] ? (
-                    <img
-                      src={thumbnailDataUrl(previews[row.diagramId]!, 340)}
-                      alt=""
-                      className="h-full w-full object-contain"
-                      draggable={false}
-                    />
+                    // 悬停放大放在外层：图片自己要用 scale 做渐入，两层拆开互不打架
+                    <div
+                      className={`relative h-full w-full transition-[scale] duration-500 ease-out ${
+                        hoverId === row.diagramId ? 'scale-[1.03]' : 'scale-100'
+                      }`}
+                    >
+                      <img
+                        src={thumbnailDataUrl(previews[row.diagramId]!, 340, null)}
+                        alt=""
+                        draggable={false}
+                        onLoad={() => setThumbReady((prev) => ({ ...prev, [row.diagramId]: true }))}
+                        className={`h-full w-full object-contain transition-[opacity,filter,scale] duration-500 ease-out ${
+                          thumbReady[row.diagramId]
+                            ? 'scale-100 opacity-100 blur-0'
+                            : 'scale-[0.97] opacity-0 blur-[2px]'
+                        }`}
+                      />
+                    </div>
                   ) : (
-                    <div className="grid h-full w-full place-items-center bg-[var(--bg-canvas)]">
-                      <span className="mono text-[10px] text-[var(--text-tertiary)]">无预览</span>
+                    <div className="relative grid h-full w-full place-items-center">
+                      <span className="mono animate-pulse text-[10px] text-[var(--text-tertiary)]">生成中…</span>
                     </div>
                   )}
                 </div>
 
-                <div className="pointer-events-none relative z-10 mb-1 flex items-start justify-between gap-2">
-                  {renaming?.id === row.diagramId ? (
-                    <input
-                      autoFocus
-                      className="pointer-events-auto w-full rounded border border-[var(--primary)] px-1 py-0.5 text-[13px] outline-none"
-                      value={renaming.value}
-                      onChange={(event) => setRenaming({ id: row.diagramId, value: event.target.value })}
-                      onBlur={() => void commitRename()}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') void commitRename();
-                        if (event.key === 'Escape') setRenaming(null);
-                      }}
-                    />
-                  ) : (
-                    <span className="truncate text-left text-[13px] font-medium">
-                      {row.name || '未命名架构图'}
-                    </span>
-                  )}
-                  {row.diagramId === currentId && (
-                    <span className="shrink-0 rounded bg-[var(--accent-50)] px-1 text-[10px] text-[var(--primary)]">当前</span>
-                  )}
+                {/* 标题区（2026-11-08 用户定稿）：左侧图标撑满两行的高度、文字居中；
+                    右边第一行标题、第二行版本/日期 */}
+                <div className="pointer-events-none relative z-10 mb-1 flex items-stretch gap-2">
+                  <DiagramBadge name={row.name} size="stretch" />
+                  <div className="min-w-0 flex-1">
+                    {renaming?.id === row.diagramId ? (
+                      <input
+                        autoFocus
+                        className="pointer-events-auto w-full rounded border border-[var(--primary)] px-1 py-0.5 text-[13px] outline-none"
+                        value={renaming.value}
+                        onChange={(event) => setRenaming({ id: row.diagramId, value: event.target.value })}
+                        onBlur={() => void commitRename()}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') void commitRename();
+                          if (event.key === 'Escape') setRenaming(null);
+                        }}
+                      />
+                    ) : (
+                      <div className="truncate text-left text-[13px] font-medium leading-[18px]">
+                        {row.name || '未命名架构图'}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="mono truncate text-[10px] leading-4 text-[var(--text-tertiary)]"
+                        title={new Date(row.updatedAt).toLocaleString('zh-CN')}
+                      >
+                        v{row.version} · {new Date(row.updatedAt).toLocaleDateString('zh-CN')}
+                      </span>
+                      {row.diagramId === currentId && (
+                        <span className="shrink-0 rounded bg-[var(--accent-50)] px-1 text-[10px] text-[var(--primary)]">当前</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
-                <p className="relative z-10 mb-1.5 text-[11px] text-[var(--text-secondary)]">
-                  v{row.version} · {new Date(row.updatedAt).toLocaleString('zh-CN')}
-                </p>
 
                 {tagging?.id === row.diagramId ? (
                   <input
@@ -371,7 +421,7 @@ export function Gallery() {
                     }}
                   />
                 ) : (
-                  <div className="relative z-10 mb-2 flex min-h-[18px] flex-wrap items-center gap-1">
+                  <div className="relative z-10 mb-2 mt-1.5 flex min-h-[18px] flex-wrap items-center gap-1">
                     {row.tags.length > 0 ? (
                       row.tags.map((item) => (
                         <span key={item} className="rounded bg-[var(--bg-hover)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
@@ -381,22 +431,25 @@ export function Gallery() {
                     ) : (
                       <span className="text-[10px] text-[var(--text-secondary)]">无标签</span>
                     )}
-                    <button
-                      type="button"
-                      className="text-[10px] text-[var(--text-secondary)] underline hover:text-[var(--primary)]"
-                      onClick={() => setTagging({ id: row.diagramId, value: row.tags.join(', ') })}
-                    >
-                      改标签
-                    </button>
                   </div>
                 )}
 
-                {/* 动作图标（2026-11-06：无上边框，与标题留 12px，悬停才显形） */}
-                <div className="relative z-10 mt-3 flex items-center justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                {/* 动作图标（2026-11-08）：绝对定位在卡片右下角，**不占布局高度**；
+                    默认隐藏，悬停整张卡时浮出，底下一层高斯模糊避免压在文字上。 */}
+                <div
+                  className={`absolute bottom-2 right-2 z-20 flex items-center gap-1 rounded-md border border-[var(--glass-line)] bg-white/60 p-1 backdrop-blur-[20px] backdrop-saturate-150 transition-opacity ${
+                    hoverId === row.diagramId ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                  }`}
+                >
                   <CardAction
                     icon="pencil"
                     label="改名"
                     onClick={() => setRenaming({ id: row.diagramId, value: row.name })}
+                  />
+                  <CardAction
+                    icon="tag"
+                    label="改标签"
+                    onClick={() => setTagging({ id: row.diagramId, value: row.tags.join(', ') })}
                   />
                   <CardAction
                     icon="copy"
@@ -472,7 +525,7 @@ function CardAction({
   disabled,
   danger,
 }: {
-  icon: 'pencil' | 'copy' | 'trash';
+  icon: 'pencil' | 'tag' | 'copy' | 'trash';
   label: string;
   onClick: () => void;
   disabled?: boolean;
