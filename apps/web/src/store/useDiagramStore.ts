@@ -1,7 +1,11 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import {
+  COMPONENT_INDEX,
   EDGE_DEFAULTS,
+  defaultDynamicCols,
+  isDynamicGroup,
+  layoutDynamicGroup,
   createEdge,
   createEmptyDiagram,
   createGroup,
@@ -153,7 +157,14 @@ interface DiagramStore {
   /** 线条专用：端点一动，盒子跟着重算（x/y/width/height 与 extJson.line.a/b 必须一起写） */
   setLineGeometry: (nodeId: string, geometry: LineGeometry) => void;
   removeNode: (nodeId: string) => void;
-  addEdge: (sourceId: string, targetId: string, sourceAnchor: string, targetAnchor: string) => void;
+  addEdge: (
+    sourceId: string,
+    targetId: string,
+    sourceAnchor: string,
+    targetAnchor: string,
+    /** 沿边比例（0..1）：不传就是中点。2026-11-08 起端点可以停在边框任意位置 */
+    anchorAt?: { sourceAt?: number; targetAt?: number },
+  ) => void;
   removeEdge: (edgeId: string) => void;
   /** 属性面板用：局部更新单个节点 / 连线 */
   patchNode: (nodeId: string, patch: Partial<DiagramNode>) => void;
@@ -174,6 +185,16 @@ interface DiagramStore {
   toggleGroupCollapsed: (groupId: string) => void;
   /** 拖进/拖出分组：换算局部坐标，屏幕位置不变（C1） */
   reparentNode: (nodeId: string, groupId: string | null) => void;
+
+  /* ---------------- 动态容器（2026-11-07） ---------------- */
+  /** 批量添加弹层当前对着哪个容器；null = 关闭 */
+  batchTarget: string | null;
+  openBatch: (groupId: string | null) => void;
+  /**
+   * 往动态容器里批量加节点：每行一个，整批算一步撤销。
+   * 返回真正创建的节点数（空行会被跳过）。
+   */
+  batchAddToDynamic: (groupId: string, labels: string[], nodeType: 'element' | 'element-h') => number;
   reparentGroup: (groupId: string, parentGroupId: string | null) => void;
 
   /** 保存链路（M2） */
@@ -514,6 +535,7 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
   selectedId: null,
   selectedIds: [],
   pendingDelete: null,
+  batchTarget: null,
   booted: false,
   bootError: null,
   conflict: null,
@@ -697,7 +719,7 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
       saveState: 'dirty',
     })),
 
-  addEdge: (sourceId, targetId, sourceAnchor, targetAnchor) =>
+  addEdge: (sourceId, targetId, sourceAnchor, targetAnchor, anchorAt) =>
     set((s) => {
       if (sourceId === targetId) return s;
       const exists = s.diagram.edges.some(
@@ -714,6 +736,19 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
         // 全局配置（线型 / 线宽）只作用于新建的线，已有连线不受影响
         edgeType: s.edgeDefaults.edgeType,
         strokeWidth: s.edgeDefaults.strokeWidth,
+        // 落点沿边的位置（拖端点时才有；0.5 中点就不存，保持老数据干净）
+        ...(anchorAt
+          ? {
+              extJson: {
+                ...(typeof anchorAt.sourceAt === 'number' && Math.abs(anchorAt.sourceAt - 0.5) > 1e-4
+                  ? { sourceAt: anchorAt.sourceAt }
+                  : {}),
+                ...(typeof anchorAt.targetAt === 'number' && Math.abs(anchorAt.targetAt - 0.5) > 1e-4
+                  ? { targetAt: anchorAt.targetAt }
+                  : {}),
+              },
+            }
+          : {}),
       });
       return {
         ...withHistory(s, `edge:${edge.edgeId}`),
@@ -846,26 +881,53 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
     })),
 
   resizeGroup: (groupId, size) =>
-    set((s) => ({
-      ...withHistory(s, `resizeGroup:${groupId}`),
-      diagram: {
+    set((s) => {
+      const group = s.diagram.groups.find((g) => g.groupId === groupId);
+      let diagram = {
         ...s.diagram,
         groups: s.diagram.groups.map((g) =>
           g.groupId === groupId ? { ...g, width: size.width, height: size.height } : g,
         ),
-      },
-      saveState: 'dirty',
-    })),
+      };
+      /*
+       * 动态容器（2026-11-07）：宽度变了就按新宽度重排列数，并把高度顶到"刚好放得下"。
+       * 这里用 growOnly 之外的语义 —— 高度取 max(用户拖的高度, 内容需要的高度)，
+       * 所以往小拖只会触发重排（列数变少），不会把节点挤出容器。
+       */
+      if (group && isDynamicGroup(group)) {
+        diagram = layoutDynamicGroup(diagram, groupId, { width: size.width, growOnly: true });
+        // growOnly 保住了高度下限，但用户主动拉高时也要尊重：取两者更大
+        diagram = {
+          ...diagram,
+          groups: diagram.groups.map((g) =>
+            g.groupId === groupId ? { ...g, height: Math.max(g.height, size.height) } : g,
+          ),
+        };
+      }
+      return {
+        ...withHistory(s, `resizeGroup:${groupId}`),
+        diagram,
+        saveState: 'dirty',
+      };
+    }),
 
   patchGroup: (groupId, patch) =>
-    set((s) => ({
-      ...withHistory(s, `patchGroup:${groupId}:${Object.keys(patch).join(',')}`),
-      diagram: {
+    set((s) => {
+      let diagram = {
         ...s.diagram,
         groups: s.diagram.groups.map((g) => (g.groupId === groupId ? { ...g, ...patch } : g)),
-      },
-      saveState: 'dirty',
-    })),
+      };
+      const group = diagram.groups.find((g) => g.groupId === groupId);
+      // 动态容器：改标题/副文本会改标题栏高度，跟着重排（宽度不变，growOnly）
+      if (group && isDynamicGroup(group)) {
+        diagram = layoutDynamicGroup(diagram, groupId, { growOnly: true });
+      }
+      return {
+        ...withHistory(s, `patchGroup:${groupId}:${Object.keys(patch).join(',')}`),
+        diagram,
+        saveState: 'dirty',
+      };
+    }),
 
   removeGroup: (groupId) =>
     set((s) => {
@@ -901,6 +963,50 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
       })),
     ),
 
+  /* —— 动态容器（2026-11-07） —— */
+
+  openBatch: (groupId) => set({ batchTarget: groupId }),
+
+  batchAddToDynamic: (groupId, labels, nodeType) => {
+    const state = get();
+    const group = state.diagram.groups.find((g) => g.groupId === groupId);
+    if (!group || !isDynamicGroup(group)) return 0;
+
+    const spec = COMPONENT_INDEX[nodeType];
+    const clean = labels.map((line) => line.trim()).filter((line) => line.length > 0);
+    if (clean.length === 0) return 0;
+
+    const created = clean.map((label) =>
+      createNode(nodeType, state.diagram.diagramId, { x: 0, y: 0 }, {
+        groupId,
+        label,
+        subLabel: '',
+        width: spec?.width ?? 200,
+        height: spec?.height ?? 40,
+      }),
+    );
+
+    set((s) => {
+      // 先把新节点塞进图，再统一排版：列数按"容器里已有的 + 新加的"总数算接近方形
+      const withNodes = { ...s.diagram, nodes: [...s.diagram.nodes, ...created] };
+      const total = withNodes.nodes.filter((n) => !n.isDeleted && n.groupId === groupId).length;
+      // 批量添加后容器精确贴合内容（上下左右正好 2 格），不保留旧尺寸
+      const laid = layoutDynamicGroup(withNodes, groupId, {
+        cols: defaultDynamicCols(total),
+        fitWidth: true,
+        growOnly: false,
+      });
+      return {
+        ...withHistory(s, `batchAdd:${groupId}`),
+        diagram: laid,
+        selectedIds: created.map((n) => n.nodeId),
+        selectedId: created.length === 1 ? created[0]!.nodeId : null,
+        saveState: 'dirty',
+      };
+    });
+    return created.length;
+  },
+
   reparentNode: (nodeId, groupId) =>
     set((s) => {
       // 嵌套上限 3 层：目标组本身已经 3 层深时不再接收
@@ -908,8 +1014,15 @@ export const useDiagramStore = create<DiagramStore>()((rawSet, get) => {
         const depth = countDepth(s.diagram.groups, groupId);
         if (depth >= MAX_GROUP_DEPTH) return s;
       }
-      const next = setNodeGroup(s.diagram, nodeId, groupId);
+      let next = setNodeGroup(s.diagram, nodeId, groupId);
       if (next === s.diagram) return s;
+      // 动态容器：拖进来 / 拖出去都要重排（用户 2026-11-07：手动拖入的也参与自动排版）
+      const before = s.diagram.nodes.find((n) => n.nodeId === nodeId)?.groupId ?? null;
+      for (const id of [groupId, before]) {
+        if (!id) continue;
+        const target = next.groups.find((g) => g.groupId === id);
+        if (target && isDynamicGroup(target)) next = layoutDynamicGroup(next, id, { growOnly: true });
+      }
       return { ...withHistory(s, `reparent:${nodeId}`), diagram: next, saveState: 'dirty' };
     }),
 

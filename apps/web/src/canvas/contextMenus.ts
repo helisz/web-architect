@@ -2,6 +2,7 @@ import {
   CLEAR_COLOR,
   COMPONENT_CATEGORIES,
   EDGE_DEFAULTS,
+  isDynamicZone,
   NODE_DEFAULTS,
   isGroupLocked,
   type ArchitectureDiagram,
@@ -331,11 +332,16 @@ export function buildGroupMenu(group: DiagramGroup): MenuNode[] {
         store.requestEdit(group.groupId);
       },
     },
-    {
-      kind: 'item',
-      label: group.collapsed ? '展开' : '折叠',
-      onSelect: () => useDiagramStore.getState().toggleGroupCollapsed(group.groupId),
-    },
+    // 动态组没有标题栏，折叠会让虚线框塌成一条 —— 不给这个入口（2026-11-07）
+    ...(isDynamicZone(group)
+      ? []
+      : [
+          {
+            kind: 'item' as const,
+            label: group.collapsed ? '展开' : '折叠',
+            onSelect: () => useDiagramStore.getState().toggleGroupCollapsed(group.groupId),
+          },
+        ]),
     { kind: 'separator' },
     {
       kind: 'item',

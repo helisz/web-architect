@@ -3,11 +3,13 @@ import { Handle, NodeResizer, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import {
   ANCHOR_ORDER,
-  groupHeaderHeight,
+  dynamicHeaderHeight,
   isGroupLocked,
   isEditLocked,
   isIconHidden,
   isSingleLineGroup,
+  isDynamicGroup,
+  isDynamicZone,
   resolveIconKey,
   GROUP_ICON_KEY,
   type Anchor,
@@ -44,6 +46,10 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const showSubLabel = Boolean(group.subLabel) && !isSingleLineGroup(group);
+  // 动态容器（2026-11-07）：容器内一个「＋」打开批量添加
+  const isDynamic = isDynamicGroup(group);
+  const isZone = isDynamicZone(group);
+  const openBatch = useDiagramStore((s) => s.openBatch);
   const locked = isGroupLocked(group);
   // 全局锁定编辑：改名也一起关掉
   const editLocked = useDiagramStore((s) => isEditLocked(s.diagram));
@@ -73,11 +79,16 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
 
   return (
     <div
-      className="h-full w-full rounded-[var(--radius-node)] border"
+      className={`relative h-full w-full rounded-[var(--radius-node)] border ${
+        isZone ? 'border-dashed' : ''
+      }`}
       style={{
         background: group.bgColor,
         borderColor: selected ? 'var(--primary)' : group.borderColor,
         borderWidth: selected || highlighted ? 2 : 1,
+        borderStyle: isZone ? 'dashed' : 'solid',
+        // 动态组的名称画在框外左上角，不能被自己裁掉
+        overflow: isZone ? 'visible' : undefined,
         outline: highlighted ? '3px solid rgba(36,91,219,0.35)' : undefined,
         outlineOffset: highlighted ? 2 : undefined,
         boxShadow: 'none',
@@ -91,15 +102,69 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
         handleClassName="!h-2.5 !w-2.5 !rounded-sm !border !border-[var(--primary)] !bg-white"
       />
 
+      {/* 动态组（2026-11-07）：名称画在虚线框**外**的左上角，灰色等宽小字 + 图标。
+          双击可改名；不参与节点包围盒（absolute + 负 top），不影响拖拽/缩放命中。 */}
+      {isZone && (
+        <div
+          className="nodrag nopan absolute -top-5 left-0 flex max-w-full items-center gap-1 text-[11px] leading-4 text-[var(--text-tertiary)]"
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (!locked && !editLocked) setEditing(true);
+          }}
+          title="双击改名"
+        >
+          {!isIconHidden(group) && (
+            <NodeIcon iconKey={resolveIconKey({ nodeType: GROUP_ICON_KEY, extJson: group.extJson })} size={12} className="shrink-0 opacity-70" />
+          )}
+          {editing ? (
+            <input
+              ref={inputRef}
+              className="nodrag nopan w-40 rounded border border-[var(--primary)] bg-white px-1 text-[11px] text-[var(--text-primary)] outline-none"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commit();
+                if (e.key === 'Escape') {
+                  setDraft(group.label);
+                  setEditing(false);
+                }
+                e.stopPropagation();
+              }}
+            />
+          ) : (
+            <span className="mono truncate">{group.label || '动态组'}</span>
+          )}
+        </div>
+      )}
+
+      {/* 动态容器的「＋」（用户 2026-11-08）：放到**框外下方居中**，不占内容区 */}
+      {isDynamic && !locked && (
+        <button
+          type="button"
+          title="批量添加节点"
+          aria-label="批量添加节点"
+          onClick={(e) => {
+            e.stopPropagation();
+            openBatch(group.groupId);
+          }}
+          className="nodrag nopan absolute left-1/2 z-10 grid h-6 w-6 -translate-x-1/2 cursor-pointer place-items-center rounded-full border border-dashed border-[var(--text-tertiary)] bg-white/85 text-[14px] leading-none text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          style={{ bottom: -32 }}
+        >
+          ＋
+        </button>
+      )}
+
       {/* 标题栏：拖动组、改名都在这里。折叠三角已移除（用户 2026-11-04 第四批：
           标题栏只要名称 + 副文本，不再放按钮）；折叠仍可从属性面板和右键菜单操作。
           高度（2026-11-07 用户定）：勾了「副文本」至少 38px，副文本每多一行 +10px；
           没勾就是 24px（只有一行标题）。 */}
+      {!isZone && (
       <div
         data-group-header
         className="flex items-start gap-1.5 rounded-t-[var(--radius-node)] px-2"
         style={{
-          height: groupHeaderHeight(group),
+          height: dynamicHeaderHeight(group),
           color: group.titleColor,
           borderBottom: `1px solid ${group.borderColor}`,
         }}
@@ -165,6 +230,7 @@ function SwimlaneNodeImpl({ data, selected }: NodeProps<SwimlaneFlowNode>) {
           </span>
         )}
       </div>
+      )}
 
       {/* 分组也能连线（用户 2026-11-04）：四边各一个 source Handle，配合 ConnectionMode.Loose
           任意边起线/接收。视觉与节点手柄同一套 .arch-handle（8px 本体 + 24px 命中区，

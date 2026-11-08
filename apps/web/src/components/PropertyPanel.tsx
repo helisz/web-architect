@@ -13,6 +13,7 @@ import {
   isEditLocked,
   isIconHidden,
   isSingleLineGroup,
+  isDynamicZone,
   parseFontSize,
   textStyleOf,
   withTextStyle,
@@ -612,6 +613,7 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         取消勾选就回到单行标题（24px，和通用「分组」一样高）。
         存储上沿用 extJson.singleLine，取反关系见 isSingleLineGroup()。
       */}
+      {!isDynamicZone(group) && (
       <label className="mb-3 flex items-center gap-2 text-[13px]">
         <input
           type="checkbox"
@@ -624,8 +626,9 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         />
         显示副文本（标题下面那行小字）
       </label>
+      )}
 
-      {!isSingleLineGroup(group) && (
+      {!isDynamicZone(group) && !isSingleLineGroup(group) && (
         <Field label="副文本">
           {/* 允许回车换行；太长时标题栏高度跟着加行 */}
           <textarea
@@ -702,14 +705,16 @@ function GroupForm({ group }: { group: DiagramGroup }) {
         kind="group"
       />
 
-      <label className="mb-3 flex items-center gap-2 text-[13px]">
-        <input
-          type="checkbox"
-          checked={group.collapsed}
-          onChange={() => toggleGroupCollapsed(group.groupId)}
-        />
-        折叠（子元素数据保留，展开即回来）
-      </label>
+      {!isDynamicZone(group) && (
+        <label className="mb-3 flex items-center gap-2 text-[13px]">
+          <input
+            type="checkbox"
+            checked={group.collapsed}
+            onChange={() => toggleGroupCollapsed(group.groupId)}
+          />
+          折叠（子元素数据保留，展开即回来）
+        </label>
+      )}
 
       <p className="mb-3 text-[11px] text-[var(--text-secondary)]">
         组内直接包含 {childCount} 个节点；拖进/拖出会自动换算局部坐标，整体拖动不漂移。

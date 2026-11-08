@@ -3,6 +3,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './canvas/Canvas.js';
 import { ComponentPanel } from './components/ComponentPanel.js';
 import { AiConfigDialog } from './components/AiConfigDialog.js';
+import { BatchAddDialog } from './components/BatchAddDialog.js';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog.js';
 import { SaveBanner } from './components/SaveBanner.js';
 import { StartupError } from './components/StartupError.js';
@@ -161,6 +162,7 @@ export default function App() {
         </div>
       </ReactFlowProvider>
       <DeleteConfirmDialog />
+      <BatchAddDialog />
       <AiConfigDialog />
       <ToastHost />
       {importOpen && <GuestImportDialog onClose={() => setImportOpen(false)} />}

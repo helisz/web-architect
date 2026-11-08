@@ -1,4 +1,5 @@
 import type { ArchitectureDiagram, DiagramGroup, DiagramNode, Point } from './types.js';
+import { layoutDynamicItems } from './dynamicLayout.js';
 
 /**
  * 分组（泳道）几何与挂载规则。
@@ -85,6 +86,45 @@ export function groupHeaderHeight(group: {
  * 锁定后：不能拖动、不能缩放、不能改名、折叠三角隐藏、右键菜单只留「解锁」、
  * 属性面板只剩解锁按钮；**仍然可以选中**（用户明确要求）。
  */
+/**
+ * 动态分组 / 动态组（用户 2026-11-07）。
+ *
+ * 两者都是普通 `DiagramGroup`，只靠 extJson 标记：
+ * - `dynamic: true` → 容器内子元素自动排版，容器里显示一个「＋」批量添加入口；
+ * - `dashed: true` → 动态组：虚线框、名称在框外左上角、没有标题栏/副文本/折叠。
+ *
+ * 不新增数据库列：`ext_json` 本来就在保存 / 差异 / 快照链路里完整往返。
+ */
+export function isDynamicGroup(group: { extJson?: Record<string, unknown> }): boolean {
+  return group.extJson?.dynamic === true;
+}
+
+/** 动态组（虚线框、名称在框外）—— 是动态分组的特例 */
+export function isDynamicZone(group: { extJson?: Record<string, unknown> }): boolean {
+  return group.extJson?.dynamic === true && group.extJson?.dashed === true;
+}
+
+/**
+ * 动态容器内容区的内距：**2 个网格单位（20px）**
+ * 用户 2026-11-08：子节点离外框上下左右都留 2 格，节点之间留 1 格（DYNAMIC_GAP）。
+ */
+export const DYNAMIC_PADDING = 20;
+
+/**
+ * 动态容器标题栏高度：动态组不占（名称画在框外），动态分组**向上取整到 10 的倍数**。
+ *
+ * 为什么取整：子节点离上边距是"标题栏 + 2 格内距"，如果标题栏是 24/38 这种非整格高度，
+ * 子节点就会落在 44/58 —— 正好差半格，看起来没跟网格对齐（用户 2026-11-08 指出的问题）。
+ */
+export function dynamicHeaderHeight(group: {
+  subLabel?: string;
+  width: number;
+  extJson?: Record<string, unknown>;
+}): number {
+  if (isDynamicZone(group)) return 0;
+  return Math.ceil(groupHeaderHeight(group) / 10) * 10;
+}
+
 export function isGroupLocked(group: { extJson?: Record<string, unknown> }): boolean {
   return group.extJson?.locked === true;
 }
@@ -279,3 +319,68 @@ export function removeGroupLifting(diagram: ArchitectureDiagram, groupId: string
 
 
 
+
+/* ------------------------------------------------------------------ */
+/* 动态容器的排版落库（2026-11-07）                                     */
+/* ------------------------------------------------------------------ */
+
+/** 动态容器最小尺寸：刚开始"比较小"，加节点后自动长大 */
+export const DYNAMIC_MIN_WIDTH = 240;
+export const DYNAMIC_MIN_HEIGHT = 100;
+
+/**
+ * 按当前宽度重排动态容器里的子节点，并让容器高度至少放得下内容。
+ *
+ * - `width`：用这个宽度重排（拖动缩放时传新宽度）；不传就用容器当前宽度；
+ * - `cols`：强制列数（批量添加后"接近方形"用）；不传就按宽度自动选最大可放下的列数；
+ * - `fitWidth`：让容器宽度收缩到刚好包住内容（批量添加时用，不会低于 DYNAMIC_MIN_WIDTH）；
+ * - `growOnly`：容器尺寸只增不减（用户手动拉大后不被批量添加缩回去）。
+ *
+ * 子节点坐标是**相对父组**的局部坐标（C1 红线），所以这里只写 x/y，不碰绝对坐标。
+ */
+export function layoutDynamicGroup(
+  diagram: ArchitectureDiagram,
+  groupId: string,
+  options: { width?: number; cols?: number; fitWidth?: boolean; growOnly?: boolean } = {},
+): ArchitectureDiagram {
+  const group = diagram.groups.find((g) => g.groupId === groupId);
+  if (!group || !isDynamicGroup(group)) return diagram;
+
+  const children = diagram.nodes.filter((n) => !n.isDeleted && n.groupId === groupId);
+  const headerH = dynamicHeaderHeight(group);
+  const width = options.fitWidth ? group.width : (options.width ?? group.width);
+  const innerWidth = Math.max(40, width - DYNAMIC_PADDING * 2);
+
+  const layout = layoutDynamicItems(
+    children.map((n) => ({ id: n.nodeId, width: n.width, height: n.height })),
+    options.cols !== undefined ? { cols: options.cols } : { innerWidth },
+  );
+
+  const neededWidth = Math.max(DYNAMIC_MIN_WIDTH, layout.contentWidth + DYNAMIC_PADDING * 2);
+  const neededHeight = Math.max(
+    DYNAMIC_MIN_HEIGHT,
+    headerH + DYNAMIC_PADDING * 2 + layout.contentHeight,
+  );
+  const nextWidth = options.fitWidth
+    ? Math.max(neededWidth, options.growOnly ? width : 0)
+    : width;
+  const nextHeight = options.growOnly ? Math.max(group.height, neededHeight) : neededHeight;
+
+  const posById = new Map(layout.slots.map((slot) => [slot.id, slot]));
+  const originX = DYNAMIC_PADDING;
+  const originY = headerH + DYNAMIC_PADDING;
+
+  const nodes = diagram.nodes.map((n) => {
+    const slot = posById.get(n.nodeId);
+    if (!slot) return n;
+    return { ...n, x: originX + slot.x, y: originY + slot.y };
+  });
+
+  return {
+    ...diagram,
+    groups: diagram.groups.map((g) =>
+      g.groupId === groupId ? { ...g, width: nextWidth, height: nextHeight } : g,
+    ),
+    nodes,
+  };
+}

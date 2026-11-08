@@ -21,11 +21,13 @@ import {
 import type { NodeType } from '@arch/schema';
 import {
   COMPONENT_INDEX,
+  DYNAMIC_PRESETS,
   GROUP_PRESETS,
   NODE_DEFAULTS,
   groupOffset,
   isEditLocked,
   hitGroup,
+  projectToAnchor,
   isAncestorOf,
   isHiddenByCollapse,
   groupAbsoluteRect,
@@ -72,19 +74,6 @@ export const CONNECTION_RADIUS = 36;
 
 /** 吸附取整 */
 const snap = (value: number): number => Math.round(value / SNAP_GRID[0]) * SNAP_GRID[0];
-
-/** 按松手位置判断落在节点的哪一边（取最近的一侧） */
-function nearestAnchor(
-  point: { x: number; y: number },
-  rect: { x: number; y: number; width: number; height: number },
-): 'top' | 'right' | 'bottom' | 'left' {
-  const dx = point.x - (rect.x + rect.width / 2);
-  const dy = point.y - (rect.y + rect.height / 2);
-  const normalizedX = Math.abs(dx) / Math.max(1, rect.width / 2);
-  const normalizedY = Math.abs(dy) / Math.max(1, rect.height / 2);
-  if (normalizedX > normalizedY) return dx > 0 ? 'right' : 'left';
-  return dy > 0 ? 'bottom' : 'top';
-}
 
 /** 拖线起点手柄 → 锚点；拿不到（中键/脚本触发）时退回右边 */
 function anchorOfHandle(handleId: string | null): 'top' | 'right' | 'bottom' | 'left' {
@@ -519,12 +508,9 @@ const cursorFrame = useRef<number | null>(null);
       // 否则从任意手柄拖出来都变成同一条线（曾经的 bug）。
       // 目标端按"朝向起点的那个边"接上：落在节点中间时不至于随机挑一边。
       const sourceAnchor = anchorOfHandle(from.handleId);
-      const sourceNode = diagram.nodes.find((n) => n.nodeId === from.nodeId);
-      const sourceRect = sourceNode ? nodeAbsoluteRect(diagram.groups, sourceNode) : null;
-      const targetAnchor = sourceRect
-        ? nearestAnchor({ x: sourceRect.x + sourceRect.width / 2, y: sourceRect.y + sourceRect.height / 2 }, endpoint.rect)
-        : nearestAnchor(point, endpoint.rect);
-      addEdge(from.nodeId, endpoint.id, sourceAnchor, targetAnchor);
+      // 终点按"松手落点"投影到最近的边框（用户 2026-11-08：不一定是原来的吸附点）
+      const projected = projectToAnchor(endpoint.rect, point);
+      addEdge(from.nodeId, endpoint.id, sourceAnchor, projected.anchor, { targetAt: projected.at });
     },
     [addEdge, diagram.groups, diagram.nodes, screenToFlowPosition],
   );
@@ -544,6 +530,34 @@ const cursorFrame = useRef<number | null>(null);
       // 1) 拖进来的是"分组"：建框，落点即框的左上角附近（居中更像"框住这里"）
       const groupPayload = event.dataTransfer.getData(GROUP_MIME);
       if (groupPayload) {
+        // 动态分组 / 动态组（2026-11-07）：建组并打上 extJson.dynamic
+        const dynamic = DYNAMIC_PRESETS.find((item) => item.key === groupPayload);
+        if (dynamic) {
+          const targetGroup = hitGroup(diagram.groups, point);
+          const offset = targetGroup ? groupOffset(diagram.groups, targetGroup.groupId) : { x: 0, y: 0 };
+          const created = addGroup(
+            {
+              x: point.x - offset.x - dynamic.width / 2,
+              y: point.y - offset.y - dynamic.height / 2,
+            },
+            {
+              width: dynamic.width,
+              height: dynamic.height,
+              label: dynamic.label,
+              subLabel: '',
+              extJson: {
+                dynamic: true,
+                dashed: dynamic.dashed,
+                // 动态分组默认单行标题（副文本可选）；动态组没有标题栏
+                singleLine: !dynamic.dashed,
+                iconKey: dynamic.iconKey,
+              },
+            },
+          );
+          if (targetGroup) reparentGroup(created.groupId, targetGroup.groupId);
+          return;
+        }
+
         // 载荷是 JSON 预设（服务器 / 集群 / nginx），通用分组传的是 'group'
         const preset =
           groupPayload === 'group'

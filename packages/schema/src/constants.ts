@@ -402,6 +402,29 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
 ];
 
 /**
+ * 动态容器（2026-11-07 用户新增）：结构区里紧跟在「分组」后面的两张卡。
+ *
+ * - 动态分组：普通分组的外观 + 容器里一个「＋」，点它批量塞节点；
+ * - 动态组：虚线框、名称画在框外左上角、没有标题栏/副文本/折叠。
+ *
+ * 拖出来时都通过 GROUP_MIME 传 key，由画布按 key 建组并打上 `extJson.dynamic`。
+ */
+export interface DynamicPreset {
+  key: 'dynamic-group' | 'dynamic-zone';
+  label: string;
+  /** 组件库卡片上的小图标（不落库，只影响卡片） */
+  iconKey: string;
+  width: number;
+  height: number;
+  dashed: boolean;
+}
+
+export const DYNAMIC_PRESETS: DynamicPreset[] = [
+  { key: 'dynamic-group', label: '动态分组', iconKey: 'tabler:square-plus', width: 260, height: 160, dashed: false },
+  { key: 'dynamic-zone', label: '动态组', iconKey: 'tabler:square-dashed', width: 260, height: 150, dashed: true },
+];
+
+/**
  * 「结构」区末尾的节点卡（不进组件分类树）。
  *
  * 单行元素 = 普通节点（有边框、有底色、能连线、能进分组），只是默认 200×40：

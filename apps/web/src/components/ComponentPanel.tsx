@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useDiagramStore } from '../store/useDiagramStore.js';
-import { COMPONENT_CATEGORIES, GROUP_ICON_KEY, GROUP_PRESETS, STRUCTURE_NODE_SPECS, iconKeyFor } from '@arch/schema';
+import { COMPONENT_CATEGORIES, DYNAMIC_PRESETS, GROUP_ICON_KEY, GROUP_PRESETS, STRUCTURE_NODE_SPECS, iconKeyFor } from '@arch/schema';
 import type { ComponentSpec, GroupPreset } from '@arch/schema';
 import { NodeIcon } from '../icons/index.js';
 import { ToolIcon } from './ToolIcons.js';
@@ -164,6 +164,13 @@ export function ComponentPanel() {
         icon: RAIL_ICONS.structure!,
         groups: [
           { key: 'group', label: '分组', iconKey: GROUP_ICON_KEY, payload: 'group', dashed: true },
+          ...DYNAMIC_PRESETS.map((preset) => ({
+            key: preset.key,
+            label: preset.label,
+            iconKey: preset.iconKey,
+            payload: preset.key,
+            dashed: preset.dashed,
+          })),
           ...GROUP_PRESETS.map((preset) => ({
             key: `preset-${preset.key}`,
             label: preset.label,
@@ -318,6 +325,23 @@ export function ComponentPanel() {
           <div className="grid grid-cols-2 gap-1">
             {/* 搜索时不显示"分组"（它不是节点，留着会把每条搜索结果都弄脏） */}
             {!keyword.trim() && <GroupCard />}
+            {/* 动态分组 / 动态组（2026-11-07）：入口紧跟在「分组」后面 */}
+            {DYNAMIC_PRESETS.filter((preset) => !keyword.trim() || preset.label.includes(keyword.trim())).map(
+              (preset) => (
+                <StructureCard
+                  key={preset.key}
+                  iconKey={preset.iconKey}
+                  label={preset.label}
+                  title={
+                    preset.dashed
+                      ? `拖到画布创建「${preset.label}」（虚线框，名称在框外，点框里的＋批量加节点）`
+                      : `拖到画布创建「${preset.label}」（点框里的＋批量加节点）`
+                  }
+                  payload={preset.key}
+                  dashed={preset.dashed}
+                />
+              ),
+            )}
             {presets.map((preset) => (
               <PresetCard key={preset.key} preset={preset} />
             ))}

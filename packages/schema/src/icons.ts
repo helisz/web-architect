@@ -62,6 +62,8 @@ export const ALLOWED_ICON_KEYS = [
   'tabler:settings',
   'tabler:circle-dot',
   'tabler:layout-navbar',
+  'tabler:square-plus',
+  'tabler:square-dashed',
   // 2026-11-07 档 2：把撞车图标拆开（新拖出来的节点用新图标）
   'tabler:arrows-split-2',
   'tabler:arrows-exchange',

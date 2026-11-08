@@ -11,7 +11,7 @@ import {
   useStore,
 } from '@xyflow/react';
 import type { EdgeProps, InternalNode } from '@xyflow/react';
-import { anchorPoint, isEditLocked, type Anchor, type Rect } from '@arch/schema';
+import { anchorPoint, isEditLocked, projectToAnchor, readEdgeAnchorAt, type Anchor, type Rect } from '@arch/schema';
 import { anchorOf, type ArchFlowEdge } from './flowMapping.js';
 import { useDiagramStore } from '../store/useDiagramStore.js';
 import { useEdgeLabelEdit } from '../store/useEdgeLabelEdit.js';
@@ -34,6 +34,8 @@ const ARROW = 10;
 interface AnchorDrag {
   end: 'source' | 'target';
   anchor: Anchor;
+  /** 沿边比例：0..1（默认 0.5 = 中点）。2026-11-08：端点可以停在边框任意位置 */
+  at: number;
 }
 
 function rectOf(node: InternalNode | undefined): Rect | null {
@@ -63,18 +65,6 @@ function positionOf(anchor: Anchor): Position {
 }
 
 /** 把指针位置换算成"离节点哪条边最近"，用于拖端点换锚点 */
-function nearestAnchor(rect: Rect, p: Pt): Anchor {
-  const dl = Math.abs(p.x - rect.x);
-  const dr = Math.abs(p.x - (rect.x + rect.width));
-  const dt = Math.abs(p.y - rect.y);
-  const db = Math.abs(p.y - (rect.y + rect.height));
-  const min = Math.min(dl, dr, dt, db);
-  if (min === dl) return 'left';
-  if (min === dr) return 'right';
-  if (min === dt) return 'top';
-  return 'bottom';
-}
-
 /**
  * 连线绘制（用户 2026-11-04 第 3 批改定；2026-11-05 第 8 批加拖拽改路线）。
  *
@@ -126,13 +116,17 @@ function ArchEdgeImpl({
   const storedWaypoints = useMemo(() => readWaypoints(edge?.extJson), [edge?.extJson]);
   const waypoints = draftWaypoints ?? storedWaypoints;
 
+  const storedSourceAt = readEdgeAnchorAt(edge?.extJson, 'source');
+  const storedTargetAt = readEdgeAnchorAt(edge?.extJson, 'target');
   const liveSourceAnchor = anchorDrag?.end === 'source' ? anchorDrag.anchor : sourceAnchor;
   const liveTargetAnchor = anchorDrag?.end === 'target' ? anchorDrag.anchor : targetAnchor;
+  const liveSourceAt = anchorDrag?.end === 'source' ? anchorDrag.at : storedSourceAt;
+  const liveTargetAt = anchorDrag?.end === 'target' ? anchorDrag.at : storedTargetAt;
 
   const geometry = useMemo(() => {
     if (!sourceRect || !targetRect) return null;
-    const start = anchorPoint(sourceRect, liveSourceAnchor);
-    const end = anchorPoint(targetRect, liveTargetAnchor);
+    const start = anchorPoint(sourceRect, liveSourceAnchor, liveSourceAt);
+    const end = anchorPoint(targetRect, liveTargetAnchor, liveTargetAt);
 
     // 有折点：自己拼路径（三种线型都支持穿过折点）
     if (waypoints.length > 0) {
@@ -181,6 +175,8 @@ function ArchEdgeImpl({
     targetRect?.height,
     liveSourceAnchor,
     liveTargetAnchor,
+    liveSourceAt,
+    liveTargetAt,
     edgeType,
     waypoints,
   ]);
@@ -220,11 +216,14 @@ function ArchEdgeImpl({
     let current: AnchorDrag = {
       end,
       anchor: end === 'source' ? liveSourceAnchor : liveTargetAnchor,
+      at: end === 'source' ? liveSourceAt : liveTargetAt,
     };
     setAnchorDrag(current);
     const onMove = (moveEvent: PointerEvent): void => {
       const p = toFlow(moveEvent);
-      current = { end, anchor: nearestAnchor(rect, p) };
+      // 投影到最近的边框 + 10px 网格吸附（用户 2026-11-08：可以停在边上任意位置，且能跨边）
+      const projected = projectToAnchor(rect, p);
+      current = { end, anchor: projected.anchor, at: projected.at };
       setAnchorDrag(current);
     };
     const onUp = (): void => {
@@ -232,9 +231,16 @@ function ArchEdgeImpl({
       window.removeEventListener('pointerup', onUp);
       draggingRef.current = false;
       setAnchorDrag(null);
-      const stored = end === 'source' ? sourceAnchor : targetAnchor;
-      if (current.anchor !== stored) {
-        patchEdgeNow(id, end === 'source' ? { sourceAnchor: current.anchor } : { targetAnchor: current.anchor });
+      const storedAnchor = end === 'source' ? sourceAnchor : targetAnchor;
+      const storedAt = end === 'source' ? storedSourceAt : storedTargetAt;
+      if (current.anchor !== storedAnchor || Math.abs(current.at - storedAt) > 1e-4) {
+        patchEdgeNow(id, {
+          ...(end === 'source' ? { sourceAnchor: current.anchor } : { targetAnchor: current.anchor }),
+          extJson: {
+            ...(edge?.extJson ?? {}),
+            ...(end === 'source' ? { sourceAt: current.at } : { targetAt: current.at }),
+          },
+        });
       }
     };
     window.addEventListener('pointermove', onMove);
